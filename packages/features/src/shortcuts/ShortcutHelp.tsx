@@ -33,6 +33,11 @@ export interface ShortcutHelpProps {
  * is the point. Spelling each path out means a renamed catalog key breaks the
  * build instead of rendering the raw key to the user.
  */
+/**
+ * The cheat-sheet's rows. Every binding the shell registers must appear here
+ * and nothing else may: the sheet is the single promise the app makes about
+ * keys. `default-shortcuts.test.ts` holds the two to each other.
+ */
 export const DEFAULT_SHORTCUT_BINDINGS: readonly {
   binding: string;
   labelKey:
@@ -47,6 +52,8 @@ export const DEFAULT_SHORTCUT_BINDINGS: readonly {
     | 'shortcuts.agenda'
     | 'shortcuts.close';
 }[] = [
+  // Both conventional chords open search; users arrive with either habit.
+  { binding: 'mod+f', labelKey: 'shortcuts.search' },
   { binding: 'mod+k', labelKey: 'shortcuts.search' },
   { binding: '?', labelKey: 'shortcuts.help' },
   { binding: 'mod+z', labelKey: 'shortcuts.undo' },

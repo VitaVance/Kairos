@@ -8,8 +8,9 @@ import { useEffect, useRef } from 'react';
  * with spaces — `g q`. `mod` is Cmd on macOS and Ctrl everywhere else.
  *
  * Events are ignored while typing in an input/textarea/contenteditable, except
- * `mod+k` (so the search palette can open from anywhere) and Escape (so it can
- * close whatever has focus). Events another listener already handled
+ * a small allowlist of chords that never insert text — `mod+k` and `mod+f` (so
+ * the search palette can open from anywhere) — and Escape (so it can close
+ * whatever has focus). Events another listener already handled
  * (`defaultPrevented`) are skipped, which lets the host shell own a shortcut
  * natively without double-firing.
  */
@@ -63,7 +64,16 @@ export function detectPlatform(): ShortcutPlatform {
   return /mac|iphone|ipad|ipod/i.test(source) ? 'mac' : 'other';
 }
 
-const IS_MAC = detectPlatform() === 'mac';
+const PLATFORM: ShortcutPlatform = detectPlatform();
+
+/**
+ * Chords that keep working while the user is typing in a field.
+ *
+ * They never insert text, so the focused field loses nothing by yielding them;
+ * the binding is still matched later with its exact modifier set, so
+ * `Ctrl+Shift+F` or `Ctrl+Alt+F` are *not* covered by this list.
+ */
+const TYPING_ALLOWED_CHORDS: readonly string[] = ['mod+k', 'mod+f'];
 
 interface ParsedStep {
   key: string;
@@ -123,13 +133,25 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   return tag === 'input' || tag === 'textarea';
 }
 
-function stepMatches(step: ParsedStep, event: KeyboardEvent, key: string): boolean {
+function stepMatches(
+  step: ParsedStep,
+  event: ShortcutKeyEvent,
+  key: string,
+  platform: ShortcutPlatform,
+): boolean {
   if (step.key !== key) return false;
 
-  const modPressed = IS_MAC ? event.metaKey : event.ctrlKey;
+  // Exact modifier-set comparison in both directions. A `mod+f` binding must
+  // not fire for `mod+shift+f`: Shift is part of the chord, so an extra
+  // Shift means the user asked for something else. `mod` expands to Ctrl on
+  // Windows/Linux and Cmd on macOS before comparing, so it is not required
+  // spuriously *and* is not left out of the equality check.
+  const modPressed = platform === 'mac' ? event.metaKey : event.ctrlKey;
   if (step.mod !== modPressed) return false;
-  if (step.ctrl && !event.ctrlKey) return false;
-  if (step.meta && !event.metaKey) return false;
+  const wantsCtrl = step.ctrl || (step.mod && platform !== 'mac');
+  const wantsMeta = step.meta || (step.mod && platform === 'mac');
+  if (wantsCtrl !== event.ctrlKey) return false;
+  if (wantsMeta !== event.metaKey) return false;
   if (step.alt !== event.altKey) return false;
 
   // Shift is meaningful for letters/digits and whenever the binding asks for
@@ -141,16 +163,52 @@ function stepMatches(step: ParsedStep, event: KeyboardEvent, key: string): boole
   return true;
 }
 
+/** The subset of a KeyboardEvent that binding matching reads. */
+export interface ShortcutKeyEvent {
+  readonly key: string;
+  readonly ctrlKey: boolean;
+  readonly metaKey: boolean;
+  readonly altKey: boolean;
+  readonly shiftKey: boolean;
+}
+
+/**
+ * True when a single-step binding (`mod+f`, `escape`) matches this event on
+ * the given platform. Sequences are stateful and therefore not supported here;
+ * this exists so the matcher's exact-modifier rule is testable without a DOM.
+ */
+export function matchesBinding(
+  binding: string,
+  event: ShortcutKeyEvent,
+  platform: ShortcutPlatform = PLATFORM,
+): boolean {
+  const steps = binding
+    .trim()
+    .split(/\s+/)
+    .map(parseStep);
+  if (steps.length !== 1) return false;
+  return stepMatches(steps[0]!, event, eventKey(event), platform);
+}
+
+/**
+ * True when the event matches a chord that is allowed to fire from a text
+ * field (`TYPING_ALLOWED_CHORDS`). Compared on key + exact modifiers so the
+ * allowlist cannot widen into `mod+shift+f`, a sequence, or a bare `f`.
+ */
+function isTypingAllowedChord(event: ShortcutKeyEvent): boolean {
+  return TYPING_ALLOWED_CHORDS.some((binding) => matchesBinding(binding, event));
+}
+
 function isModifierOnly(key: string): boolean {
   return MODIFIER_KEYS.has(key);
 }
 
-function eventKey(event: KeyboardEvent): string {
+function eventKey(event: Pick<KeyboardEvent, 'key'>): string {
   return normalizeKey(event.key === ' ' ? 'space' : event.key);
 }
 
 /** Human-readable, platform-correct label for a binding. */
-export function formatBinding(binding: string, platform: ShortcutPlatform = detectPlatform()): string {
+export function formatBinding(binding: string, platform: ShortcutPlatform = PLATFORM): string {
   const steps = binding
     .trim()
     .split(/\s+/)
@@ -224,9 +282,8 @@ export function useShortcuts(bindings: ShortcutBindings, options: UseShortcutsOp
       if (key.length === 0 || isModifierOnly(key)) return;
 
       const editable = isEditableTarget(event.target);
-      const searchChord = key === 'k' && (IS_MAC ? event.metaKey : event.ctrlKey);
       const escape = key === 'escape';
-      if (editable && !searchChord && !escape) return;
+      if (editable && !escape && !isTypingAllowedChord(event)) return;
 
       if (escape) {
         // Let dialogs/popovers handle Escape themselves; just drop a pending
@@ -245,7 +302,7 @@ export function useShortcuts(bindings: ShortcutBindings, options: UseShortcutsOp
           (binding) =>
             binding.steps.length === nextKeys.length &&
             binding.steps.slice(0, -1).every((step, i) => step.key === nextKeys[i]) &&
-            stepMatches(binding.steps[binding.steps.length - 1]!, event, key),
+            stepMatches(binding.steps[binding.steps.length - 1]!, event, key, PLATFORM),
         );
         if (exact) {
           clearPending();
@@ -271,7 +328,7 @@ export function useShortcuts(bindings: ShortcutBindings, options: UseShortcutsOp
       }
 
       const single = parsed.find(
-        (binding) => binding.steps.length === 1 && stepMatches(binding.steps[0]!, event, key),
+        (binding) => binding.steps.length === 1 && stepMatches(binding.steps[0]!, event, key, PLATFORM),
       );
       if (single) {
         event.preventDefault();
@@ -283,7 +340,7 @@ export function useShortcuts(bindings: ShortcutBindings, options: UseShortcutsOp
       if (hasModifier) return;
 
       const startsSequence = parsed.some(
-        (binding) => binding.steps.length > 1 && stepMatches(binding.steps[0]!, event, key),
+        (binding) => binding.steps.length > 1 && stepMatches(binding.steps[0]!, event, key, PLATFORM),
       );
       if (startsSequence) {
         pendingRef.current = [key];
