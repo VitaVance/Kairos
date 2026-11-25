@@ -33,7 +33,7 @@ Kairos is built on a narrower bet:
 
 ## Features
 
-![Quadrant board](docs/screenshots/01-quadrant.png)
+![Quadrant board](docs/screenshots/en/01-quadrant.png)
 
 ### Quadrants: decide *whether* before *when*
 
@@ -65,15 +65,15 @@ The first three sit quietly in the calendar's all-day strip. They never carve a 
 
 > A calendar that refuses to admit most tasks have no clock time is a calendar that makes you invent times you do not mean.
 
-![Task detail with the five-way precision control](docs/screenshots/04-task-detail.png)
+![Task detail with the five-way precision control](docs/screenshots/en/04-task-detail.png)
 
 ### Six ways to look at one body of data
 
 | Month | Week |
 | --- | --- |
-| ![Month grid](docs/screenshots/02-month.png) | ![Week time grid](docs/screenshots/03-week.png) |
+| ![Month grid](docs/screenshots/en/02-month.png) | ![Week time grid](docs/screenshots/en/03-week.png) |
 | **Year — density at a glance** | **Agenda** |
-| ![Year heatmap](docs/screenshots/05-year.png) | ![Agenda timeline](docs/screenshots/06-agenda.png) |
+| ![Year heatmap](docs/screenshots/en/05-year.png) | ![Agenda timeline](docs/screenshots/en/06-agenda.png) |
 
 | View | When you reach for it |
 | --- | --- |

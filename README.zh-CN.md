@@ -33,7 +33,7 @@ Kairos 的取舍很明确：
 
 ## 功能
 
-![四象限看板](docs/screenshots/01-quadrant.png)
+![四象限看板](docs/screenshots/zh/01-quadrant.png)
 
 ### 四象限：先想清楚要不要做，再想什么时候做
 
@@ -65,15 +65,15 @@ Kairos 的取舍很明确：
 
 > 一个不肯承认「大多数任务没有确切时间」的日历，只会逼你编造时间。
 
-![任务详情：五档时间精度](docs/screenshots/04-task-detail.png)
+![任务详情：五档时间精度](docs/screenshots/zh/04-task-detail.png)
 
 ### 六个视角看同一份数据
 
 | 月视图 | 周视图 |
 | --- | --- |
-| ![月视图](docs/screenshots/02-month.png) | ![周视图](docs/screenshots/03-week.png) |
+| ![月视图](docs/screenshots/zh/02-month.png) | ![周视图](docs/screenshots/zh/03-week.png) |
 | **年视图 —— 密度一目了然** | **日程视图** |
-| ![年视图热力图](docs/screenshots/05-year.png) | ![日程视图](docs/screenshots/06-agenda.png) |
+| ![年视图热力图](docs/screenshots/zh/05-year.png) | ![日程视图](docs/screenshots/zh/06-agenda.png) |
 
 | 视图 | 什么时候用 |
 | --- | --- |
