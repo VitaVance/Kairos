@@ -8,6 +8,10 @@ build/
 target/
 *.tsbuildinfo
 
+# vite's on-disk dependency cache — regenerated on every dev start, and it
+# embeds absolute paths from whichever machine ran it.
+.vite/
+
 # tauri / rust
 apps/desktop/src-tauri/target/
 
