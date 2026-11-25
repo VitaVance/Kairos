@@ -1,0 +1,22 @@
+{
+  "name": "@todolist/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Placeholder mobile shell. Reuses @todolist/core + @todolist/features; wires a mobile storage adapter here.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@todolist/core": "workspace:*",
+    "@todolist/features": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}
