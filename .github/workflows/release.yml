@@ -99,9 +99,18 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
 
       # Cold Rust builds dominate the runtime; caching makes re-releases cheap.
+      #
+      # The three options below must match ci.yml's desktop job, or the two
+      # jobs write under different keys and neither benefits from the other.
+      # `add-job-id-key: false` is the important one: left at its default, the
+      # job id is mixed into the key and a cache built by CI is invisible to
+      # the release build.
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: apps/desktop/src-tauri -> target
+          cache-all-crates: true
+          cache-on-failure: true
+          add-job-id-key: false
 
       - run: pnpm install --frozen-lockfile
 

@@ -139,11 +139,17 @@ jobs:
           workspaces: apps/desktop/src-tauri -> target
           # Tauri pulls in several hundred transitive crates; caching only the
           # workspace's own artifacts would leave most of the cold compile in
-          # place. Registry and git dependencies are safe to reuse — they are
-          # keyed by lockfile plus toolchain.
+          # place.
           cache-all-crates: true
           # A failed build still warms the cache for the fix that follows.
           cache-on-failure: true
+          # Default is true, which mixes the job id into the cache key — so a
+          # cache written by ci.yml's desktop job could never be read by
+          # release.yml's publish job, and both paid full compile price. The
+          # key already includes the lockfile hash, toolchain and workspace
+          # path, which is what actually determines whether the objects are
+          # reusable.
+          add-job-id-key: false
 
       - name: Install
         if: steps.rust.outputs.changed == 'true'
