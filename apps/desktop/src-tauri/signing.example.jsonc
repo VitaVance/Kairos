@@ -1,0 +1,45 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// OPT-IN code signing template — NOT loaded by Tauri automatically.
+//
+// tauri.conf.json intentionally ships WITHOUT any signing config so the repo
+// builds on machines with no certificate. To sign installers on YOUR machine:
+//
+//   1. Create (or pick) a local code-signing cert and note its thumbprint:
+//        powershell -ExecutionPolicy Bypass -File scripts\sign-desktop.ps1 `
+//            -Generate -File apps\desktop\src-tauri\target\release\todolist.exe
+//
+//   2. Copy the signing keys below (inside "windows") into the "bundle.windows"
+//      object of apps/desktop/src-tauri/tauri.conf.json, replacing <THUMBPRINT>
+//      with the 40-hex value printed by the script.
+//
+//   3. Build as usual:  pnpm desktop:build
+//
+// ⚠ DO NOT COMMIT the edited tauri.conf.json with a real thumbprint in a public
+//   repo. Keep it local, or use `git update-index --skip-worktree
+//   apps/desktop/src-tauri/tauri.conf.json` (see docs/PACKAGING.md §6).
+//   This template file contains no key material and is safe to commit.
+// ─────────────────────────────────────────────────────────────────────────────
+
+{
+  "bundle": {
+    "windows": {
+      "certificateThumbprint": "<THUMBPRINT>", // 40-hex SHA1 thumbprint, e.g. ABCDEF0123456789ABCDEF0123456789ABCDEF01
+      "digestAlgorithm": "sha256", // sha256 (recommended) or sha384 / sha512
+      "timestampUrl": "http://timestamp.digicert.com", // RFC3161 timestamp (keeps signature valid after cert expiry)
+    },
+  },
+}
+
+// Alternative for cloud / hardware-token signers (mutually exclusive with
+// certificateThumbprint). Use a local wrapper script or the vendor CLI:
+//
+// {
+//   "bundle": {
+//     "windows": {
+//       "signCommand": {
+//         "cmd": "powershell",
+//         "args": ["-ExecutionPolicy", "Bypass", "-File", "scripts/sign-with-token.ps1", "%1"]
+//       }
+//     }
+//   }
+// }
