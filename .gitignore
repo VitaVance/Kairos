@@ -1,0 +1,37 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+target/
+*.tsbuildinfo
+
+# tauri / rust
+apps/desktop/src-tauri/target/
+
+# env & local
+.env
+.env.*
+!.env.example
+*.local
+
+# editors / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+
+# update signing keys — MUST never be committed.
+# Losing the private key means installed copies can never be updated again.
+*.key
+*.key.pub
+!*.pubkey
+
+# per-agent handoff notes (working docs, not shipped)
+.handoff/

@@ -1,0 +1,33 @@
+{
+  "name": "todolist",
+  "private": true,
+  "license": "MIT",
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @todolist/desktop dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "deps:check": "depcruise packages apps --config .dependency-cruiser.cjs",
+    "tauri": "pnpm --filter @todolist/desktop tauri",
+    "tauri:dev": "pnpm --filter @todolist/desktop tauri dev",
+    "tauri:build": "pnpm --filter @todolist/desktop tauri build",
+    "desktop:build": "pnpm --filter @todolist/desktop tauri build",
+    "desktop:build:msi": "pnpm --filter @todolist/desktop tauri build --bundles msi",
+    "desktop:build:nsis": "pnpm --filter @todolist/desktop tauri build --bundles nsis",
+    "desktop:preflight": "node scripts/check-toolchain.mjs",
+    "desktop:signing-check": "node scripts/check-signing.mjs"
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^17.4.3",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.3"
+  }
+}
