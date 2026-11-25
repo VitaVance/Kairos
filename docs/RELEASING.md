@@ -61,11 +61,11 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD -R VitaVance/Kairos --body ""
 
 ```bash
 git add -A
-git commit -m "release: v0.1.0"
+git commit -m "release: v0.1.1"
 git push origin main
 
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 然后去 https://github.com/VitaVance/Kairos/actions 看 `release` 这个 workflow。
