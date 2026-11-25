@@ -83,7 +83,11 @@ jobs:
   # cannot: a Rust compile error. PRs get the fast web gate; `main` gets the
   # binary check as well, and only when Rust or its inputs moved.
   desktop:
-    needs: [changes, verify]
+    # Runs alongside `verify`, not after it. The two share no artifacts and
+    # neither reads the other's state — `desktop` does its own install and its
+    # own diff. Serialising them added the web gate's ~1 minute to the Rust
+    # build's wall-clock for no benefit, since they sit on separate runners.
+    needs: changes
     if: github.event_name == 'push' && needs.changes.outputs.code == 'true'
     runs-on: windows-latest
     steps:
@@ -119,6 +123,28 @@ jobs:
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
         if: steps.rust.outputs.changed == 'true'
+
+      # Without this the job recompiles ~400 crates from scratch every run.
+      # That was the single largest cost in CI: 5m30s of a 6m40s job, against
+      # 57s for the entire web gate. release.yml already had this; ci.yml did
+      # not, so every push paid full price for a build that had not changed.
+      #
+      # It must come *after* the toolchain step so the cache key includes the
+      # resolved compiler version — caching a stable toolchain's artifacts
+      # under a version-agnostic key is how you get stale-object link errors
+      # that only appear the week a new Rust ships.
+      - uses: swatinem/rust-cache@v2
+        if: steps.rust.outputs.changed == 'true'
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+          # Tauri pulls in several hundred transitive crates; caching only the
+          # workspace's own artifacts would leave most of the cold compile in
+          # place. Registry and git dependencies are safe to reuse — they are
+          # keyed by lockfile plus toolchain.
+          cache-all-crates: true
+          # A failed build still warms the cache for the fix that follows.
+          cache-on-failure: true
+
       - name: Install
         if: steps.rust.outputs.changed == 'true'
         run: pnpm install --frozen-lockfile
