@@ -1,0 +1,491 @@
+/* ============================================================================
+   Data transfer panel — export/import settings surface.
+   Every color references a --tl-* token; nothing here knows the theme.
+   ========================================================================== */
+
+.dt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tl-z-overlay);
+  display: grid;
+  place-items: center;
+  padding: var(--tl-space-4);
+  background: color-mix(in oklab, var(--tl-text) 28%, transparent);
+  animation: dt-fade var(--tl-duration-base) var(--tl-ease-out);
+}
+
+.dt-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-5);
+  inline-size: min(560px, 100%);
+  max-block-size: min(760px, 90vh);
+  overflow: auto;
+  padding: var(--tl-space-5);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  box-shadow: var(--tl-shadow-float);
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  animation: dt-rise var(--tl-duration-base) var(--tl-ease-out);
+}
+
+@keyframes dt-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dt-backdrop,
+  .dt-panel {
+    animation: none;
+  }
+}
+
+/* ---------------- Header ---------------- */
+
+.dt-panel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+}
+
+.dt-panel__title {
+  flex: 1;
+  margin: 0;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+.dt-close {
+  display: grid;
+  place-items: center;
+  inline-size: 30px;
+  block-size: 30px;
+  border: 0;
+  border-radius: var(--tl-radius-md);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-base);
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.dt-close:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.dt-close:focus-visible,
+.dt-drop:focus-visible,
+.dt-btn:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------- Sections ---------------- */
+
+.dt-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-3);
+  padding-block-start: var(--tl-space-4);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+
+.dt-section__title {
+  margin: 0;
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+.dt-section__hint {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-normal);
+  color: var(--tl-text-secondary);
+}
+
+.dt-empty {
+  margin: 0;
+  padding: var(--tl-space-4);
+  border: 1px dashed var(--tl-border-strong);
+  border-radius: var(--tl-radius-lg);
+  text-align: center;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+/* ---------------- Export ---------------- */
+
+.dt-export {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-3);
+}
+
+.dt-export__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  margin: 0;
+  padding: var(--tl-space-3);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-surface-subtle);
+}
+
+.dt-export__row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--tl-space-3);
+  align-items: baseline;
+}
+
+.dt-export__row dt {
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+/* Values sit on the trailing edge, against a fixed-width label column, so
+   sizes and counts read as one column across rows. */
+.dt-export__row dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text);
+  text-align: end;
+}
+
+.dt-mono {
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-sm);
+}
+
+/* ---------------- Drop zone ---------------- */
+
+.dt-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tl-space-1);
+  padding: var(--tl-space-6) var(--tl-space-4);
+  border: 1.5px dashed var(--tl-border-strong);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-surface-subtle);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.dt-drop:hover {
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-tint);
+}
+
+.dt-drop--active {
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-tint);
+}
+
+.dt-drop__icon {
+  font-size: var(--tl-font-size-xl);
+  line-height: 1;
+  color: var(--tl-accent-ink);
+}
+
+.dt-drop__title {
+  font-size: var(--tl-font-size-base);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text);
+}
+
+.dt-drop__hint {
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+/* Native file input, styled through its own pseudo-element. Keeping the real
+   control (instead of a hidden input behind a fake button) preserves the OS
+   picker, keyboard activation and screen-reader announcements. */
+.dt-file {
+  max-inline-size: 100%;
+  margin-block-start: var(--tl-space-1);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+}
+
+.dt-file::file-selector-button {
+  margin-inline-end: var(--tl-space-2);
+  padding: 0 var(--tl-space-3);
+  block-size: 30px;
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.dt-file::file-selector-button:hover {
+  background: var(--tl-surface-hover);
+  border-color: var(--tl-accent);
+}
+
+.dt-file:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------- Errors ---------------- */
+
+.dt-errors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-3);
+  border: 1px solid var(--tl-danger);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-danger-tint);
+}
+
+.dt-errors__title {
+  margin: 0;
+  font-size: var(--tl-font-size-base);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-danger);
+}
+
+.dt-errors__list {
+  margin: 0;
+  padding-inline-start: var(--tl-space-5);
+  max-block-size: 180px;
+  overflow: auto;
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-snug);
+  color: var(--tl-text);
+}
+
+.dt-errors__list li {
+  overflow-wrap: anywhere;
+}
+
+/* ---------------- Preview table ---------------- */
+
+.dt-preview {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-3);
+}
+
+.dt-preview__file {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--tl-text-secondary);
+}
+
+.dt-table {
+  inline-size: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md);
+  overflow: hidden;
+  font-size: var(--tl-font-size-base);
+}
+
+.dt-table th,
+.dt-table td {
+  padding: var(--tl-space-2) var(--tl-space-3);
+  text-align: start;
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+
+.dt-table thead th {
+  background: var(--tl-surface-sunken);
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text-secondary);
+}
+
+.dt-table tbody th {
+  font-weight: var(--tl-font-weight-regular);
+  color: var(--tl-text);
+}
+
+/* Magnitude column: digits are tabular and share a trailing edge so counts
+   line up vertically. Row labels stay on the leading edge. */
+.dt-table thead th:last-child,
+.dt-table tbody td {
+  text-align: end;
+}
+
+.dt-table tbody td {
+  color: var(--tl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-table tbody tr:last-child th,
+.dt-table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+.dt-preview__plan {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+/* ---------------- Notes / confirm ---------------- */
+
+.dt-note {
+  margin: 0;
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-sunken);
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-normal);
+  color: var(--tl-text-secondary);
+}
+
+.dt-note--error {
+  background: var(--tl-danger-tint);
+  color: var(--tl-danger);
+}
+
+.dt-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-3);
+  border: 1px solid var(--tl-danger);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-danger-tint);
+}
+
+.dt-confirm__text {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-normal);
+  color: var(--tl-text);
+}
+
+/* The "this will lose N tasks" line — same body as the confirm text, but
+   framed as a consequence rather than a description. */
+.dt-confirm__loss {
+  padding-inline-start: var(--tl-space-2);
+  border-inline-start: 2px solid var(--tl-danger);
+  color: var(--tl-danger);
+}
+
+/* ---------------- Buttons ---------------- */
+
+.dt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+}
+
+.dt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  block-size: 32px;
+  padding: 0 var(--tl-space-3);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font-size: var(--tl-font-size-base);
+  font-weight: var(--tl-font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.dt-btn:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+}
+
+.dt-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.dt-btn--sm {
+  block-size: 26px;
+  padding: 0 var(--tl-space-2);
+  font-size: var(--tl-font-size-sm);
+}
+
+.dt-btn--primary {
+  border-color: transparent;
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+}
+
+.dt-btn--primary:hover:not(:disabled) {
+  background: var(--tl-accent-hover);
+}
+
+.dt-btn--danger {
+  border-color: transparent;
+  background: var(--tl-danger-tint);
+  color: var(--tl-danger);
+}
+
+.dt-btn--danger:hover:not(:disabled) {
+  background: var(--tl-danger);
+  color: var(--tl-text-inverse);
+}
+
+.dt-btn--ghost {
+  border-color: transparent;
+  background: transparent;
+  color: var(--tl-text-secondary);
+}
+
+.dt-btn--ghost:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+/* ---------------- Utilities ---------------- */
+
+.dt-visually-hidden {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.dt-status {
+  min-block-size: 1.2em;
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}

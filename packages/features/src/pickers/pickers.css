@@ -1,0 +1,427 @@
+/* ============================================================================
+   Custom date & time pickers — themeable replacements for the native controls.
+
+   Everything here is a --tl-* token or a mix toward --tl-tint-base; no literal
+   colours and never `color-mix(..., white)`. The components live in
+   packages/ui (Popover, IconButton) but the grid/time layout is feature CSS
+   so packages/ui stays free of @todolist/core imports.
+   ========================================================================== */
+
+/* ---------------- Shared trigger ---------------- */
+.tk-picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  block-size: 30px;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  padding: 0 var(--tl-space-2);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-picker-trigger:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+  border-color: var(--tl-text-secondary);
+}
+
+.tk-picker-trigger:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.tk-picker-trigger[aria-expanded='true'] {
+  border-color: var(--tl-accent);
+  box-shadow: 0 0 0 3px var(--tl-accent-tint);
+}
+
+.tk-picker-trigger:disabled {
+  background: var(--tl-surface-sunken);
+  border-color: var(--tl-border);
+  color: var(--tl-text-disabled);
+  cursor: not-allowed;
+}
+
+.tk-picker-trigger--empty .tk-picker-trigger__text {
+  color: var(--tl-text-tertiary);
+}
+
+.tk-picker-trigger:disabled .tk-picker-trigger__text {
+  color: var(--tl-text-disabled);
+}
+
+.tk-picker-trigger__text {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tk-picker-trigger__text--tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Date picker calendar ---------------- */
+.tk-cal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+}
+
+.tk-cal__head {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+}
+
+.tk-cal__heading {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tl-space-1);
+  min-inline-size: 0;
+  block-size: 30px;
+  padding: 0 var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.tk-cal__heading:hover {
+  background: var(--tl-surface-hover);
+}
+
+.tk-cal__heading:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Year + month quick jump */
+.tk-cal__jump {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding-block-end: var(--tl-space-1);
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+
+.tk-cal__jump-year {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tl-space-2);
+}
+
+.tk-cal__jump-label {
+  min-inline-size: 76px;
+  text-align: center;
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--tl-text);
+}
+
+.tk-cal__jump-months {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--tl-space-1);
+}
+
+.tk-cal__jump-month {
+  block-size: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-cal__jump-month:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.tk-cal__jump-month:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.tk-cal__jump-month--active {
+  background: var(--tl-accent-tint);
+  border-color: var(--tl-accent);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+/* Grid */
+.tk-cal__grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tk-cal__weekdays,
+.tk-cal__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+}
+
+.tk-cal__weekday {
+  display: grid;
+  place-items: center;
+  block-size: 24px;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+.tk-cal__day {
+  /* 36×32 — comfortably above the 32×32 hit-target floor. */
+  block-size: 32px;
+  min-inline-size: 0;
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-cal__day:hover {
+  background: var(--tl-surface-hover);
+}
+
+.tk-cal__day:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 0;
+}
+
+/* Padding days framing the month: lighter ink, still fully clickable. */
+.tk-cal__day--outside {
+  color: var(--tl-text-tertiary);
+}
+
+/* Today: a ring, so it never competes with the filled selected day. */
+.tk-cal__day--today {
+  border-color: var(--tl-accent);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-accent-ink);
+}
+
+.tk-cal__day--selected {
+  background: var(--tl-accent);
+  border-color: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+.tk-cal__day--selected:hover {
+  background: var(--tl-accent-hover);
+  border-color: var(--tl-accent-hover);
+  color: var(--tl-accent-contrast);
+}
+
+/* Quick chips */
+.tk-cal__quick {
+  display: flex;
+  gap: var(--tl-space-1);
+  padding-block-start: var(--tl-space-1);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+
+.tk-cal__chip {
+  flex: 1;
+  block-size: 30px;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-cal__chip:hover {
+  background: var(--tl-accent-tint);
+  border-color: var(--tl-accent);
+  color: var(--tl-accent-ink);
+}
+
+.tk-cal__chip:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.tk-cal__foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tk-cal__clear {
+  padding: 0 var(--tl-space-2);
+  block-size: 26px;
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-danger);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+}
+
+.tk-cal__clear:hover {
+  background: var(--tl-danger-tint);
+}
+
+.tk-cal__clear:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+/* ---------------- Time picker ---------------- */
+.tk-time {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+}
+
+.tk-time__input {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: 0 var(--tl-space-2);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-subtle);
+  transition: border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-time__input:focus-within {
+  border-color: var(--tl-accent);
+  box-shadow: 0 0 0 3px var(--tl-accent-tint);
+}
+
+.tk-time__input--invalid {
+  border-color: var(--tl-danger);
+}
+
+.tk-time__field {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 32px;
+  border: 0;
+  background: transparent;
+  outline: none;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-md);
+  font-variant-numeric: tabular-nums;
+}
+
+.tk-time__field::placeholder {
+  color: var(--tl-text-tertiary);
+}
+
+.tk-time__suffix {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-tertiary);
+  white-space: nowrap;
+}
+
+.tk-time__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--tl-space-2);
+}
+
+.tk-time__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-block-size: 224px;
+  padding: 2px;
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-sunken);
+}
+
+.tk-time__cell {
+  flex: none;
+  block-size: 32px;
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-time__cell:hover {
+  background: var(--tl-surface-hover);
+}
+
+.tk-time__cell:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: -2px;
+}
+
+.tk-time__cell--active {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+.tk-time__cell--active:hover {
+  background: var(--tl-accent-hover);
+}
+
+.tk-time__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+}
+
+/* ---------------- Reduced motion ---------------- */
+@media (prefers-reduced-motion: reduce) {
+  .tk-picker-trigger,
+  .tk-cal__jump-month,
+  .tk-cal__day,
+  .tk-cal__chip,
+  .tk-time__input,
+  .tk-time__cell {
+    transition: none;
+  }
+}

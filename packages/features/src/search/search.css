@@ -1,0 +1,214 @@
+/* Command-palette search overlay. Tokens only; no literal colors. */
+
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tl-z-overlay);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-block-start: 12vh;
+  padding-inline: var(--tl-space-4);
+  background: color-mix(in oklab, var(--tl-bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+.search-panel {
+  display: flex;
+  flex-direction: column;
+  inline-size: min(640px, 100%);
+  max-block-size: 70vh;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  box-shadow: var(--tl-shadow-lg);
+  overflow: hidden;
+}
+
+/* ---------------- Input row ---------------- */
+.search-panel__input {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-3);
+  border-block-end: 1px solid var(--tl-border);
+}
+
+.search-panel__input .tl-field {
+  flex: 1;
+  background: var(--tl-surface-sunken);
+}
+
+.search-panel__input .tl-field__input {
+  block-size: 38px;
+  font-size: var(--tl-font-size-lg);
+}
+
+.search-panel__esc {
+  flex: none;
+  padding: 2px 6px;
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-xs);
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+/* ---------------- Results ---------------- */
+.search-panel__results {
+  flex: 1;
+  min-block-size: 0;
+  padding: var(--tl-space-2);
+}
+
+.search-group + .search-group {
+  margin-block-start: var(--tl-space-2);
+  padding-block-start: var(--tl-space-2);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+
+.search-group__head {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-1) var(--tl-space-2);
+}
+
+.search-group__dot {
+  flex: none;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: var(--tl-radius-xs);
+}
+
+.search-group__name {
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  letter-spacing: 0.02em;
+  color: var(--tl-text-secondary);
+}
+
+.search-group__count {
+  margin-inline-start: auto;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- Rows ---------------- */
+/* The checkbox's hit target (32px / 44px) must be allowed to overflow the
+   row without being clipped by the results scroller. */
+.search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  min-block-size: 34px;
+  padding: var(--tl-space-1) var(--tl-space-2);
+  border-radius: var(--tl-radius-sm);
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.search-row--active {
+  background: var(--tl-accent-tint);
+}
+
+@media (any-pointer: coarse) {
+  .search-row {
+    min-block-size: 44px;
+  }
+}
+
+.search-row__check {
+  flex: none;
+  display: inline-flex;
+}
+
+.search-row__title {
+  /* Above the oversized checkbox input so text taps open the task, not toggle it. */
+  position: relative;
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text);
+}
+
+.search-row--done .search-row__title {
+  color: var(--tl-text-secondary);
+  text-decoration: line-through;
+}
+
+/* The highlight must occupy the same advance width as the plain text, or the
+   row jitters as the query changes. So: no padding, no weight change (bold
+   glyph advances are wider for Latin), and only paint-only cues — an opaque
+   accent wash plus an underline — for emphasis. The wash is mixed toward the
+   current surface rather than white, so it reads in dark mode too, and it is
+   opaque so it does not disappear when the row itself is already tinted
+   (`--search-row--active`). */
+.search-row__title mark {
+  border-radius: var(--tl-radius-xs);
+  background: color-mix(in oklab, var(--tl-accent) 10%, var(--tl-tint-base));
+  color: var(--tl-accent-ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+
+/*
+ * On the selected row the row's own background is `--tl-accent-tint`, which is
+ * the same hue family as the highlight above — measured ~1.01:1 between them,
+ * so the wash disappears exactly where the user is looking. Swap to the solid
+ * accent with inverted ink: it is the only treatment that stays legible against
+ * an accent-tinted row without reintroducing a metric shift (paint + weight
+ * only, no padding).
+ */
+.search-row--active .search-row__title mark {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+  text-decoration-color: var(--tl-accent-contrast);
+}
+
+.search-row__meta {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+}
+
+.search-row__due {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---------------- Footer hints ---------------- */
+.search-panel__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-4);
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-block-start: 1px solid var(--tl-border);
+  background: var(--tl-surface-subtle);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+.search-panel__footer kbd {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 18px;
+  block-size: 18px;
+  margin-inline-end: 2px;
+  padding: 0 4px;
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-xs);
+  background: var(--tl-surface);
+  font-family: var(--tl-font-mono);
+  font-size: 10px;
+  color: var(--tl-text-secondary);
+}
