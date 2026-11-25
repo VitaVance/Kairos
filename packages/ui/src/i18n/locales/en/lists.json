@@ -78,6 +78,12 @@
     "dragAria": "Drag “{{title}}” to another quadrant",
     "dragHint": "Drag to another quadrant, or focus and use the arrow keys",
     "markDone": "Mark “{{title}}” as done",
-    "markOpen": "Mark “{{title}}” as not done"
+    "markOpen": "Mark “{{title}}” as not done",
+    "openAria": "Edit {{title}}",
+    "openHint": "Open the details to edit"
+  },
+  "toast": {
+    "completed": "Completed “{{title}}”",
+    "reopened": "Reopened “{{title}}”"
   }
 }

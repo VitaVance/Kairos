@@ -100,7 +100,7 @@ export interface TaskListScreenProps {
   lists: readonly TaskList[];
   today: LocalDate;
   onOpenTask: (id: TaskId) => void;
-  onToggle: (id: TaskId) => void;
+  onToggle: (id: TaskId, source: 'checkbox' | 'row') => void;
   onDelete: (id: TaskId) => void;
   fresh: ReadonlySet<TaskId>;
   /** Optional: shows the QuickAdd box at the top when provided. */

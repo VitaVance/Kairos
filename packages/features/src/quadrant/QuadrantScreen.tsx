@@ -151,9 +151,9 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
   );
 
   const toggle = useCallback(
-    (id: TaskId) => {
+    (id: TaskId, source: 'checkbox' | 'row') => {
       const title = all.find((task) => task.id === id)?.title ?? t('quadrant.untitledTask');
-      toggleDone(id, title);
+      toggleDone(id, title, source);
     },
     [all, toggleDone, t],
   );

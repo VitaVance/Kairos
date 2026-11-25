@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { CalendarEntry, LocalDate, TaskId } from '@todolist/core';
 import { addDays, daysFromToday, startOfWeek, todayLocal } from '@todolist/core';
 import {
@@ -31,6 +31,7 @@ import {
   useToast,
   useUndo,
   isEditableTarget,
+  listLabel,
 } from '@todolist/features';
 import type {
   BackupData,
@@ -148,6 +149,17 @@ function ShellBody({
   const [transferOpen, setTransferOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // Escape returns focus to whatever was focused when the help sheet opened.
+  const helpInvokerRef = useRef<HTMLElement | null>(null);
+  const openHelp = useCallback(() => {
+    helpInvokerRef.current = document.activeElement as HTMLElement | null;
+    setHelpOpen(true);
+  }, []);
+  const closeHelp = useCallback(() => {
+    setHelpOpen(false);
+    helpInvokerRef.current?.focus?.();
+    helpInvokerRef.current = null;
+  }, []);
   // Density of the multi-week / multi-day views, mirrored here so the header
   // title can name the span actually on screen (it changes inside the view).
   const [weeksShown, setWeeksShown] = useState<2 | 3 | 4>(3);
@@ -204,7 +216,13 @@ function ShellBody({
       if (filter.kind === 'today') return t('filter.today');
       if (filter.kind === 'recent') return t('filter.recent');
       if (filter.kind === 'list') {
-        return lists.find((l) => l.id === filter.listId)?.name ?? t('filter.list');
+        const list = lists.find((l) => l.id === filter.listId);
+        if (!list) return t('filter.list');
+        // `listLabel` resolves the system inbox from the `lists` catalog; the
+        // `t` in this component is bound to `shell`, so calling it with
+        // `quadrant.inbox` would not type-check — and would be the wrong
+        // namespace even if it did.
+        return listLabel(list);
       }
       return t('filter.quadrant');
     }
@@ -293,36 +311,55 @@ function ShellBody({
     else setEditingEntry(entry);
   }, []);
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
+  /**
+   * Every shell shortcut in one map, so the shared hook (editable-field guard,
+   * Escape, sequence handling) is the only keyboard path. When search reopens
+   * from inside the palette, focus the input it already has instead of
+   * restarting its state.
+   */
+  const shortcuts = useMemo<Record<string, () => void>>(() => {
+    const openSearch = () => {
+      if (!searchOpen) {
+        setSearchOpen(true);
+        return;
+      }
+      const input = document.querySelector<HTMLInputElement>('.search-panel .tl-field__input');
+      if (input) {
+        input.focus();
+        input.select();
+      } else {
         setSearchOpen(true);
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
+    return {
+      // `mod+f` also has to preventDefault inside the shared hook — otherwise
+      // the WebView's own find-in-page bar would open over the app.
+      'mod+f': openSearch,
+      'mod+k': openSearch,
+      'mod+z': () => void undo(),
+      'mod+shift+z': () => void redo(),
+      // `ShortcutHelp` only self-binds `?` when it owns its open state; this
+      // shell drives it controlled, so the binding has to live here or the
+      // advertised key would do nothing.
+      '?': () => {
+        if (isEditableTarget(document.activeElement)) return;
+        if (helpOpen) closeHelp();
+        else openHelp();
+      },
+      // No `mod+n`: this shell has no global task-capture surface (capture
+      // lives in each quadrant's inline field), so advertising 新建任务 would
+      // lie. Bind it once a shared capture overlay exists.
+      // No `mod+s`: the app autosaves through the service layer, so there is
+      // nothing to save — a binding here would be a no-op dressed as an action.
+      'g q': () => onSelectView('quadrant'),
+      'g m': () => onSelectView('month'),
+      'g w': () => onSelectView('week'),
+      'g d': () => onSelectView('day'),
+      'g a': () => onSelectView('agenda'),
+    };
+  }, [closeHelp, helpOpen, onSelectView, openHelp, redo, searchOpen, undo]);
 
-  useShortcuts({
-    'mod+z': () => void undo(),
-    'mod+shift+z': () => void redo(),
-    // `ShortcutHelp` only self-binds `?` when it owns its open state; this shell
-    // drives it controlled, so the binding has to live here or the advertised
-    // key would do nothing.
-    '?': () => {
-      if (isEditableTarget(document.activeElement)) return;
-      setHelpOpen((open) => !open);
-    },
-    // No `mod+n`: this shell has no global task-capture surface (capture lives
-    // in each quadrant's inline field), so advertising 新建任务 would lie. Bind
-    // it once a shared capture overlay exists.
-    'g q': () => onSelectView('quadrant'),
-    'g m': () => onSelectView('month'),
-    'g w': () => onSelectView('week'),
-    'g d': () => onSelectView('day'),
-    'g a': () => onSelectView('agenda'),
-  });
+  useShortcuts(shortcuts);
 
   return (
     <div className="app-shell">
@@ -332,7 +369,7 @@ function ShellBody({
         onOpenSearch={() => setSearchOpen(true)}
         onOpenTransfer={() => setTransferOpen(true)}
         onOpenUpdate={() => setUpdateOpen(true)}
-        onOpenHelp={() => setHelpOpen(true)}
+        onOpenHelp={openHelp}
       />
 
       <ListSidebar
@@ -536,7 +573,7 @@ function ShellBody({
         endpoint={updateEndpoint}
       />
 
-      <ShortcutHelp open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <ShortcutHelp open={helpOpen} onClose={closeHelp} />
 
       <DataTransferPanel
         open={transferOpen}

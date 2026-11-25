@@ -114,12 +114,18 @@
     "uncompleteAria": "Mark {{title}} as not done",
     "deleteAria": "Delete {{title}}",
     "confirmDeleteAria": "Confirm deleting {{title}}",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "openAria": "Open {{title}} details",
+    "openHint": "Edit task"
   },
   "quickAdd": {
     "placeholder": "Add a task, press Enter (/重要, /紧急, @14:00)",
     "label": "Quick add task",
     "noList": "There's no list to add this task to.",
     "failed": "Couldn't add the task. Please try again."
+  },
+  "toast": {
+    "completed": "Completed “{{title}}”",
+    "reopened": "Reopened “{{title}}”"
   }
 }

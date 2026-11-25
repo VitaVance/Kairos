@@ -78,6 +78,12 @@
     "dragAria": "拖动「{{title}}」到其他象限",
     "dragHint": "拖动到其他象限，或聚焦后用方向键移动",
     "markDone": "完成「{{title}}」",
-    "markOpen": "取消完成「{{title}}」"
+    "markOpen": "取消完成「{{title}}」",
+    "openAria": "编辑「{{title}}」",
+    "openHint": "打开详情进行编辑"
+  },
+  "toast": {
+    "completed": "已完成「{{title}}」",
+    "reopened": "已重新打开「{{title}}」"
   }
 }

@@ -9,6 +9,19 @@
 export interface UndoCommand {
   /** Human-readable description of the action, e.g. `已删除「晨跑」`. */
   readonly label: string;
+  /**
+   * Record the command without announcing it.
+   *
+   * Reserved for actions the user took deliberately, where the confirmation
+   * toast would be noise: ticking a checkbox is the user saying "done", and
+   * a six-second undo banner on every tick interrupts them. The command is
+   * still on the stack, so `Ctrl+Z` works — only the announcement is skipped.
+   *
+   * Do NOT set this for anything reachable by a mis-click. A row-body click
+   * lands on a large target and completes the task, which is exactly the case
+   * that needs the visible way back.
+   */
+  readonly silent?: boolean;
   undo(): Promise<void>;
   redo(): Promise<void>;
 }

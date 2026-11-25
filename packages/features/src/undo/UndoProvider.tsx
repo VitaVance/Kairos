@@ -108,6 +108,9 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
     (command: UndoCommand) => {
       stack.push(command);
       syncFlags();
+      // A silent command is still undoable — it is only the announcement that
+      // is skipped, so a deliberate tick never flashes a banner over the list.
+      if (command.silent) return;
       clearTimer();
       remainingRef.current = TOAST_DURATION_MS;
       // `clearTimer` leaves `pausedRef` set; a fresh toast must arm its own

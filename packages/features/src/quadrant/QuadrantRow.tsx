@@ -1,10 +1,13 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import type { Task, TaskList } from '@todolist/core';
 import { quadrantOf } from '@todolist/core';
 import { Checkbox, useTranslation } from '@todolist/ui';
 import type { QuadrantKey } from '@todolist/ui';
 import type { LocalDate, TaskId } from '@todolist/core';
+import { listDisplayName } from '@todolist/core';
 import { formatDue } from '../task/due-label';
+import { shouldToggleRow } from '../task/row-click';
+import type { ClickNode } from '../task/row-click';
 
 /**
  * Custom MIME so a quadrant drag can be told apart from a file drag or a drag
@@ -30,7 +33,7 @@ export interface QuadrantRowProps {
   task: Task;
   lists: readonly TaskList[];
   today: LocalDate;
-  onToggle: (id: TaskId) => void;
+  onToggle: (id: TaskId, source: 'checkbox' | 'row') => void;
   /**
    * Keyboard path to another quadrant (arrow keys on the focused handle).
    * Required for accessibility: quadrant assignment changes the task's
@@ -42,7 +45,7 @@ export interface QuadrantRowProps {
   onDragEnd?: () => void;
   /** This row is the one being dragged right now. */
   dragging?: boolean;
-  /** Clicking the title opens the task detail panel. */
+  /** Chevron click opens the task detail panel. */
   onOpen?: (id: TaskId) => void;
   /** True while the completion animation for this row should play. */
   fresh?: boolean;
@@ -58,10 +61,21 @@ export interface QuadrantRowProps {
  * Row meta: the due date when there is one, otherwise the task's list. The due
  * wording comes from `formatDue` — the same helper the flat rows use — so the
  * two surfaces can never drift (this file used to keep its own copy).
+ *
+ * The list label is resolved through `listDisplayName`, so a system inbox shows
+ * the catalog's word for it (and follows a language switch), while a user list
+ * keeps its stored name. `inboxLabel` is the already-translated fallback used
+ * when the task's list is missing from the snapshot.
  */
-function metaLabel(task: Task, listName: string | undefined, today: LocalDate, inbox: string): string {
+function metaLabel(
+  task: Task,
+  list: TaskList | undefined,
+  today: LocalDate,
+  inboxLabel: string,
+): string {
   const due = formatDue(task, today);
-  return due.length > 0 ? due : (listName ?? inbox);
+  if (due.length > 0) return due;
+  return list === undefined ? inboxLabel : listDisplayName(list, inboxLabel);
 }
 
 export function QuadrantRow({
@@ -79,7 +93,7 @@ export function QuadrantRow({
 }: QuadrantRowProps) {
   const { t } = useTranslation('lists');
   const list = lists.find((l) => l.id === task.listId);
-  const meta = metaLabel(task, list?.name, today, t('quadrant.inbox'));
+  const meta = metaLabel(task, list, today, t('quadrant.inbox'));
   const done = task.status === 'done';
   const quadrant = taskQuadrant(task);
 
@@ -92,14 +106,28 @@ export function QuadrantRow({
     onMove(task.id, target);
   };
 
+  const handleRowClick = (event: ReactMouseEvent<HTMLDivElement>) => {
+    // Same rule as the flat row: the handle, checkbox and chevron own their
+    // own clicks, so a drag grab or a precise tick never completes the task
+    // a second time.
+    if (!shouldToggleRow(event.target as unknown as ClickNode, event.currentTarget as unknown as ClickNode)) {
+      return;
+    }
+    // `onToggle` funnels through `useTasks().toggleDone`, which pushes the
+    // labelled undo entry (and its toast) for every completion path.
+    onToggle(task.id, 'row');
+  };
+
   return (
     <div
       className={`qz-row${done ? ' qz-row--done' : ''}${fresh ? ' qz-row--fresh' : ''}${leaving ? ' qz-row--leaving' : ''}${dragging ? ' qz-row--dragging' : ''}`}
       data-qz-task={task.id}
+      onClick={handleRowClick}
     >
       {/* Only the handle initiates a drag. The row is *not* draggable: it holds
-          a checkbox and a title button, and a draggable ancestor would swallow
-          their pointer gestures. */}
+          a checkbox, a chevron and a handle, and a draggable ancestor would
+          swallow their pointer gestures. The row *click* is fine because it
+          runs only when the chain below it is free of controls. */}
       <button
         type="button"
         className="qz-row__handle"
@@ -131,17 +159,27 @@ export function QuadrantRow({
       </button>
       <Checkbox
         checked={done}
-        onChange={() => onToggle(task.id)}
+        onChange={() => onToggle(task.id, 'checkbox')}
         aria-label={done ? t('row.markOpen', { title: task.title }) : t('row.markDone', { title: task.title })}
       />
-      {onOpen ? (
-        <button type="button" className="qz-row__title qz-row__title--btn" onClick={() => onOpen(task.id)}>
-          {task.title}
-        </button>
-      ) : (
-        <span className="qz-row__title">{task.title}</span>
-      )}
+      <span className="qz-row__title">{task.title}</span>
       <span className="qz-row__meta">{meta}</span>
+      {onOpen ? (
+        // Editing is a dedicated chevron: the title belongs to the row body
+        // (which completes), so the two actions never compete for one hit
+        // area. Labelled, not a mystery glyph.
+        <button
+          type="button"
+          className="qz-row__open"
+          aria-label={t('row.openAria', { title: task.title })}
+          title={t('row.openHint')}
+          onClick={() => onOpen(task.id)}
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true">
+            <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      ) : null}
     </div>
   );
 }

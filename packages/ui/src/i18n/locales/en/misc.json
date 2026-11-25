@@ -143,6 +143,10 @@
   "undo": {
     "action": "Undo"
   },
+  "toast": {
+    "completed": "Completed “{{title}}”",
+    "reopened": "Reopened “{{title}}”"
+  },
   "views": {
     "quadrant": "Quadrants",
     "month": "Month",

@@ -90,14 +90,23 @@
      clipped while staying far below the old 28px+ row height. */
   min-height: 34px;
   border-radius: var(--tl-radius-sm);
-  /* The row itself is not a control — only its title button and checkbox are.
-     The grab cursor moved to the handle, so the pointer now tells the truth. */
-  cursor: default;
+  /* The row body is the completion target. The grab cursor belongs to the
+     handle alone; the checkbox and chevron set their own pointer cursor. */
+  cursor: pointer;
   transition: background var(--tl-duration-fast) var(--tl-ease-standard);
 }
 
 .qz-row:hover {
   background: var(--tl-surface-hover);
+}
+
+/* Same press feedback as the flat row — both surfaces complete on a row click,
+   so both must acknowledge that the click landed. Suppressed while dragging:
+   a drag also begins with a press, and shrinking the source row mid-grab would
+   read as a layout glitch rather than feedback. */
+.qz-row:active:not(.qz-row--dragging) {
+  background: var(--tl-surface-sunken);
+  scale: 0.995;
 }
 
 /* Drag handle — the only element that claims to be draggable. Hidden until the
@@ -149,7 +158,8 @@
 }
 
 .qz-row__title {
-  /* Above the oversized checkbox input so text taps open the task, not toggle it. */
+  /* Text content: a click here is a row-body click (completes). Kept above the
+     oversized checkbox input so the text keeps its own layer. */
   position: relative;
   flex: 1;
   min-width: 0;
@@ -1126,6 +1136,9 @@
      without clipping it or changing the visual rhythm of dense lists. */
   min-block-size: 34px;
   border-radius: var(--tl-radius-sm);
+  /* The row body is the completion target (one click, no aiming); the chevron
+     and the checkbox are the only nested controls. */
+  cursor: pointer;
   transition: background var(--tl-duration-fast) var(--tl-ease-standard);
 }
 
@@ -1133,25 +1146,28 @@
   background: var(--tl-surface-hover);
 }
 
+/*
+ * Press feedback. Hover says "this is clickable", :active says "the click
+ * landed" — a row whose only feedback is hover feels dead on a fast click,
+ * and this row mutates data, so the confirmation matters. Kept to `scale`
+ * (compositor-only) so a dense list does not reflow on every press.
+ */
+.tk-row:active {
+  background: var(--tl-surface-sunken);
+  scale: 0.995;
+}
+
 .tk-row__title {
-  /* Above the oversized checkbox input so text taps open the task, not toggle it. */
-  position: relative;
+  /* Plain text, not a control: it is part of the row body that completes the
+     task. The old button here opened the panel; that moved to __open. */
   flex: 1;
   min-inline-size: 0;
   overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  text-align: start;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--tl-font-size-base);
   color: var(--tl-text);
-  cursor: pointer;
-}
-
-.tk-row__title:hover {
-  color: var(--tl-accent-ink);
+  text-decoration: line-through transparent;
 }
 
 .tk-row--done .tk-row__title {
@@ -1197,9 +1213,37 @@
 }
 
 .tk-row__title:focus-visible,
+.tk-row__open:focus-visible,
 .tk-row__delete:focus-visible {
   outline: 2px solid var(--tl-focus-ring);
   outline-offset: 2px;
+}
+
+/* The only path to the detail panel, so it is always visible (a hidden-on-
+   hover control would strand touch and keyboard users). Quiet by default,
+   accent on hover/focus; 28px square keeps it easy to hit without turning the
+   row into a button bar. */
+.tk-row__open {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 28px;
+  block-size: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-tertiary);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-row__open:hover,
+.tk-row__open:focus-visible {
+  background: var(--tl-surface-subtle);
+  color: var(--tl-accent-ink);
 }
 
 .tk-row__delete:hover {
@@ -1222,7 +1266,40 @@
   border-color: var(--tl-border);
 }
 
-/* Quadrant row title as a button (keeps .qz-row__title typography) */
+/* Quadrant row chevron: same shape and behaviour as the flat row's, sized to
+   the quadrant row's tighter rhythm. Always visible — it is the only way to
+   the detail panel from this surface. */
+.qz-row__open {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 24px;
+  block-size: 24px;
+  margin-inline-end: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-tertiary);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.qz-row__open:hover,
+.qz-row__open:focus-visible {
+  background: var(--tl-surface-subtle);
+  color: var(--tl-accent-ink);
+}
+
+.qz-row__open:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The quadrant title is now plain text again (the row body completes); the
+   old button rule stays only for callers that still render a real button. */
 .qz-row__title--btn {
   padding: 0;
   border: 0;

@@ -143,6 +143,10 @@
   "undo": {
     "action": "撤销"
   },
+  "toast": {
+    "completed": "已完成「{{title}}」",
+    "reopened": "已重新打开「{{title}}」"
+  },
   "views": {
     "quadrant": "四象限",
     "month": "月视图",
