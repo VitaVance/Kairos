@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ListId, LocalDate, NewList, Task, TaskId, TaskList } from '@todolist/core';
-import { daysFromToday, todayLocal } from '@todolist/core';
+import { daysFromToday, isSystemInbox, listDisplayName, todayLocal } from '@todolist/core';
 import { IconButton, MoreIcon, PlusIcon, useTranslation } from '@todolist/ui';
 import { DEFAULT_LIST_COLOR, LIST_HUE_HEX, ListEditor } from './ListEditor';
 import type { ListEditorValue } from './ListEditor';
@@ -120,6 +120,14 @@ function isRecent(task: Task, today: LocalDate): boolean {
   const diff = daysFromToday(task.dueDate, today);
   return diff >= 0 && diff <= 6;
 }
+
+/**
+ * The name to *show* for a list. User lists show their stored name; the system
+ * inbox shows the catalog's word for it, so switching language renames it in
+ * place. Re-exported from core (the pure rule lives with the domain type) so
+ * every surface resolves it the same way.
+ */
+export { listDisplayName };
 
 /**
  * Expanded "清单" sidebar section. Purely presentational: it receives tasks and
@@ -304,6 +312,10 @@ export function ListSidebar({
     (id: ListId) => {
       if (api === undefined || api === null) return;
       const list = lists.find((l) => l.id === id);
+      // The system inbox is app-owned: deleting it would remove the one list
+      // whose identity drives the localized display name. Its menu does not
+      // offer this action; this guard is the second line of defence.
+      if (list !== undefined && isSystemInbox(list)) return;
       // The domain refuses to delete a list that still holds tasks — open or
       // completed (`ListNotEmptyError`) — so that work is never cascade-deleted.
       // Surface the full rule *before* the confirm step: how many rows, and
@@ -313,7 +325,7 @@ export function ListSidebar({
       void (async () => {
         const block = describeListDeletionBlock(
           t,
-          list?.name ?? t('sidebar.untitledList'),
+          list ? listDisplayName(list, t('quadrant.inbox')) : t('sidebar.untitledList'),
           open,
           total,
         );
@@ -333,7 +345,7 @@ export function ListSidebar({
           },
           list
             ? {
-                label: t('undo.deleteList', { name: list.name }),
+                label: t('undo.deleteList', { name: listDisplayName(list, t('quadrant.inbox')) }),
                 undo: async () => {
                   if (!api) return;
                   const recreated = await api.create({
@@ -438,6 +450,13 @@ export function ListSidebar({
             const isRenaming = renamingId === list.id;
             const isRecoloring = recoloringId === list.id;
             const isDeleting = deletingId === list.id;
+            // Identity, not name: the inbox is app-owned, so its display name
+            // comes from the catalog and two of the three menu actions (rename,
+            // delete) would either be overwritten by i18n or destroy the
+            // fallback. Both are hidden rather than silently ignored; recolour
+            // stays, because a colour is not part of the identity.
+            const isSystem = isSystemInbox(list);
+            const displayName = listDisplayName(list, t('quadrant.inbox'));
 
             return (
               <li
@@ -475,7 +494,7 @@ export function ListSidebar({
                     // Only record once the move actually landed.
                     if (moveTask) {
                       recordUndoable?.({
-                        label: t('undo.moveTask', { task: source.title, list: targetList.name }),
+                        label: t('undo.moveTask', { task: source.title, list: displayName }),
                         undo: async () => {
                           await moveTask(source.id, source.listId);
                           await onChanged?.();
@@ -504,7 +523,7 @@ export function ListSidebar({
                       style={{ background: list.color }}
                       aria-hidden="true"
                     />
-                    <span className="list-sidebar__name">{list.name}</span>
+                    <span className="list-sidebar__name">{displayName}</span>
                     <span className="list-sidebar__count" aria-label={t('sidebar.taskCount', { count })}>
                       {count}
                     </span>
@@ -512,7 +531,7 @@ export function ListSidebar({
 
                   <div className="list-sidebar__menu-wrap">
                     <IconButton
-                      label={t('sidebar.listActions', { name: list.name })}
+                      label={t('sidebar.listActions', { name: displayName })}
                       variant="quiet"
                       className="list-sidebar__more"
                       aria-haspopup="menu"
@@ -529,21 +548,23 @@ export function ListSidebar({
                     </IconButton>
 
                     {isMenuOpen ? (
-                      <div className="list-sidebar__menu" role="menu" aria-label={t('sidebar.menuLabel', { name: list.name })}>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="list-sidebar__menu-item"
-                          disabled={readOnly || isRenaming}
-                          title={readOnly ? missingPortText : undefined}
-                          aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
-                          onClick={() => {
-                            setMenuId(null);
-                            setRenamingId(list.id);
-                          }}
-                        >
-                          {t('menu.rename')}
-                        </button>
+                      <div className="list-sidebar__menu" role="menu" aria-label={t('sidebar.menuLabel', { name: displayName })}>
+                        {isSystem ? null : (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="list-sidebar__menu-item"
+                            disabled={readOnly || isRenaming}
+                            title={readOnly ? missingPortText : undefined}
+                            aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
+                            onClick={() => {
+                              setMenuId(null);
+                              setRenamingId(list.id);
+                            }}
+                          >
+                            {t('menu.rename')}
+                          </button>
+                        )}
                         <button
                           type="button"
                           role="menuitem"
@@ -558,20 +579,22 @@ export function ListSidebar({
                         >
                           {t('menu.recolor')}
                         </button>
-                        <button
-                          type="button"
-                          role="menuitem"
-                          className="list-sidebar__menu-item list-sidebar__menu-item--danger"
-                          disabled={readOnly}
-                          title={readOnly ? missingPortText : undefined}
-                          aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
-                          onClick={() => {
-                            setMenuId(null);
-                            setDeletingId(list.id);
-                          }}
-                        >
-                          {t('menu.delete')}
-                        </button>
+                        {isSystem ? null : (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="list-sidebar__menu-item list-sidebar__menu-item--danger"
+                            disabled={readOnly}
+                            title={readOnly ? missingPortText : undefined}
+                            aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
+                            onClick={() => {
+                              setMenuId(null);
+                              setDeletingId(list.id);
+                            }}
+                          >
+                            {t('menu.delete')}
+                          </button>
+                        )}
                       </div>
                     ) : null}
                   </div>
@@ -591,7 +614,7 @@ export function ListSidebar({
                 ) : null}
 
                 {isRecoloring ? (
-                  <div className="list-sidebar__recolor" role="group" aria-label={t('sidebar.colorGroup', { name: list.name })}>
+                  <div className="list-sidebar__recolor" role="group" aria-label={t('sidebar.colorGroup', { name: displayName })}>
                     {LIST_HUE_HEX.map((hue, i) => (
                       <button
                         key={hue}
@@ -617,11 +640,11 @@ export function ListSidebar({
                 ) : null}
 
                 {isDeleting ? (
-                  <div className="list-sidebar__confirm" role="alertdialog" aria-label={t('deleteConfirm.dialogLabel', { name: list.name })}>
+                  <div className="list-sidebar__confirm" role="alertdialog" aria-label={t('deleteConfirm.dialogLabel', { name: displayName })}>
                     <p className="list-sidebar__confirm-text">
                       {blocked
-                        ? t('deleteConfirm.blocked', { name: list.name, count: totalCount, open: count })
-                        : t('deleteConfirm.question', { name: list.name })}
+                        ? t('deleteConfirm.blocked', { name: displayName, count: totalCount, open: count })
+                        : t('deleteConfirm.question', { name: displayName })}
                     </p>
                     <div className="list-sidebar__confirm-actions">
                       <button

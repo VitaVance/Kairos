@@ -52,7 +52,7 @@ describe('seedDemoData', () => {
   // lives in seed-demo.test.ts. This file keeps the smoke checks only.
   it('seeds the four lists and puts an event on today', async () => {
     const uow = new MemoryUnitOfWork();
-    await seedDemoData({ uow, clock: new SystemClock(), ids: new CryptoIdGenerator() });
+    await seedDemoData({ uow, clock: new SystemClock(), ids: new CryptoIdGenerator(), language: 'zh-CN' });
 
     const lists = await uow.lists.list();
     expect(lists.map((l) => l.name)).toEqual(['收集箱', '工作', '学习', '生活']);

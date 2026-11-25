@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { CryptoIdGenerator, SystemClock, resetAllData, seedDemoData } from '@todolist/adapters';
 import type { TaskList } from '@todolist/core';
 import { initTemporal } from '@todolist/core';
+import { resolveInitialLanguage } from '@todolist/ui';
 import { AppServicesProvider } from '@todolist/features';
 import type { Notifier } from '@todolist/features';
 import { Shell } from './shell/Shell';
@@ -51,7 +52,14 @@ const updateChecker = isTauri() ? createTauriUpdateChecker() : null;
 async function boot(): Promise<Booted> {
   await initTemporal();
   const storage = await createStorage({ ids });
-  await seedDemoData({ uow: storage.uow, clock, ids });
+  /**
+   * The demo corpus is chosen once, here, from the language the UI will open
+   * in (persisted choice, else the OS locale, else English). This runs before
+   * React and before `initI18n` has finished, so it reads the same pure
+   * resolver the runtime uses rather than a hook. Rows are then ordinary
+   * content and are never retranslated when the user switches later.
+   */
+  await seedDemoData({ uow: storage.uow, clock, ids, language: resolveInitialLanguage() });
   const lists = await storage.uow.lists.list();
   return {
     storage,

@@ -115,6 +115,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
         color: input.color,
         order: input.order ?? this.nextListOrder(),
         archived: false,
+        systemKey: input.systemKey ?? null,
         createdAt: now,
         updatedAt: now,
       };

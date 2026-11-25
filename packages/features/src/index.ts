@@ -23,6 +23,7 @@ export * from './shortcuts/ShortcutHelp';
 // Lists & search
 export * from './lists/ListSidebar';
 export * from './lists/ListEditor';
+export * from './lists/list-label';
 export * from './search/SearchPanel';
 export * from './search/search';
 

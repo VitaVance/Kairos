@@ -27,6 +27,12 @@ export interface ListRow {
   readonly color: unknown;
   readonly order: unknown;
   readonly archived: unknown;
+  /**
+   * Added in schema v5. Optional so a row read from a pre-migration shape (or a
+   * hand-built fixture) decodes as "ordinary list", which is exactly what a
+   * list without a system identity is.
+   */
+  readonly system_key?: unknown;
   readonly created_at: unknown;
   readonly updated_at: unknown;
 }
@@ -81,6 +87,7 @@ export function rowToList(row: ListRow): TaskList {
     color: requireString(row.color, 'lists', 'color'),
     order: requireNumber(row.order, 'lists', 'order'),
     archived: decodeBoolean(row.archived, 'lists', 'archived'),
+    systemKey: nullableString(row.system_key),
     createdAt: requireString(row.created_at, 'lists', 'created_at') as Instant,
     updatedAt: requireString(row.updated_at, 'lists', 'updated_at') as Instant,
   };
@@ -95,6 +102,7 @@ export function listToRow(list: TaskList): Record<string, unknown> {
     // column names verbatim.
     '"order"': list.order,
     archived: list.archived ? 1 : 0,
+    system_key: list.systemKey ?? null,
     created_at: list.createdAt,
     updated_at: list.updatedAt,
   };

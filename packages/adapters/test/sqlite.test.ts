@@ -105,7 +105,19 @@ describe('migrate', () => {
     expect(alters[1]).not.toMatch(/DEFAULT/i);
 
     const inserts = driver.find('INSERT INTO schema_version');
-    expect(inserts.map((s) => s.params)).toEqual([[2], [3], [4]]);
+    expect(inserts.map((s) => s.params)).toEqual([[2], [3], [4], [5]]);
+  });
+
+  it('adds the lists.system_key column in v5 without backfilling', async () => {
+    const driver = new RecordingSqlDriver([[{ version: 4 }]]);
+    await migrate(driver);
+
+    const alters = driver.sql().filter((sql) => /ALTER TABLE lists ADD COLUMN/i.test(sql));
+    expect(alters).toHaveLength(1);
+    expect(alters[0]).toMatch(/ALTER TABLE lists ADD COLUMN system_key TEXT/i);
+    // No DEFAULT / NOT NULL: existing rows must stay NULL ("ordinary list").
+    expect(alters[0]).not.toMatch(/DEFAULT|NOT NULL/i);
+    expect(driver.sql().filter((sql) => /^\s*UPDATE\s/i.test(sql))).toHaveLength(0);
   });
 });
 

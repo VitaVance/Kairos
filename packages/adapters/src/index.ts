@@ -38,6 +38,8 @@ export type { EventRow, ListRow, TaskRow } from './sqlite/mapping.js';
 export {
   EVENT_FIELD_COLUMNS,
   EVENT_PATCH_FIELDS,
+  LIST_CREATE_FIELDS,
+  LIST_CREATE_FIELD_COLUMNS,
   LIST_FIELD_COLUMNS,
   LIST_PATCH_FIELDS,
   TASK_FIELD_COLUMNS,
@@ -59,3 +61,18 @@ export {
   seedDemoData,
 } from './testing/seed-demo.js';
 export type { SeedDeps } from './testing/seed-demo.js';
+export {
+  DEMO_EVENT_KEYS,
+  DEMO_TASK_KEYS,
+  SEED_CORPORA,
+  seedLanguage,
+} from './testing/seed-corpora.js';
+export type {
+  DemoCorpus,
+  DemoEventKey,
+  DemoEventText,
+  DemoListNames,
+  DemoTaskKey,
+  DemoTaskText,
+  SeedLanguage,
+} from './testing/seed-corpora.js';

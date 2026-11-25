@@ -188,6 +188,7 @@ export class SqliteListRepository implements ListRepository {
       color: input.color,
       order: input.order ?? (await this.nextOrder()),
       archived: false,
+      systemKey: input.systemKey ?? null,
       createdAt: now,
       updatedAt: now,
     };

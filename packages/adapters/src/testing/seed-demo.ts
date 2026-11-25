@@ -1,3 +1,4 @@
+import { SYSTEM_INBOX_KEY } from '@todolist/core';
 import type {
   Clock,
   IdGenerator,
@@ -7,11 +8,20 @@ import type {
   NewTask,
   UnitOfWork,
 } from '@todolist/core';
+import { SEED_CORPORA, seedLanguage } from './seed-corpora.js';
+import type { DemoCorpus, SeedLanguage } from './seed-corpora.js';
 
 export interface SeedDeps {
   readonly uow: UnitOfWork;
   readonly clock: Clock;
   readonly ids: IdGenerator;
+  /**
+   * UI language at first run. A missing/unknown tag falls back to English, so
+   * a caller that has not been updated still seeds *something* sensible.
+   * Read once, at seed time: the rows are then ordinary content and never
+   * retranslated when the user switches language later.
+   */
+  readonly language?: string | null;
 }
 
 /**
@@ -81,6 +91,7 @@ export async function seedDemoData(deps: SeedDeps): Promise<void> {
     return;
   }
 
+  const corpus = corpusFor(seedLanguage(deps.language));
   const now = clock.now();
 
   // Anchor on the real current day. Local-time construction keeps "9:00" at
@@ -99,10 +110,16 @@ export async function seedDemoData(deps: SeedDeps): Promise<void> {
     return `${y}-${m}-${day}` as LocalDate;
   };
 
-  const inbox = await uow.lists.create({ name: '收集箱', color: '#dd7366' }, now);
-  const work = await uow.lists.create({ name: '工作', color: '#5b8def' }, now);
-  const study = await uow.lists.create({ name: '学习', color: '#8b79c9' }, now);
-  const life = await uow.lists.create({ name: '生活', color: '#d99a3d' }, now);
+  // The inbox is the one list with a stable identity: its stored name is only
+  // a fallback, and every surface renders `t('quadrant.inbox')` from the
+  // catalog instead. The other three are ordinary content, localized once.
+  const inbox = await uow.lists.create(
+    { name: corpus.lists.inbox, color: '#dd7366', systemKey: SYSTEM_INBOX_KEY },
+    now,
+  );
+  const work = await uow.lists.create({ name: corpus.lists.work, color: '#5b8def' }, now);
+  const study = await uow.lists.create({ name: corpus.lists.study, color: '#8b79c9' }, now);
+  const life = await uow.lists.create({ name: corpus.lists.life, color: '#d99a3d' }, now);
 
   const createTask = (
     listId: ListId,
@@ -115,30 +132,30 @@ export async function seedDemoData(deps: SeedDeps): Promise<void> {
   const events: {
     title: string;
     notes?: string;
-    listId: typeof work.id;
+    listId: ListId;
     start: [number, number];
     end: [number, number];
     day: number;
   }[] = [
-    { title: '健身房', listId: life.id, start: [19, 0], end: [20, 0], day: -4 },
-    { title: '设计评审', listId: work.id, start: [14, 0], end: [15, 0], day: -2 },
-    { title: '家长会', listId: life.id, start: [18, 30], end: [20, 0], day: -1 },
+    { title: corpus.events.gym.title, listId: life.id, start: [19, 0], end: [20, 0], day: -4 },
+    { title: corpus.events.designReview.title, listId: work.id, start: [14, 0], end: [15, 0], day: -2 },
+    { title: corpus.events.parentMeeting.title, listId: life.id, start: [18, 30], end: [20, 0], day: -1 },
     {
-      title: '产品评审会',
-      notes: '日程和任务共用同一个日历：带具体时间的任务也会出现在这里。',
+      title: corpus.events.productReview.title,
+      notes: corpus.events.productReview.notes ?? '',
       listId: work.id,
       start: [10, 0],
       end: [11, 0],
       day: 0,
     },
-    { title: '周会同步', listId: work.id, start: [9, 30], end: [10, 0], day: 1 },
-    { title: '客户电话', listId: work.id, start: [14, 0], end: [15, 0], day: 2 },
-    { title: '牙医复诊', listId: life.id, start: [16, 0], end: [17, 0], day: 3 },
-    { title: '读书会', listId: study.id, start: [19, 30], end: [21, 0], day: 4 },
-    { title: '部门聚餐', listId: life.id, start: [18, 0], end: [20, 0], day: 5 },
-    { title: '研讨会', listId: study.id, start: [10, 0], end: [12, 0], day: 6 },
-    { title: '项目复盘', listId: work.id, start: [15, 0], end: [16, 30], day: 7 },
-    { title: '体检', listId: life.id, start: [8, 30], end: [10, 0], day: 9 },
+    { title: corpus.events.weeklySync.title, listId: work.id, start: [9, 30], end: [10, 0], day: 1 },
+    { title: corpus.events.clientCall.title, listId: work.id, start: [14, 0], end: [15, 0], day: 2 },
+    { title: corpus.events.dentistFollowUp.title, listId: life.id, start: [16, 0], end: [17, 0], day: 3 },
+    { title: corpus.events.bookClub.title, listId: study.id, start: [19, 30], end: [21, 0], day: 4 },
+    { title: corpus.events.teamDinner.title, listId: life.id, start: [18, 0], end: [20, 0], day: 5 },
+    { title: corpus.events.workshop.title, listId: study.id, start: [10, 0], end: [12, 0], day: 6 },
+    { title: corpus.events.retrospective.title, listId: work.id, start: [15, 0], end: [16, 30], day: 7 },
+    { title: corpus.events.healthCheck.title, listId: life.id, start: [8, 30], end: [10, 0], day: 9 },
   ];
 
   for (const e of events) {
@@ -154,166 +171,220 @@ export async function seedDemoData(deps: SeedDeps): Promise<void> {
     );
   }
 
-  // --- the four scheduling precisions, labelled in the titles -----------------
-  // The title is the only text a month cell shows, so "what kind of schedule
-  // this is" has to be readable there, not just in the detail panel.
+  // --- the tour of the model --------------------------------------------------
+  // Scheduling lives here, not in the corpus, so the two language corpora can
+  // never drift structurally apart. Order matters: it is the creation order,
+  // which is also the order the lists and screens show these rows in.
+  //
+  // The four scheduling precisions are labelled in their titles because the
+  // title is the only text a month cell shows.
 
-  await createTask(inbox.id, {
-    title: '未排期：随手记',
-    notes: '没有日期，也没有时间——先放进收集箱，想起来再安排。',
-    important: false,
-    urgent: false,
-    allDay: false,
-  });
+  const t = (key: keyof DemoCorpus['tasks']) => corpus.tasks[key];
 
-  await createTask(life.id, {
-    title: '全天：整理相册',
-    notes: '只有「哪一天」，没有具体钟点；那一天什么时候做都行。',
-    important: true,
-    urgent: false,
-    dueDate: dateOf(4),
-    allDay: true,
-  });
+  const tasks: {
+    listId: ListId;
+    input: Omit<NewTask, 'listId'>;
+    /** The seeded done task is flipped to `done` after creation. */
+    complete?: boolean;
+  }[] = [
+    {
+      listId: inbox.id,
+      input: {
+        title: t('unscheduled').title,
+        notes: t('unscheduled').notes,
+        important: false,
+        urgent: false,
+        allDay: false,
+      },
+    },
+    {
+      listId: life.id,
+      input: {
+        title: t('allDay').title,
+        notes: t('allDay').notes,
+        important: true,
+        urgent: false,
+        dueDate: dateOf(4),
+        allDay: true,
+      },
+    },
+    {
+      listId: work.id,
+      input: {
+        title: t('afternoon').title,
+        notes: t('afternoon').notes,
+        important: true,
+        urgent: true,
+        dueDate: dateOf(),
+        allDay: true,
+        duePeriod: 'afternoon',
+      },
+    },
+    {
+      listId: life.id,
+      input: {
+        title: t('timed').title,
+        notes: t('timed').notes,
+        important: true,
+        urgent: true,
+        dueAt: instantAt(15, 30),
+        dueDate: dateOf(),
+        allDay: false,
+      },
+    },
+    // --- the four quadrants, with a reason to tell the axes apart -------------
+    {
+      listId: work.id,
+      input: {
+        title: t('urgentImportant').title,
+        notes: t('urgentImportant').notes,
+        important: true,
+        urgent: true,
+        dueAt: instantAt(17),
+        dueDate: dateOf(),
+        allDay: false,
+      },
+    },
+    {
+      listId: life.id,
+      input: {
+        title: t('importantNotUrgent').title,
+        notes: t('importantNotUrgent').notes,
+        important: true,
+        urgent: false,
+        dueDate: dateOf(),
+        allDay: true,
+        duePeriod: 'evening',
+      },
+    },
+    {
+      listId: inbox.id,
+      input: {
+        title: t('urgentNotImportant').title,
+        notes: t('urgentNotImportant').notes,
+        important: false,
+        urgent: true,
+        allDay: false,
+      },
+    },
+    {
+      listId: study.id,
+      input: {
+        title: t('neither').title,
+        notes: t('neither').notes,
+        important: false,
+        urgent: false,
+        allDay: false,
+      },
+    },
+    // --- a recurring task: completing one instance schedules the next ---------
+    // Monday = 0. Pick this week's upcoming Friday; if today is Friday already,
+    // the first instance lands next Friday so the series always starts ahead.
+    {
+      listId: study.id,
+      input: {
+        title: t('recurring').title,
+        notes: t('recurring').notes,
+        important: true,
+        urgent: false,
+        dueDate: dateOf(fridayOffset(base)),
+        allDay: true,
+        recurrence: { frequency: 'weekly', interval: 1, weekdays: [4] },
+      },
+    },
+    // --- remaining useful-looking entries, each with its own point -------------
+    {
+      listId: life.id,
+      input: {
+        title: t('dentist').title,
+        notes: t('dentist').notes,
+        important: false,
+        urgent: true,
+        dueDate: dateOf(3),
+        allDay: true,
+      },
+    },
+    {
+      listId: inbox.id,
+      input: {
+        title: t('rent').title,
+        notes: t('rent').notes,
+        important: true,
+        urgent: true,
+        dueDate: dateOf(2),
+        allDay: true,
+      },
+    },
+    {
+      listId: work.id,
+      input: {
+        title: t('contract').title,
+        notes: t('contract').notes,
+        important: true,
+        urgent: true,
+        dueAt: instantAt(11, 0, 1),
+        dueDate: dateOf(1),
+        allDay: false,
+      },
+    },
+    {
+      listId: study.id,
+      input: {
+        title: t('reading').title,
+        notes: t('reading').notes,
+        important: true,
+        urgent: false,
+        allDay: false,
+      },
+    },
+    {
+      listId: inbox.id,
+      input: {
+        title: t('bookmarks').title,
+        notes: t('bookmarks').notes,
+        important: false,
+        urgent: false,
+        allDay: false,
+      },
+    },
+    // --- the done state, so the completed section is not a mystery ------------
+    {
+      listId: work.id,
+      input: {
+        title: t('done').title,
+        notes: t('done').notes,
+        important: true,
+        urgent: false,
+        dueDate: dateOf(-1),
+        allDay: true,
+      },
+      complete: true,
+    },
+  ];
 
-  await createTask(work.id, {
-    title: '下午：回客户邮件',
-    notes: '半天粒度：下午（12:00–19:00）做完即可，不占用具体钟点。',
-    important: true,
-    urgent: true,
-    dueDate: dateOf(),
-    allDay: true,
-    duePeriod: 'afternoon',
-  });
-
-  await createTask(life.id, {
-    title: '15:30 接孩子',
-    notes: '具体时间：日历时间轴上会出现这一条，提醒也按这个钟点走。',
-    important: true,
-    urgent: true,
-    dueAt: instantAt(15, 30),
-    dueDate: dateOf(),
-    allDay: false,
-  });
-
-  // --- the four quadrants, with a reason to tell the axes apart ---------------
-
-  await createTask(work.id, {
-    title: '今天截止：交报销单',
-    notes: '重要且紧急：今天不交就作废。',
-    important: true,
-    urgent: true,
-    dueAt: instantAt(17),
-    dueDate: dateOf(),
-    allDay: false,
-  });
-
-  await createTask(life.id, {
-    title: '给爸妈打电话',
-    notes: '重要但不紧急——所以给它留一个固定的晚上，而不是等它变急。',
-    important: true,
-    urgent: false,
-    dueDate: dateOf(),
-    allDay: true,
-    duePeriod: 'evening',
-  });
-
-  await createTask(inbox.id, {
-    title: '回一条确认短信',
-    notes: '把任务拖到另一个象限，会同时改「重要 / 紧急」两个开关——象限是这两个开关算出来的，不是单独存的字段。',
-    important: false,
-    urgent: true,
-    allDay: false,
-  });
-
-  await createTask(study.id, {
-    title: '看看新出的效率工具',
-    notes: '按 Ctrl+K 可以随时搜索任务和日程。',
-    important: false,
-    urgent: false,
-    allDay: false,
-  });
-
-  // --- a recurring task: completing one instance schedules the next -----------
-
-  // Monday = 0. Pick this week's upcoming Friday; if today is Friday already,
-  // the first instance lands next Friday so the series always starts ahead.
-  const fridayOffset = (() => {
-    const offset = (4 - ((base.getDay() + 6) % 7) + 7) % 7;
-    return offset === 0 ? 7 : offset;
-  })();
-  await createTask(study.id, {
-    title: '每周五：复盘一周',
-    notes: '设置里选了「每周重复」。完成这一次后，会自动排到下一个周五。',
-    important: true,
-    urgent: false,
-    dueDate: dateOf(fridayOffset),
-    allDay: true,
-    recurrence: { frequency: 'weekly', interval: 1, weekdays: [4] },
-  });
-
-  // --- remaining useful-looking entries, each with its own point --------------
-
-  await createTask(life.id, {
-    title: '预约牙医',
-    notes: '别人替你定了时间：紧急，但不一定重要。',
-    important: false,
-    urgent: true,
-    dueDate: dateOf(3),
-    allDay: true,
-  });
-
-  await createTask(inbox.id, {
-    title: '交房租',
-    notes: '日期一到，就会在「今天」和四象限里顶上来。',
-    important: true,
-    urgent: true,
-    dueDate: dateOf(2),
-    allDay: true,
-  });
-
-  await createTask(work.id, {
-    title: '跟进合同签署',
-    notes: '有具体时间的工作，在时间轴上一眼能看出要占多久。',
-    important: true,
-    urgent: true,
-    dueAt: instantAt(11, 0, 1),
-    dueDate: dateOf(1),
-    allDay: false,
-  });
-
-  await createTask(study.id, {
-    title: '读《深度工作》第三章',
-    notes: '重要但不紧急、也还没排期的任务，会一直在这里等你安排。',
-    important: true,
-    urgent: false,
-    allDay: false,
-  });
-
-  await createTask(inbox.id, {
-    title: '整理浏览器书签',
-    notes: '不重要也不紧急：有空再做，没空就删掉。',
-    important: false,
-    urgent: false,
-    allDay: false,
-  });
-
-  // --- the done state, so the completed section is not a mystery --------------
-
-  const done = await createTask(work.id, {
-    title: '完成：整理上周纪要',
-    notes: '勾掉的任务会留在列表里，也可以再取消勾选恢复。',
-    important: true,
-    urgent: false,
-    dueDate: dateOf(-1),
-    allDay: true,
-  });
-  await uow.tasks.update(
-    done.id,
-    { status: 'done', completedAt: instantAt(16, 40, -1) },
-    now,
-  );
+  for (const { listId, input, complete } of tasks) {
+    const created = await createTask(listId, input);
+    if (complete) {
+      await uow.tasks.update(
+        created.id,
+        { status: 'done', completedAt: instantAt(16, 40, -1) },
+        now,
+      );
+    }
+  }
 
   await markDismissed(deps);
+}
+
+/** Offset from today to this week's upcoming Friday (never 0: see above). */
+function fridayOffset(base: Date): number {
+  const offset = (4 - ((base.getDay() + 6) % 7) + 7) % 7;
+  return offset === 0 ? 7 : offset;
+}
+
+/** Narrow the fallback contract to the corpora actually bundled here. */
+function corpusFor(language: SeedLanguage): DemoCorpus {
+  return SEED_CORPORA[language];
 }
 
 /**

@@ -152,7 +152,7 @@ describe('migration v2 → v3', () => {
     const versions = await driver.query<{ version: number }>(
       'SELECT version FROM schema_version ORDER BY version',
     );
-    expect(versions.map((r) => r.version)).toEqual([1, 2, 3, 4]);
+    expect(versions.map((r) => r.version)).toEqual([1, 2, 3, 4, 5]);
 
     const columns = await driver.query<{ name: string }>('PRAGMA table_info(tasks)');
     expect(columns.filter((c) => c.name === 'due_period')).toHaveLength(1);

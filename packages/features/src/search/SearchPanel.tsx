@@ -5,6 +5,7 @@ import { daysFromToday, todayLocal } from '@todolist/core';
 import { Checkbox, EmptyState, ScrollArea, SearchIcon, TextField, useTranslation } from '@todolist/ui';
 import { useLists } from '../services';
 import { useTasks } from '../data/useTasks';
+import { listLabel } from '../lists/list-label';
 import { applyFilters, highlightRanges, sortByRelevance } from './search';
 import { currentLanguage } from '@todolist/ui';
 import './search.css';
@@ -87,13 +88,17 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
   }, [onClose]);
 
   const filtered = useMemo(() => {
-    const listNames = new Map<string, string>(lists.map((l) => [l.id, l.name]));
+    const listNames = new Map<string, string>(lists.map((l) => [l.id, listLabel(l)]));
     return sortByRelevance(
       applyFilters(data ?? [], { query, status: 'all', listId: null, listNames }),
       query,
       listNames,
     );
-  }, [data, query, lists]);
+    // `t` is a dependency on purpose: the map holds *resolved* list names, and
+    // the system inbox's name changes with the language while the `lists` array
+    // keeps its identity. Without `t` the search results would keep grouping
+    // under the previous language's label until something else invalidated it.
+  }, [data, query, lists, t]);
 
   const groups = useMemo<readonly ResultGroup[]>(() => {
     const byList = new Map<string, Task[]>();
@@ -110,7 +115,7 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
       if (list.archived) continue;
       const bucket = byList.get(list.id);
       if (bucket && bucket.length > 0) {
-        out.push({ key: list.id, label: list.name, color: list.color, tasks: bucket });
+        out.push({ key: list.id, label: listLabel(list), color: list.color, tasks: bucket });
         byList.delete(list.id);
       }
     }
@@ -119,7 +124,7 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
         const list = lists.find((l) => l.id === listId);
         out.push({
           key: listId,
-          label: list?.name ?? t('search.uncategorized'),
+          label: list ? listLabel(list) : t('search.uncategorized'),
           color: list?.color ?? FALLBACK_COLOR,
           tasks: bucket,
         });

@@ -4,6 +4,7 @@ import { duePrecisionOf, quadrantOf, todayLocal } from '@todolist/core';
 import { Button, Checkbox, SegmentedControl, TextField, currentLanguage, i18n, useTranslation } from '@todolist/ui';
 import type { QuadrantKey } from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
+import { listLabel } from '../lists/list-label';
 import { useAppServices } from '../services';
 import { DatePicker } from '../pickers/DatePicker';
 import { TimePicker } from '../pickers/TimePicker';
@@ -590,7 +591,7 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
             >
               {lists.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.name}
+                  {listLabel(l)}
                 </option>
               ))}
             </select>

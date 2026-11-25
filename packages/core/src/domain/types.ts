@@ -80,8 +80,43 @@ export interface TaskList {
   readonly color: string;
   readonly order: number;
   readonly archived: boolean;
+  /**
+   * Stable identity for a list the app itself owns, or null/absent for a list
+   * the user created. Today the only key is `'inbox'` (see `SYSTEM_INBOX_KEY`).
+   *
+   * Identity, not a name: presentation resolves a system list's display name
+   * from the active catalog, so switching language renames the inbox without
+   * touching user lists — and this flag is what tells them apart. Absent means
+   * "ordinary list", which is also what every pre-flag database row means.
+   *
+   * Deliberately optional so every existing `TaskList` literal (fixtures,
+   * backups written before this field existed) keeps compiling and reads as a
+   * user list — the honest meaning of "no flag".
+   */
+  readonly systemKey?: string | null;
   readonly createdAt: Instant;
   readonly updatedAt: Instant;
+}
+
+/** The one system-list identity the app ships today. */
+export const SYSTEM_INBOX_KEY = 'inbox';
+
+/** True when this list is the app-owned inbox, regardless of its stored name. */
+export function isSystemInbox(list: Pick<TaskList, 'systemKey'>): boolean {
+  return list.systemKey === SYSTEM_INBOX_KEY;
+}
+
+/**
+ * The name to *show* for a list. User lists show their stored name; the system
+ * inbox shows the label the caller resolved from the active catalog, so
+ * switching language renames it in place without touching the row. The label
+ * is passed in because the domain does not know about i18n.
+ */
+export function listDisplayName(
+  list: Pick<TaskList, 'name' | 'systemKey'>,
+  systemLabel: string,
+): string {
+  return isSystemInbox(list) ? systemLabel : list.name;
 }
 
 export interface Task {
@@ -165,4 +200,9 @@ export type TaskPatch = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>>;
 export type NewEvent = Pick<CalendarEvent, 'title' | 'startAt' | 'endAt'> &
   Partial<Omit<CalendarEvent, 'id' | 'title' | 'startAt' | 'endAt' | 'createdAt' | 'updatedAt'>>;
 
-export type NewList = Pick<TaskList, 'name' | 'color'> & Partial<Pick<TaskList, 'order'>>;
+/**
+ * `systemKey` is creation-time only: identity is minted once (the seeder does
+ * it) and is not part of any update patch. See `LIST_PATCH_FIELDS`.
+ */
+export type NewList = Pick<TaskList, 'name' | 'color'> &
+  Partial<Pick<TaskList, 'order' | 'systemKey'>>;

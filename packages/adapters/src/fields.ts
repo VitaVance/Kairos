@@ -26,6 +26,12 @@ export const TASK_PATCH_FIELDS = [
 ] as const;
 
 export const LIST_PATCH_FIELDS = ['name', 'color', 'order', 'archived'] as const;
+/**
+ * Creation-only fields. Not patchable: a list's system identity is minted once
+ * by whoever creates it and must never be set or cleared by a later update —
+ * otherwise a rename path could strip the inbox of its identity.
+ */
+export const LIST_CREATE_FIELDS = [...LIST_PATCH_FIELDS, 'systemKey'] as const;
 
 export const EVENT_PATCH_FIELDS = [
   'listId',
@@ -66,6 +72,12 @@ export const LIST_FIELD_COLUMNS: Record<ListPatchField, string> = {
   // or SQLite rejects the statement with `near "order": syntax error`.
   order: '"order"',
   archived: 'archived',
+};
+
+/** Column for every creatable list field, including the creation-only ones. */
+export const LIST_CREATE_FIELD_COLUMNS: Record<(typeof LIST_CREATE_FIELDS)[number], string> = {
+  ...LIST_FIELD_COLUMNS,
+  systemKey: 'system_key',
 };
 
 export const EVENT_FIELD_COLUMNS: Record<EventPatchField, string> = {

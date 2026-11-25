@@ -109,6 +109,23 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    version: 5,
+    statements: [
+      // Stable identity for app-owned lists ("inbox"), so the sidebar can render
+      // its name from the active catalog instead of freezing the word chosen at
+      // first run. NULL = ordinary user list, which is the meaning of every row
+      // that existed before this column, so it is a nullable ADD COLUMN with no
+      // backfill and no DEFAULT — an O(1) metadata change, not a table rewrite.
+      //
+      // Existing installs therefore keep their frozen inbox name (unflagged) and
+      // it renders exactly as stored. Backfilling by position was rejected:
+      // `order` 0 is a heuristic that would relabel a user list in any database
+      // whose first list is not the seeded inbox, and a wrong identity is worse
+      // than none. See .handoff/i18n-seed-language.md.
+      `ALTER TABLE lists ADD COLUMN system_key TEXT`,
+    ],
+  },
 ];
 
 /**
