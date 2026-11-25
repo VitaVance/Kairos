@@ -3,32 +3,37 @@
    Every color references a --tl-* token; nothing here knows the theme.
    ========================================================================== */
 
-.dt-backdrop {
+/* Native <dialog>: `showModal()` supplies the focus trap, Escape and the
+   top-layer backdrop. The UA default border, padding and max-width are reset
+   here; `margin: auto` + `inset: 0` keep it centred in the viewport. */
+.dt-panel {
   position: fixed;
   inset: 0;
-  z-index: var(--tl-z-overlay);
-  display: grid;
-  place-items: center;
-  padding: var(--tl-space-4);
-  background: color-mix(in oklab, var(--tl-text) 28%, transparent);
-  animation: dt-fade var(--tl-duration-base) var(--tl-ease-out);
-}
-
-.dt-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--tl-space-5);
-  inline-size: min(560px, 100%);
+  margin: auto;
+  inline-size: min(560px, calc(100vw - var(--tl-space-8)));
   max-block-size: min(760px, 90vh);
   overflow: auto;
-  padding: var(--tl-space-5);
+  padding: 0;
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-xl);
   background: var(--tl-surface);
+  color: var(--tl-text);
   box-shadow: var(--tl-shadow-float);
   scrollbar-width: thin;
   scrollbar-color: var(--tl-scrollbar-thumb) transparent;
   animation: dt-rise var(--tl-duration-base) var(--tl-ease-out);
+}
+
+.dt-panel::backdrop {
+  background: color-mix(in oklab, var(--tl-text) 28%, transparent);
+  animation: dt-fade var(--tl-duration-base) var(--tl-ease-out);
+}
+
+.dt-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-5);
+  padding: var(--tl-space-5);
 }
 
 @keyframes dt-fade {
@@ -45,8 +50,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dt-backdrop,
-  .dt-panel {
+  .dt-panel,
+  .dt-panel::backdrop {
     animation: none;
   }
 }
@@ -128,7 +133,7 @@
 }
 
 .dt-section--danger .dt-section__title {
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .dt-section--danger .dt-section__hint {
@@ -291,7 +296,7 @@
   margin: 0;
   font-size: var(--tl-font-size-base);
   font-weight: var(--tl-font-weight-medium);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .dt-errors__list {
@@ -387,7 +392,7 @@
 
 .dt-note--error {
   background: var(--tl-danger-tint);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .dt-confirm {
@@ -412,7 +417,7 @@
 .dt-confirm__loss {
   padding-inline-start: var(--tl-space-2);
   border-inline-start: 2px solid var(--tl-danger);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 /* ---------------- Buttons ---------------- */
@@ -462,23 +467,23 @@
 
 .dt-btn--primary {
   border-color: transparent;
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
 }
 
 .dt-btn--primary:hover:not(:disabled) {
-  background: var(--tl-accent-hover);
+  background: var(--tl-accent-strong-hover);
 }
 
 .dt-btn--danger {
   border-color: transparent;
   background: var(--tl-danger-tint);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .dt-btn--danger:hover:not(:disabled) {
   background: var(--tl-danger);
-  color: var(--tl-text-inverse);
+  color: var(--tl-danger-contrast);
 }
 
 .dt-btn--ghost {

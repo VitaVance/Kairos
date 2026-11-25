@@ -132,7 +132,11 @@ export function MultiWeekView({
           ))}
         </div>
 
-        <div className="mwv__grid" role="grid" aria-label={t('multiWeek.gridAria', { weeks: weekCount })}>
+        {/* Genuinely tabular: weeks are rows, the week-start label is a real
+            row header, days are cells. A `table` promises no arrow-key model
+            or single tab stop, so it is truthful here where `grid` was not.
+            Interactive content (date buttons, chips) lives inside the cells. */}
+        <div className="mwv__grid" role="table" aria-label={t('multiWeek.gridAria', { weeks: weekCount })}>
           {weeksOfDays.map((week) => {
             const monday = week[0];
             return (
@@ -156,7 +160,7 @@ export function MultiWeekView({
                   return (
                     <div
                       className={`mwv__cell${isToday ? ' mwv__cell--today' : ''}`}
-                      role="gridcell"
+                      role="cell"
                       key={day}
                     >
                       <div className="mwv__cellhead">

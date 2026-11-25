@@ -160,6 +160,7 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
   const { t } = useTranslation('misc');
   const panelId = useId();
   const titleId = useId();
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -187,19 +188,19 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
   // (or resurrect deleted ones). Drop the stack after a replace.
   const undoStack = useUndoOptional();
 
-  // Escape closes; focus lands on the close button when opened.
+  // Drive the native dialog imperatively — never render the `open` attribute.
+  // `showModal()` supplies the focus trap, Escape handling and `::backdrop`
+  // from the platform; `close()` returns focus to whatever opened the panel.
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: globalThis.KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    closeRef.current?.focus();
-    return () => document.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+      closeRef.current?.focus();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
 
   const resetImport = useCallback(() => {
     setPhase({ kind: 'empty' });
@@ -373,8 +374,6 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
     }
   }, [onReset, onClose, resetImport, undoStack, t]);
 
-  if (!open) return null;
-
   const copy = resetCopy(t);
   const importCounts =
     phase.kind === 'valid'
@@ -386,14 +385,25 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
       : null;
 
   return (
-    <div
-      className="dt-backdrop"
-      role="presentation"
-      onMouseDown={(e) => {
+    <dialog
+      ref={dialogRef}
+      id={panelId}
+      className="dt-panel"
+      aria-labelledby={titleId}
+      onCancel={(e) => {
+        // Esc: close through the parent so `open` stays the single source of
+        // truth; the effect above then calls `close()` and focus returns to
+        // the element that opened the panel.
+        e.preventDefault();
+        onClose();
+      }}
+      onClick={(e) => {
+        // Native dialogs do not close on backdrop click; a click whose target
+        // is the dialog element itself (not a descendant) means the backdrop.
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <section id={panelId} className="dt-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
+      <div className="dt-panel__body">
         <header className="dt-panel__head">
           <h2 id={titleId} className="dt-panel__title">
             {t('data.title')}
@@ -683,7 +693,7 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
         <p className="dt-status" role="status" aria-live="polite">
           {status}
         </p>
-      </section>
-    </div>
+      </div>
+    </dialog>
   );
 }

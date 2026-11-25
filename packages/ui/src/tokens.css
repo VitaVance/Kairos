@@ -81,12 +81,28 @@
   /* Readable accent for accent-coloured *text/icons* on surface or a tint;
      --tl-accent itself is a fill colour and is 3.7:1 as ink. */
   --tl-accent-ink: #2563eb;
+  /* Fill for accent *surfaces that carry text* — primary buttons, selected
+     days, active time cells. --tl-accent is a fine UI-boundary colour but too
+     light for --tl-accent-contrast (white) at 3.68:1; this darker fill keeps
+     the white ink at 5.17:1 (hover 6.70:1). Palettes whose accent already
+     passes set strong = accent, so only the default palette shifts. */
+  --tl-accent-strong: #2563eb;
+  --tl-accent-strong-hover: #1d4ed8;
   --tl-danger: #ff5252;
-  --tl-danger-hover: #ea4747;
+  --tl-danger-hover: #e85050;
   --tl-danger-tint: #fff0ef;
+  /* Readable danger for error *text* on surface/tint. --tl-danger is a 3.1:1
+     ink on light surfaces; this is the danger sibling of --tl-accent-ink. */
+  --tl-danger-ink: #c62828;
+  /* Ink for a *solid* danger fill (destructive buttons). White on the light
+     coral fill is 3.19:1; near-black is 5.27:1, and the hover fill is tuned
+     (#e85050) so it stays 4.56:1. */
+  --tl-danger-contrast: #1d1d1f;
   --tl-warning: #ff9500;
   --tl-warning-hover: #f08c00;
+  --tl-warning-ink: #955400;
   --tl-success: #10b981;
+  --tl-success-ink: #047857;
 
   /* ---- Eisenhower quadrants (exact reference hues) ---------------------- */
   --tl-quadrant-q1: #ff5252; /* urgent + important       */
@@ -97,6 +113,12 @@
   --tl-quadrant-q3-tint: #eff5ff;
   --tl-quadrant-q4: #10b981; /* neither                  */
   --tl-quadrant-q4-tint: #ebf9f3;
+  /* Label ink for quadrant badges. The fills above are dot/border hues and
+     measure 2.2–3.7:1 as 14px text; these are ≥4.7:1 on the card surface. */
+  --tl-quadrant-q1-ink: #c62828;
+  --tl-quadrant-q2-ink: #955400;
+  --tl-quadrant-q3-ink: #2563eb;
+  --tl-quadrant-q4-ink: #047857;
 
   /* ---- 8 curated list hues ---------------------------------------------
      `base`  — rule / dot on light surfaces
@@ -245,8 +267,8 @@
      Follows the palette's accent rather than a fixed amber. The reference
      design used amber because its CTA was an *upgrade* prompt; in this app the
      same button is 新建日程, so an upgrade-coloured action reads as an ad. */
-  --tl-cta-bg: var(--tl-accent);
-  --tl-cta-bg-hover: var(--tl-accent-hover);
+  --tl-cta-bg: var(--tl-accent-strong);
+  --tl-cta-bg-hover: var(--tl-accent-strong-hover);
   --tl-cta-text: var(--tl-accent-contrast);
   /* Ink for the CTA fill, kept for palettes that override it with a light
      fill (e.g. editorial dark), where accent-contrast alone is too weak. */
@@ -285,12 +307,25 @@
   --tl-accent-contrast: #101418;
   --tl-accent-tint: #1c2b45;
   --tl-accent-ink: #60a5fa;
+  /* The dark ink on the accent fill lands at 5.03:1, but the *hover* fill
+     (#2f74e8) drops it to 4.21:1 — hover lightens instead of darkening. */
+  --tl-accent-strong: #3b82f6;
+  --tl-accent-strong-hover: #4f8ef7;
   --tl-danger-tint: #3a2424;
+  --tl-danger-ink: #ff6b6b;
+  --tl-danger-hover: #ff7070;
+  --tl-danger-contrast: #101418;
+  --tl-warning-ink: #ffb74d;
+  --tl-success-ink: #34d399;
 
   --tl-quadrant-q1-tint: #3a2424;
   --tl-quadrant-q2-tint: #3a2e1c;
   --tl-quadrant-q3-tint: #1c2b45;
   --tl-quadrant-q4-tint: #173229;
+  --tl-quadrant-q1-ink: #ff6b6b;
+  --tl-quadrant-q2-ink: #ffb74d;
+  --tl-quadrant-q3-ink: #60a5fa;
+  --tl-quadrant-q4-ink: #34d399;
 
   --tl-hue-1-tint: #1b2a45;
   --tl-hue-2-tint: #163029;
@@ -339,12 +374,18 @@
   --tl-accent-contrast: #ffffff;
   --tl-accent-tint: #eeeefb;
   --tl-accent-ink: #5b5bd6;
+  --tl-accent-strong: #5b5bd6;
+  --tl-accent-strong-hover: #4b4bc6;
   --tl-danger: #c64141;
   --tl-danger-hover: #b03a3a;
   --tl-danger-tint: #fbeeee;
+  --tl-danger-ink: #b03838;
+  --tl-danger-contrast: #ffffff;
   --tl-warning: #cf8a2e;
   --tl-warning-hover: #b97b27;
+  --tl-warning-ink: #805315;
   --tl-success: #3f8f68;
+  --tl-success-ink: #2a6449;
 
   --tl-quadrant-q1: #cf4b4b;
   --tl-quadrant-q1-tint: #fbeeee;
@@ -354,6 +395,10 @@
   --tl-quadrant-q3-tint: #edf3fb;
   --tl-quadrant-q4: #3f8f68;
   --tl-quadrant-q4-tint: #edf6f1;
+  --tl-quadrant-q1-ink: #b03838;
+  --tl-quadrant-q2-ink: #8a5a1a;
+  --tl-quadrant-q3-ink: #33689f;
+  --tl-quadrant-q4-ink: #2f7052;
 
   --tl-hue-1-base: #55688a;
   --tl-hue-1-solid: #4b5c7b;
@@ -427,16 +472,27 @@
   --tl-accent-contrast: #141413;
   --tl-accent-ink: #8b8bf0;
   --tl-accent-hover: #9c9cf4;
+  --tl-accent-strong: #8b8bf0;
+  --tl-accent-strong-hover: #9c9cf4;
   --tl-accent-tint: #22223a;
   --tl-danger: #e06a6a;
   --tl-danger-tint: #33201f;
+  --tl-danger-ink: #ea7a7a;
+  --tl-danger-hover: #f08a8a;
+  --tl-danger-contrast: #141413;
   --tl-warning: #d99a3d;
+  --tl-warning-ink: #d99a3d;
   --tl-success: #5aab84;
+  --tl-success-ink: #5aab84;
 
   --tl-quadrant-q1-tint: #33201f;
   --tl-quadrant-q2-tint: #332a19;
   --tl-quadrant-q3-tint: #1d2735;
   --tl-quadrant-q4-tint: #1b2a23;
+  --tl-quadrant-q1-ink: #ea7a7a;
+  --tl-quadrant-q2-ink: #d99a3d;
+  --tl-quadrant-q3-ink: #8b8bf0;
+  --tl-quadrant-q4-ink: #5aab84;
 
   --tl-hue-1-tint: #1f2530;
   --tl-hue-2-tint: #1b2a23;
@@ -487,12 +543,18 @@
   --tl-accent-contrast: #fffdf8;
   --tl-accent-tint: rgba(74, 109, 140, 0.09);
   --tl-accent-ink: #4a6d8c;
+  --tl-accent-strong: #4a6d8c;
+  --tl-accent-strong-hover: #3d5b75;
   --tl-danger: #b4553f;
   --tl-danger-hover: #9c4634;
   --tl-danger-tint: rgba(180, 85, 63, 0.09);
+  --tl-danger-ink: #9c4634;
+  --tl-danger-contrast: #fffdf8;
   --tl-warning: #c08a2e;
   --tl-warning-hover: #a87726;
+  --tl-warning-ink: #7f5713;
   --tl-success: #6b8a5e;
+  --tl-success-ink: #47613d;
 
   --tl-quadrant-q1: #b4553f;
   --tl-quadrant-q1-tint: rgba(180, 85, 63, 0.075);
@@ -502,6 +564,10 @@
   --tl-quadrant-q3-tint: rgba(74, 109, 140, 0.075);
   --tl-quadrant-q4: #6b8a5e;
   --tl-quadrant-q4-tint: rgba(107, 138, 94, 0.09);
+  --tl-quadrant-q1-ink: #9c4634;
+  --tl-quadrant-q2-ink: #8a5f17;
+  --tl-quadrant-q3-ink: #4a6d8c;
+  --tl-quadrant-q4-ink: #4f6a45;
 
   --tl-hue-1-base: #4a6d8c;
   --tl-hue-1-solid: #3f5e79;
@@ -583,11 +649,18 @@
   --tl-accent-contrast: #1a1713;
   --tl-accent-ink: #7d9dba;
   --tl-accent-hover: #8fadc7;
+  --tl-accent-strong: #7d9dba;
+  --tl-accent-strong-hover: #8fadc7;
   --tl-accent-tint: rgba(125, 157, 186, 0.14);
   --tl-danger: #cd7661;
   --tl-danger-tint: rgba(205, 118, 97, 0.14);
+  --tl-danger-ink: #d98a76;
+  --tl-danger-hover: #e09a88;
+  --tl-danger-contrast: #1a1713;
   --tl-warning: #d2a052;
+  --tl-warning-ink: #d2a052;
   --tl-success: #86a377;
+  --tl-success-ink: #86a377;
 
   --tl-quadrant-q1: #cd7661;
   --tl-quadrant-q1-tint: rgba(205, 118, 97, 0.14);
@@ -597,6 +670,10 @@
   --tl-quadrant-q3-tint: rgba(125, 157, 186, 0.14);
   --tl-quadrant-q4: #86a377;
   --tl-quadrant-q4-tint: rgba(134, 163, 119, 0.15);
+  --tl-quadrant-q1-ink: #d98a76;
+  --tl-quadrant-q2-ink: #d2a052;
+  --tl-quadrant-q3-ink: #7d9dba;
+  --tl-quadrant-q4-ink: #86a377;
 
   --tl-hue-1-tint: rgba(125, 157, 186, 0.14);
   --tl-hue-2-tint: rgba(134, 163, 119, 0.15);

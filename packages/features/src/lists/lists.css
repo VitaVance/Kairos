@@ -60,6 +60,14 @@
   font-weight: var(--tl-font-weight-medium);
 }
 
+/* Press feedback, matching `.tk-row`: clicking a smart filter mutates the list
+   immediately, so the row must acknowledge the press. Declared after `--active`
+   so pressing the current filter still darkens rather than looking inert. */
+.list-sidebar__quick-item:active {
+  background: var(--tl-surface-sunken);
+  scale: 0.995;
+}
+
 .list-sidebar__quick-label {
   flex: 1;
   min-inline-size: 0;
@@ -245,7 +253,7 @@
 }
 
 .list-sidebar__menu-item--danger {
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .list-sidebar__menu-item--danger:hover:not(:disabled) {
@@ -333,7 +341,7 @@
   border: 0;
   border-radius: var(--tl-radius-sm);
   background: var(--tl-danger);
-  color: var(--tl-text-inverse);
+  color: var(--tl-danger-contrast);
   font: inherit;
   font-size: var(--tl-font-size-sm);
   font-weight: var(--tl-font-weight-medium);
@@ -380,13 +388,13 @@
 .list-editor__error {
   margin: 0;
   font-size: var(--tl-font-size-sm);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .list-sidebar__error {
   margin: 0 var(--tl-space-2) var(--tl-space-1);
   font-size: var(--tl-font-size-sm);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .list-sidebar__empty {

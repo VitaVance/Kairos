@@ -12,22 +12,23 @@ export interface Theme {
   vars: Record<string, string>;
 }
 
-export const defaultTheme: Theme = {
-  name: 'refined-light',
-  vars: {
-    bg: '#f5f5f6',
-    surface: '#ffffff',
-    'surface-raised': '#ffffff',
-    border: '#ececee',
-    'border-strong': '#e3e3e6',
-    text: '#1d1d1f',
-    'text-secondary': '#6e6e73',
-    'text-tertiary': '#a1a1a6',
-    accent: '#3b82f6',
-    'accent-contrast': '#ffffff',
-    danger: '#ff5252',
-  },
-};
+/*
+ * There used to be a `defaultTheme` object here, hardcoding a "refined-light"
+ * palette. It had two problems and no callers:
+ *
+ * 1. It was a second source of truth for colours that `tokens.css` already
+ *    defines — and it had drifted. Its `text-tertiary` was `#a1a1a6`, the value
+ *    later measured at 2.57:1 and replaced with `#747478`. Anyone who built a
+ *    Theme from it would have shipped the same contrast failure the token work
+ *    had just fixed.
+ * 2. `applyTheme` below writes inline custom properties on `<html>`, and
+ *    inline styles beat every stylesheet rule. That is exactly why
+ *    `apps/desktop/src/shell/theme.ts` refuses to use this path for dark mode:
+ *    it would pin the light values permanently.
+ *
+ * The conversion helpers stay — they are the useful, side-effect-free part —
+ * but the palette itself lives only in `tokens.css`.
+ */
 
 export function themeToCssVars(theme: Theme): Record<string, string> {
   const out: Record<string, string> = {};

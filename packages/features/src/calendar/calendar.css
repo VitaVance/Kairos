@@ -154,7 +154,7 @@
 
 .cal-error {
   margin: 0;
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
   font-size: var(--tl-font-size-sm);
 }
 
@@ -458,12 +458,6 @@
 
 .cal-week-block--dragging {
   opacity: 0.38;
-}
-
-.cal-week-block:focus-visible {
-  outline: 2px solid var(--tl-focus-ring);
-  outline-offset: 1px;
-  border-radius: var(--tl-radius-sm);
 }
 
 .cal-week-col--create {
@@ -801,7 +795,7 @@
 }
 
 .mwv__date--today {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
   font-weight: var(--tl-font-weight-semibold);
   box-shadow: 0 0 0 3px var(--tl-accent-tint);
@@ -970,7 +964,7 @@
 }
 
 .mdv__dayhead--today .mdv__daynum {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
 }
 
@@ -1249,6 +1243,17 @@
   box-shadow: var(--tl-shadow-sm);
 }
 
+/* Press feedback. The card is a gap-separated grid item, not part of a shared
+   hairline grid, so it can take the same 0.995 press as `.tk-row`. The press
+   also drops the hover lift: a card that keeps its shadow while depressed
+   reads as "hover", not "pressed". `scale` stays out of the transition list
+   so the step is immediate. */
+.yrv__month:active {
+  background: var(--tl-surface-sunken);
+  box-shadow: none;
+  scale: 0.995;
+}
+
 .yrv__monthhead {
   display: flex;
   align-items: baseline;
@@ -1371,7 +1376,7 @@
    selector outranks `.yrv__cell--hN .yrv__daynum` by specificity (3 classes),
    so today's ink and weight hold regardless of the day's step. */
 .yrv__cell--today {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent-contrast) 35%, transparent);
 }
 

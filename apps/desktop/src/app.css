@@ -145,13 +145,32 @@ body {
   color: var(--tl-text);
 }
 
+/* The nav rail's buttons had only the thin UA ring; the rest of the app draws
+   the 2px token ring. Match it. */
+.side-rail__item:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
 .side-rail__item--active {
   background: var(--tl-accent-tint);
   color: var(--tl-accent-ink);
 }
 
+/* Press feedback. Hover says "this nav is live"; `:active` says the click
+   landed. Declared after `--active` so pressing the current section still
+   darkens instead of being swallowed by the tint. Same vocabulary as
+   `.mv__cell` / `.tk-row`: one background step plus the shared 0.995 press.
+   The rail item is a 36px square with no shared hairlines, so the scale is
+   safe; `transform` is not in the transition list, so the press is instant
+   and the 14px glyph only shrinks 0.2px. */
+.side-rail__item:active {
+  background: var(--tl-surface-sunken);
+  scale: 0.995;
+}
+
 .side-rail__help {
-  color: var(--tl-danger) !important;
+  color: var(--tl-danger-ink) !important;
 }
 
 /* The bottom group renders @todolist/ui IconButtons (30px) while the nav

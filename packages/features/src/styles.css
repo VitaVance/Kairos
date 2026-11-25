@@ -60,6 +60,21 @@
   margin-bottom: 10px;
 }
 
+/* Quadrant badge labels use the readable -ink sibling of each hue; the dot
+   keeps the vivid fill so quadrant identity survives the darkening. */
+.qz-card[data-qz-quadrant='urgent-important'] .tl-badge {
+  --badge-ink: var(--tl-quadrant-q1-ink);
+}
+.qz-card[data-qz-quadrant='not-urgent-important'] .tl-badge {
+  --badge-ink: var(--tl-quadrant-q2-ink);
+}
+.qz-card[data-qz-quadrant='urgent-not-important'] .tl-badge {
+  --badge-ink: var(--tl-quadrant-q3-ink);
+}
+.qz-card[data-qz-quadrant='unimportant'] .tl-badge {
+  --badge-ink: var(--tl-quadrant-q4-ink);
+}
+
 .qz-card__add {
   margin-bottom: 8px;
 }
@@ -355,6 +370,21 @@
   --mv-ground: var(--tl-surface-hover);
 }
 
+/*
+ * Press feedback. The cell opens the day view on click, and hover alone only
+ * says "something might happen here" — `:active` says the click landed. This
+ * matters more than usual because the cell is large (≈200×140px) and its click
+ * target is the whole area, so a user who misjudges gets no other cue that
+ * they hit it.
+ *
+ * A background step rather than a `scale`: shrinking a cell that owns a border
+ * grid would shift the hairlines of its four neighbours.
+ */
+.mv__cell:active {
+  background: var(--tl-surface-sunken);
+  --mv-ground: var(--tl-surface-sunken);
+}
+
 /* Out-of-month days recede: cooler ground, faded numerals and chips. */
 .mv__cell--out {
   background: var(--tl-surface-sunken);
@@ -387,15 +417,24 @@
   display: grid;
   place-items: center;
   align-self: flex-start;
-  /* 26px, up from 22: the numeral is 13px (sm) and a 22px pill with 6px inline
-     padding left under 4px of vertical air, so "31" nearly touched the edge.
-     26px keeps the pill compact but gives the glyph room. */
-  min-width: 26px;
-  height: 26px;
-  padding: 0 6px;
+  /* 30px, up from 26, and the numeral with it (sm → base).
+   *
+   * At 1440px the §cell is roughly 200×140px, and a 13px numeral in the corner
+   * of that much space reads as a footnote rather than the anchor of the day.
+   * The date is what the eye scans for when it opens a month, so it takes the
+   * body size and a step more weight; the chips underneath stay at sm, which
+   * keeps the hierarchy (date > entry) legible instead of flattening it.
+   *
+   * A fixed 30px square, not `min-width` + inline padding: a month never needs
+   * three digits, so the pill only ever holds one or two. The old
+   * `min-width: 30px; padding: 0 7px` on a content-box measured 44×30 — "25"
+   * filled as a wide bar, which read heavier than the bare numerals around it.
+   * Square keeps the footprint identical for "1" and "31". */
+  inline-size: 30px;
+  height: 30px;
   border-radius: var(--tl-radius-full);
-  font-size: var(--tl-font-size-sm);
-  font-weight: var(--tl-font-weight-medium);
+  font-size: var(--tl-font-size-base);
+  font-weight: var(--tl-font-weight-semibold);
   color: var(--tl-text-secondary);
   font-variant-numeric: tabular-nums;
   transition:
@@ -403,11 +442,19 @@
     color var(--tl-duration-fast) var(--tl-ease-standard);
 }
 
+/* Solid accent, no outer halo.
+ *
+ * Today is already marked twice by the cell: a 5% accent ground plus a 1px
+ * inset accent ring (`.mv__cell--today`). The 3px `--tl-accent-tint` halo here
+ * was a third mark, and that tint sits within a few RGB points of the tinted
+ * ground it was painted on, so it grew the pill's footprint by 6px without
+ * adding a signal anyone could see. Dropping it leaves a crisp dot.
+ * The fill stays solid rather than tinted: at a 5% cell wash a tinted pill
+ * would not separate from the cell. */
 .mv__date--today {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
   font-weight: var(--tl-font-weight-semibold);
-  box-shadow: 0 0 0 3px var(--tl-accent-tint);
 }
 
 .mv__events {
@@ -514,7 +561,7 @@
 /* Today's header cell gets the filled pill *and* a tinted column wash below
    (`.wv__col--today`), so the day is obvious even when scrolled past the head. */
 .wv__dayhead--today .wv__daynum {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
 }
 
@@ -1297,12 +1344,12 @@
 
 .tk-row__delete:hover {
   background: var(--tl-danger-tint);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }
 
 .tk-row__delete--confirm {
   background: var(--tl-danger);
-  color: var(--tl-text-inverse);
+  color: var(--tl-danger-contrast);
 }
 
 /* ---- quick add ---- */
@@ -1403,5 +1450,5 @@
   padding: var(--tl-space-2);
   border-radius: var(--tl-radius-sm);
   background: var(--tl-danger-tint);
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
 }

@@ -102,12 +102,12 @@
 
 .reminder-banner__btn--primary {
   border-color: transparent;
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
 }
 
 .reminder-banner__btn--primary:hover {
-  background: var(--tl-accent-hover);
+  background: var(--tl-accent-strong-hover);
   color: var(--tl-accent-contrast);
 }
 

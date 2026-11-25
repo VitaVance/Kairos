@@ -117,11 +117,11 @@
     outline-offset: 2px;
   }
   .tl-btn--primary {
-    background: var(--tl-accent);
+    background: var(--tl-accent-strong);
     color: var(--tl-accent-contrast);
   }
   .tl-btn--primary:hover:not(:disabled) {
-    background: var(--tl-accent-hover);
+    background: var(--tl-accent-strong-hover);
   }
   .tl-btn--secondary {
     background: var(--tl-surface);
@@ -141,17 +141,12 @@
   }
   .tl-btn--danger {
     background: var(--tl-danger-tint);
-    color: var(--tl-danger);
+    color: var(--tl-danger-ink);
     border-color: transparent;
   }
   .tl-btn--danger:hover:not(:disabled) {
     background: var(--tl-danger);
-    color: var(--tl-text-inverse);
-  }
-  /* The default palette's red is light; white ink on it is only 3.2:1, while
-     the dark ink used inside the --tl-danger-tint button body is 5.3:1. */
-  :root:not([data-theme='dark']) .tl-btn--danger:hover:not(:disabled) {
-    color: var(--tl-text);
+    color: var(--tl-danger-contrast);
   }
   .tl-btn__icon {
     display: inline-flex;
@@ -309,14 +304,18 @@
     gap: 5px;
     inline-size: 100%;
     min-inline-size: 0;
-    padding: 2px 6px 2px 7px;
+    /* 3px block padding and base-adjacent text: at xs the chip sat so thin in
+       a 140px month cell that it read as a highlight rather than a task. The
+       inline padding stays tight because the leading rule and the truncated
+       title need every pixel of a narrow column. */
+    padding: 3px 6px 3px 7px;
     border: 0;
     border-inline-start: 2px solid var(--chip-color);
     border-radius: var(--tl-radius-sm);
     background: var(--chip-tint, color-mix(in oklab, var(--chip-color) 10%, var(--tl-tint-base)));
     color: var(--tl-chip-text);
-    font-size: var(--tl-font-size-xs);
-    line-height: 1.5;
+    font-size: var(--tl-font-size-sm);
+    line-height: 1.45;
     text-align: start;
     cursor: default;
     overflow: hidden;
@@ -388,7 +387,7 @@
     gap: var(--tl-space-2);
     font-size: var(--tl-font-size-md);
     font-weight: var(--tl-font-weight-semibold);
-    color: var(--badge-color);
+    color: var(--badge-ink, var(--badge-color));
   }
   .tl-badge__dot {
     inline-size: 7px;

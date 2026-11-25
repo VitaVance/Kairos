@@ -240,15 +240,15 @@
 }
 
 .tk-cal__day--selected {
-  background: var(--tl-accent);
-  border-color: var(--tl-accent);
+  background: var(--tl-accent-strong);
+  border-color: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
   font-weight: var(--tl-font-weight-semibold);
 }
 
 .tk-cal__day--selected:hover {
-  background: var(--tl-accent-hover);
-  border-color: var(--tl-accent-hover);
+  background: var(--tl-accent-strong-hover);
+  border-color: var(--tl-accent-strong-hover);
   color: var(--tl-accent-contrast);
 }
 
@@ -297,7 +297,7 @@
   border: 0;
   border-radius: var(--tl-radius-sm);
   background: transparent;
-  color: var(--tl-danger);
+  color: var(--tl-danger-ink);
   font: inherit;
   font-size: var(--tl-font-size-sm);
   cursor: pointer;
@@ -418,13 +418,13 @@
 }
 
 .tk-time__cell--active {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
   font-weight: var(--tl-font-weight-semibold);
 }
 
 .tk-time__cell--active:hover {
-  background: var(--tl-accent-hover);
+  background: var(--tl-accent-strong-hover);
 }
 
 .tk-time__foot {

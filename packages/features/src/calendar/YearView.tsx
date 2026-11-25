@@ -107,7 +107,11 @@ export function YearView({ cursor, today, onOpenDay }: YearViewProps) {
                     {monthName}
                   </button>
                 </div>
-                <div className="yrv__mini" role="grid" aria-label={monthLabel}>
+                {/* A static month heat-map: weeks are rows, days are cells.
+                    Nothing here is focusable — the card's name button is the
+                    only control — so `table` (which promises no keyboard
+                    model) is truthful where `grid` was not. */}
+                <div className="yrv__mini" role="table" aria-label={monthLabel}>
                   <div className="yrv__weekdays" aria-hidden="true">
                     {weekdays.map((d, i) => (
                       <span key={i} className="yrv__weekday">
@@ -126,7 +130,7 @@ export function YearView({ cursor, today, onOpenDay }: YearViewProps) {
                             className={`yrv__cell${cell.inMonth ? '' : ' yrv__cell--out'}${
                               step > 0 ? ` yrv__cell--h${step}` : ''
                             }${isToday ? ' yrv__cell--today' : ''}`}
-                            role="gridcell"
+                            role="cell"
                             key={cell.date}
                             aria-label={
                               cell.inMonth

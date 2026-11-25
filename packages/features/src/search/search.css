@@ -167,7 +167,7 @@
  * only, no padding).
  */
 .search-row--active .search-row__title mark {
-  background: var(--tl-accent);
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
   text-decoration-color: var(--tl-accent-contrast);
 }

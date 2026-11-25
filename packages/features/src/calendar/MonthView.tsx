@@ -109,9 +109,16 @@ export function MonthView({ cursor, today, onDayClick, onOpenDay, onCreateAt, on
           </span>
         ))}
       </div>
-      <div className="mv__grid" role="grid" aria-label={formatMonthYear(Number(cursor.slice(0, 4)), Number(cursor.slice(5, 7)))}>
+      {/*
+        No `role="grid"`: there is no grid keyboard model (no arrow-key cell
+        navigation, no single tab stop for the grid), so the role would promise
+        behaviour that does not exist. The cells are pointer-only; the chips
+        inside them are the real controls and stay real buttons. A labelled
+        group is the honest container.
+      */}
+      <div className="mv__grid" role="group" aria-label={formatMonthYear(Number(cursor.slice(0, 4)), Number(cursor.slice(5, 7)))}>
         {grid.map((week, wi) => (
-          <div className="mv__week" role="row" key={wi}>
+          <div className="mv__week" key={wi}>
             {week.map((day) => {
               const entries = byDay.get(day) ?? [];
               const outside = !day.startsWith(monthPrefix);
@@ -119,7 +126,6 @@ export function MonthView({ cursor, today, onDayClick, onOpenDay, onCreateAt, on
               return (
                 <div
                   className={`mv__cell${outside ? ' mv__cell--out' : ''}${isToday ? ' mv__cell--today' : ''}`}
-                  role="gridcell"
                   key={day}
                   onClick={(e) => onCellClick(e, day)}
                 >
