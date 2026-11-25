@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { CryptoIdGenerator, SystemClock, resetAllData, seedDemoData } from '@todolist/adapters';
 import type { TaskList } from '@todolist/core';
-import { initTemporal } from '@todolist/core';
+import { TaskService, initTemporal } from '@todolist/core';
 import { resolveInitialLanguage } from '@todolist/ui';
 import { AppServicesProvider } from '@todolist/features';
 import type { Notifier } from '@todolist/features';
@@ -48,7 +48,7 @@ const notifier: Notifier | undefined = isTauri() ? createTauriNotifier() : undef
  */
 const updateChecker = isTauri() ? createTauriUpdateChecker() : null;
 
-/** Boot: Temporal → storage → seed (seed is a no-op once any list exists). */
+/** Boot: Temporal → storage → seed → one-time data repair. */
 async function boot(): Promise<Booted> {
   await initTemporal();
   const storage = await createStorage({ ids });
@@ -60,12 +60,48 @@ async function boot(): Promise<Booted> {
    * content and are never retranslated when the user switches later.
    */
   await seedDemoData({ uow: storage.uow, clock, ids, language: resolveInitialLanguage() });
+  await repairRunawayRecurringDates(storage.uow);
   const lists = await storage.uow.lists.list();
   return {
     storage,
     lists,
     resetData: () => resetAllData({ uow: storage.uow, clock, ids }),
   };
+}
+
+/**
+ * One-time correction for the old recurring-completion bug, which advanced a
+ * repeating task's due date on every click and could push it years out.
+ *
+ * Gated on a marker in the database's `settings` table, so it runs exactly
+ * once per installation: a user who *later* deliberately schedules a repeating
+ * task months ahead must not have it clamped on the next start. The write
+ * happens before the first list read, so the corrupt date is never rendered.
+ *
+ * Storage that exposes no settings (a hand-written fake) is skipped — there is
+ * nothing to record the marker in, so repeating the pass forever would be the
+ * only alternative.
+ */
+const RECURRENCE_REPAIR_KEY = 'repair.recurring-runaway-dates.v1';
+
+interface SettingsStore {
+  get(key: string): Promise<string | null>;
+  set(key: string, value: string): Promise<void>;
+}
+
+async function repairRunawayRecurringDates(uow: StorageHandle['uow']): Promise<void> {
+  const store = (uow as { settings?: Partial<SettingsStore> }).settings;
+  if (typeof store?.get !== 'function' || typeof store.set !== 'function') return;
+  if ((await store.get(RECURRENCE_REPAIR_KEY)) !== null) return;
+
+  const repaired = await new TaskService({ uow, clock, ids }).repairRunawayRecurrences();
+  await store.set(RECURRENCE_REPAIR_KEY, clock.now());
+  if (repaired.length > 0) {
+    console.info(
+      `[repair] 已把 ${repaired.length} 条重复任务的错误日期修正到最近一次:`,
+      repaired.map((task) => `${task.title} → ${task.dueDate}`).join(', '),
+    );
+  }
 }
 
 /**

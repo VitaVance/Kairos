@@ -1,6 +1,6 @@
-import { compareTasks, quadrantOf } from '../domain/task.js';
+import { compareTasks, daysFromToday, quadrantOf } from '../domain/task.js';
 import type { Recurrence } from '../domain/recurrence.js';
-import { isValidRecurrence, nextOccurrence } from '../domain/recurrence.js';
+import { isValidRecurrence, nextOccurrence, previousOccurrence } from '../domain/recurrence.js';
 import type {
   DuePeriod,
   Instant,
@@ -14,6 +14,20 @@ import type {
 } from '../domain/types.js';
 import type { Clock, IdGenerator, UnitOfWork } from '../ports/repository.js';
 import { endOfDay, instantAtLocal, localDateOf, startOfDay } from '../shared/date.js';
+
+/**
+ * What one completion did.
+ *
+ * `task` is the row the caller toggled. `next` is the freshly created
+ * occurrence when a recurring task was completed, and `null` for every other
+ * case. The UI needs the spawned row's id to make undo exact: reversing a
+ * recurring completion is "delete the next occurrence and reopen this one",
+ * which is not `toggleDone` again.
+ */
+export interface ToggleDoneResult {
+  readonly task: Task;
+  readonly next: Task | null;
+}
 
 /**
  * The four mutually exclusive ways a task can be scheduled.
@@ -77,22 +91,109 @@ export class TaskService {
     return task;
   }
 
-  async toggleDone(id: TaskId): Promise<Task> {
+  /**
+   * Complete or reopen a task.
+   *
+   * A recurring task is detached, not rolled: completing the current occurrence
+   * marks *this row* done and creates a new open row for the next occurrence,
+   * one period later. The old shape — advance `dueDate` on the same row and
+   * leave it open — meant the completion control could never produce a tick, so
+   * a click was indistinguishable from a no-op and repeated clicks walked the
+   * date into the next decade. See `.handoff/recurring-completion.md`.
+   *
+   * The second row is the cost, and it is the honest one: the list history shows
+   * "last Friday: done" and "next Friday: open" as two facts, which is exactly
+   * what happened. In-place completion (done *and* future-dated on one row) was
+   * rejected because a done row is read as history everywhere in the UI.
+   *
+   * Reopening closes the loop: a done recurring row reopens in place. The next
+   * occurrence, if it exists, is a separate row and is left alone — undoing a
+   * completion is the UI's job (`useTasks` deletes the row it created).
+   */
+  async toggleDone(id: TaskId): Promise<ToggleDoneResult> {
     const task = await this.require(id);
     const now = this.deps.clock.now();
     if (task.status === 'open') {
-      // Recurring tasks roll forward instead of being marked done: completing
-      // the occurrence advances dueDate/dueAt to the next one. A rule that is
-      // exhausted or malformed falls back to a normal completion.
-      if (task.recurrence !== null && isValidRecurrence(task.recurrence)) {
-        const rolled = rollForward(task, now);
-        if (rolled !== null) return this.deps.uow.tasks.update(id, rolled, now);
+      // An undated task has no occurrence to advance from; it simply completes.
+      if (
+        task.dueDate !== null &&
+        task.recurrence !== null &&
+        isValidRecurrence(task.recurrence)
+      ) {
+        const nextDate = nextOccurrenceDate(task, now);
+        if (nextDate !== null) {
+          const done = await this.deps.uow.tasks.update(
+            id,
+            { status: 'done', completedAt: now },
+            now,
+          );
+          // Re-completing after an untick must not spawn a second copy of the
+          // same occurrence: the row created the first time is still open and
+          // is the series' next instance. Returning `next: null` also keeps
+          // undo honest — it must not delete a row this completion did not make.
+          if (await this.hasOpenOccurrence(task, nextDate)) {
+            return { task: done, next: null };
+          }
+          const next = await this.deps.uow.tasks.create(seedNextOccurrence(task, nextDate), now);
+          return { task: done, next };
+        }
       }
-      return this.deps.uow.tasks.update(id, { status: 'done', completedAt: now }, now);
+      const done = await this.deps.uow.tasks.update(id, { status: 'done', completedAt: now }, now);
+      return { task: done, next: null };
     }
-    return this.deps.uow.tasks.update(id, { status: 'open', completedAt: null }, now);
+    const reopened = await this.deps.uow.tasks.update(
+      id,
+      { status: 'open', completedAt: null },
+      now,
+    );
+    return { task: reopened, next: null };
   }
 
+  /**
+   * One-time correction for the old click-to-roll bug.
+   *
+   * Before this fix, every completion of a recurring task advanced its due date
+   * a period and left it open. A user who clicked repeatedly drove the date
+   * arbitrarily far into the future (the reported row sat at 2027-05-14). Such a
+   * date is corruption, not intent, so it is clamped to the nearest occurrence
+   * of the task's own rule on or after today. Time of day is preserved.
+   *
+   * Safety rail: only a date at least `REPAIR_MIN_DRIFT_DAYS` past the rule's
+   * next honest occurrence is touched, so a task the user deliberately pushed
+   * out by a few weeks keeps its date. Idempotent — a repaired row no longer
+   * drifts, and an overdue row (drift negative) is never repaired.
+   *
+   * Returns the rows that were rewritten, so the boot path can log/report them.
+   */
+  async repairRunawayRecurrences(today?: LocalDate): Promise<readonly Task[]> {
+    const now = this.deps.clock.now();
+    const floor = today ?? localDateOf(now);
+    const repaired: Task[] = [];
+
+    for (const task of await this.deps.uow.tasks.list()) {
+      if (task.status !== 'open') continue;
+      const rule = task.recurrence;
+      if (rule === null || !isValidRecurrence(rule)) continue;
+      if (task.dueDate === null) continue;
+      // Only a future date can be runaway corruption: an overdue task is
+      // ordinary lateness and its date is what the user last saw.
+      if (task.dueDate <= floor) continue;
+
+      // Walk the rule's own grid backwards from the stored date until it
+      // crosses today. The last value still on/after today is the earliest
+      // honest occurrence — this step ignores the corrupt value's distance,
+      // so no amount of runaway clicks can survive it.
+      const expected = walkBackToFloor(rule, task.dueDate, floor);
+      if (expected === null) continue;
+      if (rule.until != null && expected > rule.until) continue;
+      if (daysBetween(expected, task.dueDate) < REPAIR_MIN_DRIFT_DAYS) continue;
+
+      const shifted = shiftToDate(task, task.dueDate, expected);
+      repaired.push(await this.deps.uow.tasks.update(task.id, shifted, now));
+    }
+
+    return repaired;
+  }
   /** Moving a task between quadrants flips its two boolean axes. */
   async moveToQuadrant(id: TaskId, quadrant: Quadrant): Promise<Task> {
     await this.require(id);
@@ -173,6 +274,27 @@ export class TaskService {
     return task;
   }
 
+  /**
+   * True when an open row already represents `date` in this task's series.
+   *
+   * Identity is (list, title, rule, due date): the fields the spawned row
+   * copies verbatim. Two unrelated tasks that happen to match on all four are
+   * indistinguishable as occurrences anyway, so treating one as the other is
+   * harmless — and it is the only series identity available without a schema
+   * change.
+   */
+  private async hasOpenOccurrence(task: Task, date: LocalDate): Promise<boolean> {
+    return (await this.deps.uow.tasks.list()).some(
+      (other) =>
+        other.id !== task.id &&
+        other.status === 'open' &&
+        other.listId === task.listId &&
+        other.title === task.title &&
+        other.dueDate === date &&
+        sameRecurrence(other.recurrence, task.recurrence),
+    );
+  }
+
   private async ensureListExists(listId: ListId): Promise<void> {
     const list = await this.deps.uow.lists.get(listId);
     if (!list) throw new TaskValidationError(`清单不存在: ${listId}`);
@@ -224,33 +346,106 @@ function patchForSchedule(schedule: TaskSchedule): TaskPatch {
   }
 }
 
-/** Safety valve: how many occurrences a single completion may skip over. */
-const MAX_ROLL_STEPS = 1000;
+/**
+ * How far past the rule's own next occurrence a stored date must sit before
+ * the repair pass treats it as corruption. A user may deliberately push a
+ * repeating task a few weeks out; nobody deliberately schedules a weekly
+ * reminder two months ahead. Anything beyond this is the old bug's signature.
+ */
+const REPAIR_MIN_DRIFT_DAYS = 60;
 
 /**
- * Build the patch that advances a recurring task past the occurrence being
- * completed. Returns `null` when the series has ended (or the rule produced
- * nothing usable), in which case the caller completes the task normally.
+ * The local date the *next* occurrence belongs on.
  *
- * A task is late by months, so "next occurrence" keeps stepping until the
- * result is at or after today — without that, completing an overdue daily
- * task would leave it immediately overdue again. The step count is bounded so
- * a pathological rule can never spin.
+ * The stored date is an occurrence, so the next one is simply the following
+ * step of the rule. But a series that is late (a week missed, a month of no
+ * clicks) must catch up in ONE completion, or completing an overdue daily task
+ * leaves it overdue again. So step until the result is on/after today.
  *
- * `dueDate` moves to the new local day; `dueAt` keeps its wall-clock time.
- * The offset is computed with `startOfDay` on both sides, so a DST transition
- * between the two days does not shift the time.
+ * A future-dated task is never pulled backwards: the floor is the stored date
+ * when it is later than today.
  */
-function rollForward(task: Task, now: Instant): TaskPatch | null {
-  const current =
-    task.dueDate ?? (task.dueAt !== null ? localDateOf(task.dueAt) : localDateOf(now));
-
-  // Anchor on today so a missed series catches up in one completion.
-  const next = stepOccurrence(task.recurrence!, current, localDateOf(now));
-  if (next === null) return null;
-
-  return { dueDate: next, dueAt: shiftInstantToDate(task, current, next) };
+function nextOccurrenceDate(task: Task, now: Instant): LocalDate | null {
+  const today = localDateOf(now);
+  const floor = task.dueDate !== null && task.dueDate > today ? task.dueDate : today;
+  return stepOccurrence(task.recurrence!, task.dueDate!, floor);
 }
+
+/**
+ * The new-row input for the occurrence after `task`. Everything the user said
+ * about the task (list, notes, quadrant, precision, the rule itself) carries
+ * over; only the date moves. `undefined` is not used here: the input is built
+ * as a whole so a field can never be silently dropped.
+ */
+function seedNextOccurrence(task: Task, date: LocalDate): NewTask {
+  const shifted = shiftToDate(task, task.dueDate ?? date, date);
+  return {
+    title: task.title,
+    listId: task.listId,
+    notes: task.notes,
+    important: task.important,
+    urgent: task.urgent,
+    allDay: task.allDay,
+    duePeriod: task.duePeriod,
+    recurrence: task.recurrence,
+    dueDate: shifted.dueDate ?? null,
+    dueAt: shifted.dueAt ?? null,
+  };
+}
+
+/**
+ * Move a task's scheduling to `to`, preserving its precision.
+ *
+ * Returns only the scheduling keys, so it serves both the spawned row and the
+ * repair pass. All-day tasks are pinned to local midnight; a timed task keeps
+ * its wall-clock offset from local midnight (computed with `startOfDay` on both
+ * sides, so a DST transition between the two days does not shift the time).
+ */
+function shiftToDate(
+  task: Task,
+  from: LocalDate,
+  to: LocalDate,
+): Pick<TaskPatch, 'dueDate' | 'dueAt'> {
+  if (task.dueAt === null) return { dueDate: to, dueAt: null };
+  if (task.allDay) return { dueDate: to, dueAt: startOfDay(to) };
+  const offsetMs = Date.parse(task.dueAt) - Date.parse(startOfDay(from));
+  const dayEnd = endOfDay(to);
+  const shifted = Date.parse(startOfDay(to)) + offsetMs;
+  // Clamp into the target day (e.g. 09:00 stays 09:00; an impossible offset
+  // such as one born from a DST gap cannot land on the following day).
+  const end = Date.parse(dayEnd);
+  return {
+    dueDate: to,
+    dueAt: new Date(shifted >= end ? end - 1 : shifted).toISOString() as Instant,
+  };
+}
+
+/** Structural equality for two rules, tolerant of key order and optional fields. */
+function sameRecurrence(a: Recurrence | null, b: Recurrence | null): boolean {
+  if (a === null || b === null) return a === b;
+  if (a.frequency !== b.frequency || a.interval !== b.interval) return false;
+  if ((a.until ?? null) !== (b.until ?? null)) return false;
+  switch (a.frequency) {
+    case 'daily':
+      return true;
+    case 'weekly':
+      return (
+        b.frequency === 'weekly' &&
+        a.weekdays.length === b.weekdays.length &&
+        [...a.weekdays].sort().every((day, index) => day === [...b.weekdays].sort()[index])
+      );
+    case 'monthly':
+      return b.frequency === 'monthly' && a.monthDay === b.monthDay;
+  }
+}
+
+/** Whole days from `a` to `b` (positive when `b` is later). */
+function daysBetween(a: LocalDate, b: LocalDate): number {
+  return daysFromToday(b, a);
+}
+
+/** Safety valve: how many occurrences a single walk may step over. */
+const MAX_ROLL_STEPS = 1000;
 
 /**
  * Walk the rule from `from` until the candidate is on/after `floor`.
@@ -273,19 +468,22 @@ function stepOccurrence(
 }
 
 /**
- * Move an instant to the same local wall-clock time on `to`, given it started
- * on `from`. All-day tasks are pinned to local midnight.
+ * The earliest occurrence of `rule` at or after `floor`, given the task's
+ * stored `stored` date is (believed to be) one of its occurrences.
+ *
+ * Walks backwards on the rule's own grid. When `stored` is not itself an
+ * occurrence (a hand-edited row), the first backward step still lands on one,
+ * so the result is always a real occurrence.
  */
-function shiftInstantToDate(task: Task, from: LocalDate, to: LocalDate): Instant | null {
-  if (task.dueAt === null) return null;
-  if (task.allDay) return startOfDay(to);
-  const offsetMs = Date.parse(task.dueAt) - Date.parse(startOfDay(from));
-  const dayEnd = endOfDay(to);
-  const shifted = Date.parse(startOfDay(to)) + offsetMs;
-  // Clamp into the target day (e.g. 09:00 stays 09:00; an impossible offset
-  // such as one born from a DST gap cannot land on the following day).
-  const end = Date.parse(dayEnd);
-  return new Date(shifted >= end ? end - 1 : shifted).toISOString() as Instant;
+function walkBackToFloor(rule: Recurrence, stored: LocalDate, floor: LocalDate): LocalDate | null {
+  let cursor = stored;
+  let previous = previousOccurrence(rule, cursor);
+  for (let steps = 0; previous !== null && steps < MAX_ROLL_STEPS; steps++) {
+    if (previous < floor) return cursor;
+    cursor = previous;
+    previous = previousOccurrence(rule, cursor);
+  }
+  return cursor >= floor ? cursor : null;
 }
 
 export class TaskNotFoundError extends Error {

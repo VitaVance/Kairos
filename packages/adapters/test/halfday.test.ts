@@ -362,8 +362,9 @@ describe('schedule() contract — memory and SQLite', () => {
       });
 
       it('recurrence roll-forward keeps the period', async () => {
-        // rollForward only patches dueDate/dueAt, so the bucket rides along —
-        // "every Monday morning" stays a morning when completed.
+        // Completing detaches the next occurrence as a new row; only the date
+        // moves, so the bucket rides along — "every Monday morning" stays a
+        // morning when completed.
         const { TaskService } = await import('@todolist/core');
         const uow = await make();
         const list = await uow.lists.create({ name: '工作', color: '#5b8def' }, NOW);
@@ -376,11 +377,14 @@ describe('schedule() contract — memory and SQLite', () => {
         await service.schedule(created.id, { kind: 'period', date: NOW.slice(0, 10) as LocalDate, period: 'morning' });
         await service.setRecurrence(created.id, { frequency: 'daily', interval: 1 });
 
-        const rolled = await service.toggleDone(created.id);
-        expect(rolled.status).toBe('open');
-        expect(rolled.duePeriod).toBe('morning');
-        expect(rolled.allDay).toBe(true);
-        expect(dateOf(rolled)).not.toBe(NOW.slice(0, 10));
+        const { task: completed, next } = await service.toggleDone(created.id);
+        expect(completed.status).toBe('done');
+        expect(completed.duePeriod).toBe('morning');
+        expect(completed.allDay).toBe(true);
+        expect(next).not.toBeNull();
+        expect(dateOf(next!)).not.toBe(NOW.slice(0, 10));
+        expect(next!.duePeriod).toBe('morning');
+        expect(next!.allDay).toBe(true);
       });
     });
   }

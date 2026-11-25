@@ -188,7 +188,7 @@ describe('TaskService recurrence', () => {
     ).rejects.toThrow(TaskValidationError);
   });
 
-  it('rolls a completed recurring task forward to the next occurrence', async () => {
+  it('completes the row and detaches the next occurrence to a new task', async () => {
     const { h, tasks, task } = await setup();
     const due = dueTask(task, TODAY);
 
@@ -196,19 +196,50 @@ describe('TaskService recurrence', () => {
     // Mirror the scheduled task into the harness, then complete it.
     await h.uow.tasks.update(task.id, { dueDate: due.dueDate, dueAt: due.dueAt, allDay: false }, h.now);
 
-    const rolled = await tasks.toggleDone(task.id);
+    const { task: done, next } = await tasks.toggleDone(task.id);
 
-    // Completing does NOT mark it done; it advances the date.
-    expect(rolled.status).toBe('open');
-    expect(rolled.completedAt).toBeNull();
-    expect(rolled.dueDate).toBe('2026-09-07');
+    // The clicked row is visibly done; its own date is history and never moves.
+    expect(done.status).toBe('done');
+    expect(done.completedAt).toBe(h.now);
+    expect(done.dueDate).toBe(TODAY);
+
+    // The following occurrence is a separate open row.
+    expect(next).not.toBeNull();
+    expect(next!.id).not.toBe(task.id);
+    expect(next!.status).toBe('open');
+    expect(next!.completedAt).toBeNull();
+    expect(next!.dueDate).toBe('2026-09-07');
     // The wall-clock offset from local midnight is preserved.
-    expect(localDateOf(rolled.dueAt!)).toBe('2026-09-07');
-    expect(rolled.recurrence).toEqual({ frequency: 'daily', interval: 1 });
+    expect(localDateOf(next!.dueAt!)).toBe('2026-09-07');
+    expect(next!.recurrence).toEqual({ frequency: 'daily', interval: 1 });
+    expect(next!.listId).toBe(task.listId);
+  });
 
-    // A fresh completion advances again.
-    const next = await tasks.toggleDone(task.id);
-    expect(next.dueDate).toBe('2026-09-08');
+  it('does not advance the date when the same row is clicked again', async () => {
+    const { h, tasks, task } = await setup();
+    await tasks.setRecurrence(task.id, { frequency: 'weekly', interval: 1, weekdays: [4] });
+    await h.uow.tasks.update(
+      task.id,
+      { dueDate: TODAY, dueAt: startOfDay(TODAY), allDay: true },
+      h.now,
+    );
+
+    const first = await tasks.toggleDone(task.id);
+    const firstNext = first.next!.dueDate;
+
+    // Five more clicks on the completed row: each reopens it, then completes it
+    // again — but the clicked row's own date never moves, and no second
+    // occurrence is created from an already-completed row.
+    let result = first;
+    for (let click = 0; click < 5; click++) {
+      result = await tasks.toggleDone(task.id);
+      expect(result.next).toBeNull(); // reopening a done row spawns nothing
+      result = await tasks.toggleDone(task.id);
+      expect(result.next).toBeNull(); // re-completing it spawns nothing either
+      expect(result.task.dueDate).toBe(TODAY);
+    }
+    expect(result.task.dueDate).toBe(TODAY);
+    expect(firstNext).toBe('2026-09-11');
   });
 
   it('catches an overdue daily task up to today in one completion', async () => {
@@ -218,9 +249,9 @@ describe('TaskService recurrence', () => {
     const stale = dueTask(task, '2026-08-01' as LocalDate);
     await h.uow.tasks.update(task.id, { dueDate: stale.dueDate, dueAt: stale.dueAt }, h.now);
 
-    const rolled = await tasks.toggleDone(task.id);
-    expect(rolled.dueDate).toBe(TODAY);
-    expect(rolled.status).toBe('open');
+    const { task: done, next } = await tasks.toggleDone(task.id);
+    expect(done.status).toBe('done');
+    expect(next!.dueDate).toBe(TODAY);
   });
 
   it('advances an all-day recurring task to local midnight of the next day', async () => {
@@ -232,12 +263,29 @@ describe('TaskService recurrence', () => {
       h.now,
     );
 
-    const rolled = await tasks.toggleDone(task.id);
-    expect(rolled.dueDate).toBe('2026-09-07');
-    expect(rolled.dueAt).toBe(startOfDay('2026-09-07' as LocalDate));
+    const { next } = await tasks.toggleDone(task.id);
+    expect(next!.dueDate).toBe('2026-09-07');
+    expect(next!.dueAt).toBe(startOfDay('2026-09-07' as LocalDate));
   });
 
-  it('leaves an exhausted series completed instead of looping', async () => {
+  it('puts a weekly occurrence on the rule weekday, never on the click day', async () => {
+    const { h, tasks, task } = await setup();
+    // 2026-09-06 is a Sunday. A Friday rule must land on Friday, not Monday.
+    await tasks.setRecurrence(task.id, { frequency: 'weekly', interval: 1, weekdays: [4] });
+    await h.uow.tasks.update(
+      task.id,
+      { dueDate: TODAY, dueAt: startOfDay(TODAY), allDay: true },
+      h.now,
+    );
+
+    const { next } = await tasks.toggleDone(task.id);
+    expect(next!.dueDate).toBe('2026-09-11');
+    // And again from the next row: one week later, same weekday.
+    const second = await tasks.toggleDone(next!.id);
+    expect(second.next!.dueDate).toBe('2026-09-18');
+  });
+
+  it('leaves an exhausted series completed without spawning a row', async () => {
     const { h, tasks, task } = await setup();
     // The only occurrence is today; `until` makes tomorrow out of range.
     await tasks.setRecurrence(task.id, { frequency: 'daily', interval: 1, until: TODAY });
@@ -247,11 +295,12 @@ describe('TaskService recurrence', () => {
       h.now,
     );
 
-    const done = await tasks.toggleDone(task.id);
+    const { task: done, next } = await tasks.toggleDone(task.id);
     expect(done.status).toBe('done');
     expect(done.completedAt).toBe(h.now);
+    expect(next).toBeNull();
     // Reopening still works.
-    const reopened = await tasks.toggleDone(task.id);
+    const reopened = (await tasks.toggleDone(task.id)).task;
     expect(reopened.status).toBe('open');
   });
 
@@ -269,9 +318,10 @@ describe('TaskService recurrence', () => {
       h.now,
     );
 
-    const done = await tasks.toggleDone(task.id);
+    const { task: done, next } = await tasks.toggleDone(task.id);
     expect(done.status).toBe('done');
     expect(done.dueDate).toBe(TODAY);
+    expect(next).toBeNull();
   });
 
   it('advances a monthly rule by month, skipping short months', async () => {
@@ -284,7 +334,77 @@ describe('TaskService recurrence', () => {
       h.now,
     );
 
-    const rolled = await tasks.toggleDone(task.id);
-    expect(rolled.dueDate).toBe('2026-10-31');
+    const { next } = await tasks.toggleDone(task.id);
+    expect(next!.dueDate).toBe('2026-10-31');
+  });
+});
+
+describe('TaskService runaway recurrence repair', () => {
+  const TODAY = '2026-09-06' as LocalDate;
+
+  async function setup() {
+    const h = makeHarness();
+    const work = await new ListService(h.deps).create({ name: '工作', color: '#5b8def' });
+    const tasks = new TaskService(h.deps);
+    const task = await tasks.createInbox('每周五：复盘一周', work.id);
+    return { h, tasks, task };
+  }
+
+  it('clamps a year-out weekly date to the nearest future occurrence', async () => {
+    const { h, tasks, task } = await setup();
+    // The reported corruption: repeated clicks drove a Friday rule to 2027-05-14.
+    await tasks.setRecurrence(task.id, { frequency: 'weekly', interval: 1, weekdays: [4] });
+    await h.uow.tasks.update(
+      task.id,
+      { dueDate: '2027-05-14' as LocalDate, dueAt: startOfDay('2027-05-14' as LocalDate), allDay: true },
+      h.now,
+    );
+
+    const repaired = await tasks.repairRunawayRecurrences(TODAY);
+    expect(repaired).toHaveLength(1);
+    const fixed = await h.uow.tasks.get(task.id);
+    // Nearest Friday on/after Sunday 2026-09-06 is 2026-09-11.
+    expect(fixed?.dueDate).toBe('2026-09-11');
+    expect(fixed?.dueAt).toBe(startOfDay('2026-09-11' as LocalDate));
+    expect(fixed?.status).toBe('open');
+    expect(fixed?.recurrence).toEqual({ frequency: 'weekly', interval: 1, weekdays: [4] });
+
+    // Idempotent: a second run changes nothing.
+    expect(await tasks.repairRunawayRecurrences(TODAY)).toHaveLength(0);
+  });
+
+  it('leaves an honest future date and an overdue date alone', async () => {
+    const { h, tasks, task } = await setup();
+    await tasks.setRecurrence(task.id, { frequency: 'weekly', interval: 1, weekdays: [4] });
+    // Deliberately pushed two weeks out: within the drift tolerance.
+    await h.uow.tasks.update(
+      task.id,
+      { dueDate: '2026-09-25' as LocalDate, dueAt: startOfDay('2026-09-25' as LocalDate), allDay: true },
+      h.now,
+    );
+    expect(await tasks.repairRunawayRecurrences(TODAY)).toHaveLength(0);
+    expect((await h.uow.tasks.get(task.id))?.dueDate).toBe('2026-09-25');
+
+    // Overdue is lateness, not corruption.
+    await h.uow.tasks.update(
+      task.id,
+      { dueDate: '2026-01-02' as LocalDate, dueAt: startOfDay('2026-01-02' as LocalDate) },
+      h.now,
+    );
+    expect(await tasks.repairRunawayRecurrences(TODAY)).toHaveLength(0);
+    expect((await h.uow.tasks.get(task.id))?.dueDate).toBe('2026-01-02');
+  });
+
+  it('never touches a completed row', async () => {
+    const { h, tasks, task } = await setup();
+    await tasks.setRecurrence(task.id, { frequency: 'weekly', interval: 1, weekdays: [4] });
+    await h.uow.tasks.update(
+      task.id,
+      { dueDate: '2027-05-14' as LocalDate, dueAt: startOfDay('2027-05-14' as LocalDate), allDay: true },
+      h.now,
+    );
+    await h.uow.tasks.update(task.id, { status: 'done' }, h.now);
+    expect(await tasks.repairRunawayRecurrences(TODAY)).toHaveLength(0);
+    expect((await h.uow.tasks.get(task.id))?.dueDate).toBe('2027-05-14');
   });
 });

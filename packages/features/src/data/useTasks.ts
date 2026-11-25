@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Instant, Task, TaskId } from '@todolist/core';
-import { duePrecisionOf } from '@todolist/core';
-import type { TaskService } from '@todolist/core';
+import type { Instant, Task, TaskId, ToggleDoneResult } from '@todolist/core';
 import { useTranslation } from '@todolist/ui';
 import { useAsync } from './useAsync';
 import { useAppServices, useBumpRevision, useRevision } from '../services';
@@ -21,6 +19,46 @@ export function optimisticToggle(task: Task, now: Instant): Task {
     status: goingDone ? 'done' : 'open',
     completedAt: goingDone ? now : null,
   };
+}
+
+/**
+ * The narrow write surface undo/redo need. `TaskService` satisfies it; tests
+ * can supply a fake without constructing storage.
+ */
+export interface CompletionPort {
+  listAll(): Promise<readonly Task[]>;
+  toggleDone(id: TaskId): Promise<ToggleDoneResult>;
+  remove(id: TaskId): Promise<void>;
+}
+
+/**
+ * Reverse one completion.
+ *
+ * Completing a recurring task detaches the next occurrence into a *new* row,
+ * so the inverse is two writes, not one: delete the row the completion
+ * created, then reopen the row that was ticked. Deleting first keeps the list
+ * from ever showing two open copies of the same series.
+ *
+ * The spawned row may have been renamed, rescheduled or deleted by the user in
+ * the meantime. Only an unchanged id is removable; a deleted one is already
+ * gone, and the reopen still happens either way.
+ */
+export async function undoCompletion(port: CompletionPort, written: ToggleDoneResult): Promise<void> {
+  if (written.next !== null) {
+    const nextId = written.next.id;
+    const stillThere = (await port.listAll()).some((task) => task.id === nextId);
+    if (stillThere) await port.remove(nextId);
+  }
+  await port.toggleDone(written.task.id);
+}
+
+/**
+ * Re-apply one completion. Both directions of `toggleDone` are replayed by
+ * re-running it: a done recurring row reopens in place (`next` is null), and an
+ * open one ticks and detaches the following occurrence again.
+ */
+export async function redoCompletion(port: CompletionPort, written: ToggleDoneResult): Promise<void> {
+  await port.toggleDone(written.task.id);
 }
 
 /**
@@ -132,31 +170,29 @@ export function useTasks() {
       void (async () => {
         try {
           const written = await tasks.toggleDone(id);
-          // Keep the authoritative row (a recurring task rolls forward) until
-          // the reloaded list replaces it.
-          setPending((prev) => new Map(prev).set(id, written));
+          // The authoritative row. A recurring completion also returns the
+          // next occurrence, which is a separate row the reload will pick up;
+          // only the toggled row is overlaid. (The row's animation flag is
+          // already keyed on this id, so it stays with the row that was
+          // clicked — not the new one.)
+          setPending((prev) => new Map(prev).set(id, written.task));
           bump();
           state.reload();
           // Every toggle is undoable; only the row-click path announces itself.
-          // A recurring task rolls forward instead of closing (it stays
-          // `open`), so the inverse of that write is the old schedule, not
-          // another toggle.
-          const rolled = goingDone && written.status !== 'done';
+          // A recurring completion spawns a second row, so its inverse is
+          // "delete that row, reopen this one" rather than another toggle.
           undo?.push({
             label: goingDone
               ? tMisc('toast.completed', { title })
               : tMisc('toast.reopened', { title }),
             silent: source === 'checkbox',
             undo: async () => {
-              if (rolled) await restoreSchedule(tasks, base);
-              else await tasks.toggleDone(id);
+              await undoCompletion(tasks, written);
               bump();
               state.reload();
             },
             redo: async () => {
-              // Replaying either direction re-runs the same write the user
-              // saw: a roll-forward or a plain status flip.
-              await tasks.toggleDone(id);
+              await redoCompletion(tasks, written);
               bump();
               state.reload();
             },
@@ -179,48 +215,4 @@ export function useTasks() {
   );
 
   return { ...state, data, mutate, toggleDone, fresh };
-}
-
-/** Local wall-clock `HH:MM` of an instant, or `''` when absent. */
-function localTimeOf(instant: string | null): string {
-  if (instant === null) return '';
-  const d = new Date(instant);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-/**
- * Write a task's pre-completion schedule back. The only inverse that differs
- * from `toggleDone` is a recurring completion, which rolls the occurrence
- * forward and leaves the task `open`; here the status is already correct, so
- * only the scheduling fields need restoring. The precision is read through
- * `duePrecisionOf` — reading `allDay` would confuse a day with a half-day.
- */
-async function restoreSchedule(tasks: TaskService, before: Task): Promise<void> {
-  if (before.dueDate === null) {
-    await tasks.unschedule(before.id);
-    return;
-  }
-  switch (duePrecisionOf(before)) {
-    case 'period':
-      await tasks.schedule(before.id, {
-        kind: 'period',
-        date: before.dueDate,
-        period: before.duePeriod!,
-      });
-      return;
-    case 'day':
-      await tasks.schedule(before.id, { kind: 'day', date: before.dueDate });
-      return;
-    case 'time':
-      await tasks.schedule(before.id, {
-        kind: 'time',
-        date: before.dueDate,
-        time: localTimeOf(before.dueAt),
-      });
-      return;
-    case 'none':
-      // `dueDate` is null here, so the branch above already handled it.
-      return;
-  }
 }

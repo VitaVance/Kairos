@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Instant, Task, TaskId } from '@todolist/core';
-import { optimisticToggle } from '../src/data/useTasks';
+import { optimisticToggle, redoCompletion, undoCompletion } from '../src/data/useTasks';
+import type { CompletionPort } from '../src/data/useTasks';
 
 const NOW = '2026-09-06T08:00:00.000Z' as Instant;
 
@@ -68,5 +69,75 @@ describe('optimistic toggle contract', () => {
     // A failed write returns the base row unchanged — the pre-toggle status.
     expect({ ...base }.status).toBe('open');
     expect(base.completedAt).toBeNull();
+  });
+});
+
+/**
+ * A recording fake for the three writes undo/redo may issue. `toggleDone`
+ * flips a status in place so the fake behaves like the service for the paths
+ * these tests exercise (the real detach/repair semantics are proven in core).
+ */
+function completionPort(rows: Task[]) {
+  const calls: string[] = [];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const port: CompletionPort = {
+    async listAll() {
+      return [...byId.values()];
+    },
+    async toggleDone(id: TaskId) {
+      calls.push(`toggle:${id}`);
+      const task = byId.get(id)!;
+      const next: Task = { ...task, status: task.status === 'done' ? 'open' : 'done' };
+      byId.set(id, next);
+      return { task: next, next: null };
+    },
+    async remove(id: TaskId) {
+      calls.push(`remove:${id}`);
+      byId.delete(id);
+    },
+  };
+  return { port, calls, byId };
+}
+
+describe('undoCompletion', () => {
+  it('deletes the spawned occurrence and reopens the completed row', async () => {
+    const done = task({ id: 'done-1' as TaskId, status: 'done', completedAt: NOW });
+    const spawned = task({ id: 'next-1' as TaskId });
+    const { port, calls, byId } = completionPort([done, spawned]);
+
+    await undoCompletion(port, { task: done, next: spawned });
+
+    expect(calls).toEqual(['remove:next-1', 'toggle:done-1']);
+    expect(byId.has('next-1' as TaskId)).toBe(false);
+  });
+
+  it('only reopens when the completion had no next occurrence', async () => {
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const { port, calls } = completionPort([done]);
+
+    await undoCompletion(port, { task: done, next: null });
+
+    expect(calls).toEqual(['toggle:done-1']);
+  });
+
+  it('skips the delete when the user already removed the spawned row', async () => {
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const spawned = task({ id: 'next-1' as TaskId });
+    const { port, calls } = completionPort([done]);
+
+    await undoCompletion(port, { task: done, next: spawned });
+
+    expect(calls).toEqual(['toggle:done-1']);
+  });
+});
+
+describe('redoCompletion', () => {
+  it('re-runs the same toggle the user saw', async () => {
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const { port, calls } = completionPort([done]);
+
+    await redoCompletion(port, { task: done, next: null });
+
+    expect(calls).toEqual(['toggle:done-1']);
   });
 });

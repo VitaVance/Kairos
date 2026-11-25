@@ -134,6 +134,8 @@ export function nextOccurrence(
   rule: Recurrence | null | undefined,
   from: LocalDate,
 ): LocalDate | null {
+  // ... body unchanged below; see `isOccurrenceOf` for the "is this very day
+  // an occurrence" question, which `nextOccurrence` cannot answer.
   if (!isValidRecurrence(rule)) return null;
   if (!isLocalDateString(from)) return null;
 
@@ -175,3 +177,50 @@ export function nextOccurrence(
     }
   }
 }
+
+/**
+ * The occurrence strictly before `from`, or `null` when none can be built.
+ *
+ * The mirror of `nextOccurrence`, and the reason it exists: repairing the old
+ * click-to-roll corruption means walking a known-bad future date *backwards*
+ * until it reaches today. Walking forward cannot do that.
+ *
+ * Grid semantics match `nextOccurrence` exactly, so the two can be alternated
+ * without changing which dates a rule treats as occurrences.
+ */
+export function previousOccurrence(
+  rule: Recurrence | null | undefined,
+  from: LocalDate,
+): LocalDate | null {
+  if (!isValidRecurrence(rule)) return null;
+  if (!isLocalDateString(from)) return null;
+
+  switch (rule.frequency) {
+    case 'daily':
+      return addDays(from, -rule.interval);
+    case 'weekly': {
+      const anchorWeek = startOfWeek(from);
+      const weekdays = [...new Set(rule.weekdays)].sort((a, b) => a - b);
+      // Remaining selected days earlier in the same week, latest first.
+      for (let index = weekdays.length - 1; index >= 0; index--) {
+        const candidate = addDays(anchorWeek, weekdays[index]!);
+        if (candidate < from) return candidate;
+      }
+      const previousWeek = addDays(anchorWeek, -7 * rule.interval);
+      return addDays(previousWeek, weekdays[weekdays.length - 1]!);
+    }
+    case 'monthly': {
+      const monthStart = startOfMonth(from);
+      for (let step = 1; step <= MAX_MONTHS_TRIED; step++) {
+        const base = addMonths(monthStart, -step * rule.interval);
+        const candidate = addDays(base, rule.monthDay - 1);
+        // `addDays` rolls over when the month is shorter (e.g. 31 Feb).
+        if (candidate.slice(0, 7) !== base.slice(0, 7)) continue;
+        if (candidate >= from) continue;
+        return candidate;
+      }
+      return null;
+    }
+  }
+}
+

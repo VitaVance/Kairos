@@ -4,6 +4,7 @@ import {
   isLocalDateString,
   isValidRecurrence,
   nextOccurrence,
+  previousOccurrence,
 } from '../src/domain/recurrence.js';
 import type { Recurrence, Weekday } from '../src/domain/recurrence.js';
 import type { LocalDate } from '../src/domain/types.js';
@@ -194,5 +195,34 @@ describe('nextOccurrence — malformed input never loops', () => {
     const rule: Recurrence = { frequency: 'weekly', interval: 1, weekdays: [4, 0] as Weekday[] };
     // Monday → Wednesday (index 2 not selected) → actually next is Friday (4).
     expect(nextOccurrence(rule, D('2026-09-07'))).toBe('2026-09-11');
+  });
+});
+
+describe('previousOccurrence', () => {
+  it('mirrors nextOccurrence on a weekly rule', () => {
+    const rule: Recurrence = { frequency: 'weekly', interval: 1, weekdays: [4] };
+    // Friday 2026-09-11 → previous Friday.
+    expect(previousOccurrence(rule, D('2026-09-11'))).toBe('2026-09-04');
+    expect(previousOccurrence(rule, D('2026-09-08'))).toBe('2026-09-04');
+  });
+
+  it('picks an earlier weekday in the same week when present', () => {
+    const rule: Recurrence = { frequency: 'weekly', interval: 1, weekdays: [0, 2] };
+    expect(previousOccurrence(rule, D('2026-09-10'))).toBe('2026-09-09');
+  });
+
+  it('honours a multi-week interval and the month grid', () => {
+    expect(
+      previousOccurrence({ frequency: 'weekly', interval: 2, weekdays: [0] }, D('2026-09-14')),
+    ).toBe('2026-08-31');
+    expect(
+      previousOccurrence({ frequency: 'monthly', interval: 1, monthDay: 31 }, D('2026-10-31')),
+    ).toBe('2026-08-31');
+  });
+
+  it('returns null for malformed rules and dates', () => {
+    expect(previousOccurrence(null, D('2026-09-11'))).toBeNull();
+    expect(previousOccurrence({ frequency: 'weekly', interval: 1, weekdays: [] } as unknown as Recurrence, D('2026-09-11'))).toBeNull();
+    expect(previousOccurrence({ frequency: 'daily', interval: 1 }, D('nope'))).toBeNull();
   });
 });

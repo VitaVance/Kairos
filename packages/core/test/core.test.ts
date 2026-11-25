@@ -178,11 +178,11 @@ describe('TaskService', () => {
     const list = await h.uow.lists.create({ name: '生活', color: '#6b8a5e' }, h.now);
     const task = await h.taskService.createInbox('拿快递', list.id);
 
-    const done = await h.taskService.toggleDone(task.id);
+    const done = (await h.taskService.toggleDone(task.id)).task;
     expect(done.status).toBe('done');
     expect(done.completedAt).toBe(h.now);
 
-    const reopened = await h.taskService.toggleDone(task.id);
+    const reopened = (await h.taskService.toggleDone(task.id)).task;
     expect(reopened.status).toBe('open');
     expect(reopened.completedAt).toBeNull();
   });
