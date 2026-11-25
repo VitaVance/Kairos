@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { Instant, LocalDate } from '@todolist/core';
 import type { ReminderItem } from '../src/reminders/ReminderScheduler.js';
 import { reminderKey } from '../src/reminders/ReminderScheduler.js';
-import { formatReminderNotification, selectUnannounced } from '../src/reminders/Notifier.js';
+import {
+  REMINDER_NOTIFICATION_TITLE,
+  formatReminderNotification,
+  selectUnannounced,
+} from '../src/reminders/Notifier.js';
 
 const T = (iso: string) => iso as Instant;
 
@@ -23,7 +27,7 @@ function item(overrides: Partial<ReminderItem> = {}): ReminderItem {
 describe('formatReminderNotification', () => {
   it('titles every toast with the app name and echoes the banner time wording', () => {
     expect(formatReminderNotification(item({ minutesUntil: 0 }))).toEqual({
-      title: '清单',
+      title: REMINDER_NOTIFICATION_TITLE,
       body: '任务：写周报 · 现在',
     });
     expect(formatReminderNotification(item({ minutesUntil: 5 })).body).toBe('任务：写周报 · 5 分钟后');

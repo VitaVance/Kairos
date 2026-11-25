@@ -18,7 +18,7 @@ export interface Notifier {
 }
 
 /** App name shown as the notification title («清单» in the product). */
-export const REMINDER_NOTIFICATION_TITLE = '清单';
+export const REMINDER_NOTIFICATION_TITLE = 'Kairos';
 
 export interface ReminderNotification {
   readonly title: string;

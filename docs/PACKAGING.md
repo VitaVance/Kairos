@@ -113,27 +113,26 @@ apps/desktop/src-tauri/target/release/
 ├── todolist.exe                              # 便携版单文件（无安装器，可直接运行/分发）
 └── bundle/
     ├── msi/
-    │   └── 清单_0.1.0_x64_zh-CN.msi          # WiX MSI 安装包
+    │   └── Kairos_0.1.1_x64_zh-CN.msi          # WiX MSI 安装包
     └── nsis/
-        └── 清单_0.1.0_x64-setup.exe          # NSIS 安装器
+        └── Kairos_0.1.1_x64-setup.exe          # NSIS 安装器
 ```
 
-> **关于文件名中的中文**：`productName` 为「清单」，Tauri 会把它用于安装包文件名、
-> 开始菜单快捷方式与卸载项显示名。为保证**可执行文件名与默认安装目录**是 ASCII 安全的，
-> 配置里设置了 `mainBinaryName: "todolist"`：
+> **文件名只用 ASCII**：`productName` 为 `Kairos`，安装包因此是
+> `Kairos_0.1.1_x64-setup.exe` / `Kairos_0.1.1_x64_zh-CN.msi`。
 >
-> - 可执行文件固定为 `todolist.exe`，安装目录为
->   `%LOCALAPPDATA%\清单\`（目录仍用 productName，属预期）。
-> - **安装包文件名**仍会带中文（如 `清单_0.1.0_x64-setup.exe`）。这在 Windows 和
->   NSIS/WiX 下均可正常工作；但若下游分发系统（部分杀软白名单、老旧的下载站点、
->   某些 CI artifact 上传工具）不能处理非 ASCII 文件名，可改用
->   `tauri build --bundles ...` 后手动重命名再分发，或在 `tauri.conf.json` 中将
->   `productName` 改为纯 ASCII（会一并改变开始菜单显示名，需权衡）。
+> 这里踩过一个坑，值得记下来：0.1.0 的 `productName` 曾是中文「清单」。
+> Tauri 本地打出的文件名是对的，但 **GitHub Release 上传时会剥掉非 ASCII 字符**，
+> 结果是 `_0.1.0_x64-setup.exe`——开头只剩一个空格。用户看到的就是这个。
+> 凡是要经由第三方分发渠道的文件名，都不要用非 ASCII。
 >
-> 综合结论：**保留中文产品名 + `mainBinaryName: "todolist"`**，文件名可含中文，
-> 但二进制与主程序名保持 ASCII。MSI 的 `UpgradeCode` 由 Tauri 依据 productName 派生，
-> 若日后改名会导致升级识别为“另一个应用”，改名时请显式固定
-> `bundle.windows.wix.upgradeCode`。
+> 界面与窗口标题仍然是「清单」，不受影响：窗口标题由 `app.windows[].title` 控制，
+> 与 `productName` 无关。`mainBinaryName` 固定为 `todolist`，
+> 可执行文件名因此保持 ASCII。
+>
+> **`upgradeCode` 已显式固定。** Tauri 默认从 `productName` 派生该 GUID，
+> 改产品名会让 Windows 把新版本当成另一个应用，已装用户出现重复版本。
+> 固定之后，产品名再改也不会影响升级识别。
 
 ---
 
@@ -142,7 +141,7 @@ apps/desktop/src-tauri/target/release/
 `tauri.conf.json` 关键片段：
 
 ```jsonc
-"productName": "清单",
+"productName": "Kairos",
 "mainBinaryName": "todolist",            // 可执行文件固定为 todolist.exe
 "identifier": "app.todolist.local",      // 保持不变（影响注册表/数据目录/升级识别）
 "bundle": {

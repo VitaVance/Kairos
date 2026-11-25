@@ -51,13 +51,13 @@ pub fn run() {
         .setup(|app| {
             // Closes hide the window: reminders are scheduled from the webview,
             // so exiting here would silently drop every pending reminder.
-            let show_item = MenuItem::with_id(app, "show", "显示清单", true, None::<&str>)?;
+            let show_item = MenuItem::with_id(app, "show", "显示 Kairos", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(Image::from_bytes(include_bytes!("../icons/32x32.png"))?)
-                .tooltip("清单")
+                .tooltip("Kairos")
                 .menu(&menu)
                 // Left click must summon the window, not the menu. Windows
                 // defaults this to true, which would make the icon feel like a

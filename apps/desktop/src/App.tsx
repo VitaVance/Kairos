@@ -122,7 +122,7 @@ function BootSkeleton() {
           50% { transform: scaleX(1); opacity: 1; } }
         @media (prefers-reduced-motion: reduce) { .boot-bar::after { animation: none; opacity: 0.6; } }
       `}</style>
-      <div className="boot-title">清单</div>
+      <div className="boot-title">Kairos</div>
       <div className="boot-bar" role="progressbar" aria-label="正在加载" />
     </div>
   );
