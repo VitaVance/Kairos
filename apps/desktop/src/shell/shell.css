@@ -1,0 +1,279 @@
+/* NOTE: the lead must add `import './shell.css'` in apps/desktop/src/main.tsx for these styles to load. */
+
+/* ============================================================================
+   Shell extras — error card + theme toggle.
+   Consumes @todolist/ui tokens only (var(--tl-*)); dark mode comes for free
+   from tokens.css' [data-theme="dark"] block.
+   ========================================================================== */
+
+/* ---------- error boundary ---------- */
+.sh-error {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--tl-space-8);
+  overflow: auto;
+  background: var(--tl-bg);
+  color: var(--tl-text);
+  font-family: var(--tl-font-sans);
+  font-size: var(--tl-font-size-base);
+  line-height: var(--tl-line-height-normal);
+}
+
+.sh-error__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 420px;
+  padding: var(--tl-space-8) var(--tl-space-7);
+  background: var(--tl-surface);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  box-shadow: var(--tl-shadow-md);
+  text-align: center;
+}
+
+.sh-error__icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--tl-space-4);
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-danger-tint);
+  color: var(--tl-danger);
+}
+
+.sh-error__title {
+  margin: 0 0 var(--tl-space-2);
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  line-height: var(--tl-line-height-snug);
+  letter-spacing: -0.01em;
+}
+
+.sh-error__hint {
+  margin: 0 0 var(--tl-space-5);
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-base);
+}
+
+.sh-error__details {
+  width: 100%;
+  margin-bottom: var(--tl-space-5);
+  text-align: left;
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+}
+
+.sh-error__details > summary {
+  cursor: pointer;
+  user-select: none;
+  color: var(--tl-text-secondary);
+  padding: var(--tl-space-1) 0;
+}
+
+.sh-error__details > summary:hover {
+  color: var(--tl-text-secondary);
+}
+
+.sh-error__pre {
+  max-height: 180px;
+  margin: var(--tl-space-2) 0 0;
+  padding: var(--tl-space-3);
+  overflow: auto;
+  background: var(--tl-surface-sunken);
+  border: 1px solid var(--tl-border-soft);
+  border-radius: var(--tl-radius-md);
+  color: var(--tl-text-secondary);
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-normal);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.sh-error__actions {
+  display: flex;
+  gap: var(--tl-space-2);
+}
+
+.sh-error__btn {
+  min-width: 96px;
+  height: 34px;
+  padding: 0 var(--tl-space-4);
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-md);
+  font: inherit;
+  font-weight: var(--tl-font-weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.sh-error__btn:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.sh-error__btn--primary {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+}
+
+.sh-error__btn--primary:hover {
+  background: var(--tl-accent-hover);
+}
+
+.sh-error__btn--secondary {
+  background: var(--tl-surface);
+  border-color: var(--tl-border-strong);
+  color: var(--tl-text);
+}
+
+.sh-error__btn--secondary:hover {
+  background: var(--tl-surface-hover);
+}
+
+/* ---------- theme toggle ---------- */
+.sh-theme-toggle {
+  width: 32px;
+  height: 32px;
+  color: var(--tl-text-secondary);
+}
+
+.sh-theme-toggle:hover:not(:disabled) {
+  color: var(--tl-text);
+}
+
+/* ---------- theme menu ---------- */
+.th-menu {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-3);
+  /* The popover already contributes 8px; 6 more keeps the painted inset at the
+     4px rhythm's 14px instead of the old 22px double pad. */
+  padding: 6px;
+}
+
+.th-menu__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+}
+
+.th-menu__label {
+  /* Matches the 11px `--tl-font-size-xs` role used by every other small
+     all-caps label in the app; 10px was a one-off. */
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--tl-text-secondary);
+}
+
+.th-menu__row {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-sunken);
+}
+
+.th-menu__chip {
+  flex: 1;
+  /* A fixed-height chip per the 4px rhythm; padding alone let the three
+     labels size themselves around their font's line box. */
+  block-size: 24px;
+  padding: 0 var(--tl-space-1);
+  border: 0;
+  border-radius: calc(var(--tl-radius-sm) - 1px);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.th-menu__chip:hover {
+  color: var(--tl-text);
+}
+
+.th-menu__chip.is-active {
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-sm);
+}
+
+.th-menu__palettes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.th-menu__palette {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* 8px block padding keeps each row on the 4px rhythm and makes the three
+     palette rows read as one list, not three cards. */
+  padding: 8px;
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.th-menu__palette:hover {
+  background: var(--tl-surface-hover);
+}
+
+.th-menu__palette.is-active {
+  background: var(--tl-accent-tint);
+  border-color: color-mix(in srgb, var(--tl-accent) 32%, transparent);
+}
+
+.th-menu__swatch {
+  display: flex;
+  flex: 0 0 auto;
+  overflow: hidden;
+  width: 34px;
+  height: 22px;
+  border-radius: 4px;
+  /* Hairline ring around the palette preview; a literal black ring vanishes
+     into a dark popover. */
+  box-shadow: inset 0 0 0 1px var(--tl-border-strong);
+}
+
+.th-menu__swatch i {
+  flex: 1;
+}
+
+.th-menu__palette-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.th-menu__palette-text strong {
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.th-menu__palette-text small {
+  font-size: var(--tl-font-size-xs);
+  /* Palette description is read to choose a palette — not a hint. */
+  color: var(--tl-text-secondary);
+}

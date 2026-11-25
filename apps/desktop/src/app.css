@@ -1,0 +1,294 @@
+/**
+ * Shell layout. Consumes @todolist/ui tokens only (--tl-*), never literals,
+ * so the winning design direction can be swapped by editing packages/ui.
+ */
+
+/* The app ships no UA reset. The default 8px body margin inset the shell on
+   every side, and because the shell is `100vh` the document ended up 16px
+   taller than the window — a scrollbar the entire time, which also stole
+   16px of width from every column. */
+html,
+body {
+  margin: 0;
+}
+
+.app-shell {
+  /* One horizontal gutter for the whole main column: the top bar's title and
+     the content cards must share a left edge in every palette. The palettes
+     below override it rather than patching one side only. */
+  --sh-gutter-x: 16px;
+  display: flex;
+  height: 100vh;
+  /* Tauri's window is exactly the viewport; box the shell to it. */
+  box-sizing: border-box;
+  background: var(--tl-bg);
+  color: var(--tl-text);
+  font-family: var(--tl-font-sans, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif);
+  font-size: var(--tl-font-size-base, 13px);
+  overflow: hidden;
+}
+
+.app-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  padding: 12px var(--sh-gutter-x) 96px;
+  overflow: auto;
+}
+
+/*
+ * Calendar views are `block-size: 100%` and scroll internally. Leaving
+ * `.app-content` scrollable as well produced two nested scrollers: the wheel
+ * moved the outer box first, so the grid looked stuck and the lower hour labels
+ * appeared clipped. When a full-height view is mounted the content area stops
+ * scrolling and the view owns the scrollbar.
+ */
+.app-content[data-fill='true'] {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-content[data-fill='true'] > * {
+  flex: 1;
+  min-block-size: 0;
+  min-width: 0;
+}
+
+/* ---------- side rail ---------- */
+.side-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* 16px: the design's 12px avatar margin + 4px rail gap. The old 24px left
+     the avatar floating alone with no visual tie to the nav group. */
+  gap: 16px;
+  /* 56px is the painted rail width; the trailing hairline lives inside it,
+     matching the sidebar next door (which already uses border-box). */
+  box-sizing: border-box;
+  width: 56px;
+  padding: 12px 0;
+  background: var(--tl-surface);
+  border-right: 1px solid var(--tl-border);
+}
+
+.side-rail__avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--tl-radius-md, 10px);
+  /* `--tl-surface-raised` equals `--tl-surface` in the default light palette,
+     so the avatar was white-on-white and only its letter was visible. The
+     sunken tone is one step off the rail in all six looks. */
+  background: var(--tl-surface-sunken);
+  box-shadow: inset 0 0 0 1px var(--tl-border);
+  font-size: 12px;
+  color: var(--tl-text-secondary);
+}
+
+.side-rail__group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.side-rail__group--bottom {
+  margin-top: auto;
+}
+
+.side-rail__item {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: var(--tl-radius-md, 10px);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  cursor: pointer;
+  transition: background var(--tl-duration-fast, 120ms) var(--tl-ease-standard, ease);
+}
+
+.side-rail__item:hover {
+  background: var(--tl-surface-raised);
+  color: var(--tl-text);
+}
+
+.side-rail__item--active {
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+}
+
+.side-rail__help {
+  color: var(--tl-danger) !important;
+}
+
+/* The bottom group renders @todolist/ui IconButtons (30px) while the nav
+   group above uses `.side-rail__item` (36px), so the rail's two stacks had
+   different widths and the lower icons sat 1.5px further left. Match sizes. */
+.side-rail .tl-icon-btn {
+  inline-size: 36px;
+  block-size: 36px;
+  border-radius: var(--tl-radius-md, 10px);
+}
+
+/* ---------- top bar ---------- */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 56px;
+  padding: 0 var(--sh-gutter-x);
+  background: var(--tl-surface);
+  border-bottom: 1px solid var(--tl-border);
+  /* At the 960px minimum the title + controls must not push the theme toggle
+     off the edge; a long list name is the one unbounded string here. */
+  min-width: 0;
+}
+
+.top-bar__title {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  /* Same role in all three palettes gets the same weight token; 650 was a
+     one-off that only the sans palettes hit (editorial overrides to 600). */
+  font-size: var(--tl-font-size-xl);
+  font-weight: var(--tl-font-weight-semibold);
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-bar__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* Direct children only: this rule used to be a bare descendant selector, so
+   every button inside the theme popover (a child of `.top-bar__actions`)
+   inherited `display: grid; place-items: center` — the palette rows collapsed
+   into a centred column and the mode chips grew to 26px+. */
+.top-bar__actions > button,
+.top-bar__add,
+.top-bar__nav > button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--tl-text-secondary);
+  cursor: pointer;
+  border-radius: var(--tl-radius-md, 10px);
+}
+
+.top-bar__add {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--tl-border-strong) !important;
+  color: var(--tl-text) !important;
+}
+
+.top-bar__nav {
+  display: flex;
+  align-items: center;
+  /* 33px: the 32px buttons + the container's own hairline. With border-box
+     the nav measured 34px against the 32px add/theme buttons — a 2px step in
+     an otherwise one-height control row. */
+  box-sizing: border-box;
+  height: 32px;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md, 10px);
+  overflow: hidden;
+}
+
+.top-bar__nav button {
+  width: 32px;
+  height: 30px;
+  border-radius: 0;
+}
+
+.top-bar__today {
+  width: auto !important;
+  padding: 0 10px;
+  font: inherit;
+  border-inline: 1px solid var(--tl-border) !important;
+}
+
+.app-placeholder {
+  display: grid;
+  place-content: center;
+  gap: 6px;
+  height: 100%;
+  text-align: center;
+  color: var(--tl-text-secondary); /* real copy, not a disabled state */
+}
+
+.app-placeholder p {
+  margin: 0;
+  font-size: 16px;
+}
+
+.app-placeholder span {
+  font-size: 12px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/**
+ * Palette character.
+ *
+ * Token overrides in tokens.css carry colour, but a design direction is also a
+ * typographic one. These are the few places where the three directions must
+ * differ structurally rather than by token — kept here so no component has to
+ * check which palette is active.
+ */
+
+/* Editorial: serif display for the things that read like a printed heading. */
+[data-palette='editorial'] .top-bar__title {
+  font-family: var(--tl-font-serif, Georgia, serif);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+[data-palette='editorial'] .app-content {
+  padding-inline: 22px;
+}
+
+/* The editorial gutter is wider, so the top bar has to move with it or the
+   title sits 6px off the card edge. */
+[data-palette='editorial'] .app-shell {
+  --sh-gutter-x: 22px;
+}
+
+/* Editorial uses hairline rules instead of filled rails on the side bar. */
+[data-palette='editorial'] .side-rail {
+  background: var(--tl-surface-subtle);
+}
+
+/* Pro Tool is the dense variant: tighten the shell's vertical rhythm. */
+[data-palette='protool'] .top-bar {
+  height: 48px;
+}
+
+/* Dense content inset, but the top bar keeps the shared gutter so the 48px
+   bar's title does not jump 4px left of the cards below it. */
+[data-palette='protool'] .app-content {
+  padding: 8px var(--sh-gutter-x) 88px;
+}

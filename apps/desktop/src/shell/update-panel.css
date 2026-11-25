@@ -1,0 +1,199 @@
+/* Update panel — local manifest check. Tokens only, so it follows every
+   palette (清简 / 专注 / 纸墨) and both light and dark automatically. */
+
+.up {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tl-z-overlay);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--tl-text) 32%, transparent);
+}
+
+.up__card {
+  display: flex;
+  width: min(520px, 100%);
+  max-block-size: 85vh;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  box-shadow: var(--tl-shadow-lg);
+}
+
+.up__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-block-end: 1px solid var(--tl-border);
+}
+
+.up__title {
+  margin: 0;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+.up__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  overflow: auto;
+}
+
+.up__intro {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-relaxed);
+  color: var(--tl-text-secondary);
+}
+
+/* Update-source switch: 在线 / 离线. These buttons had no rule of their own,
+   so they rendered as raw UA `<button>`s — beveled borders, Arial 13.33px,
+   side by side with the app's 12px token type. */
+.up__modes {
+  display: flex;
+  gap: var(--tl-space-1);
+  padding: 2px;
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-sunken);
+}
+
+.up__mode {
+  flex: 1;
+  min-inline-size: 0;
+  block-size: 26px;
+  padding: 0 var(--tl-space-2);
+  overflow: hidden;
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.up__mode:hover {
+  color: var(--tl-text);
+}
+
+.up__mode.is-active {
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font-weight: var(--tl-font-weight-medium);
+  box-shadow: var(--tl-shadow-sm);
+}
+
+.up__mode:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.up__intro code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--tl-surface-sunken);
+  font-family: var(--tl-font-mono);
+  font-size: 0.92em;
+}
+
+.up__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.up__label {
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text-secondary);
+}
+
+.up__url {
+  padding: 7px 9px;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-sunken);
+  color: var(--tl-text);
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-xs);
+}
+
+.up__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tl-space-3);
+}
+
+.up__result {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* 12px keeps the divider off the status line above it; 4px left 「尚未检查」
+     touching the rule. */
+  padding-block-start: 12px;
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+
+.up__muted {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.up__error {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-danger);
+}
+
+.up__found {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-accent-ink, var(--tl-accent));
+}
+
+.up__ok {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-success);
+}
+
+.up__notes {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-relaxed);
+  color: var(--tl-text-secondary);
+  white-space: pre-wrap;
+}
+
+.up__versions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+}
+
+.up__versions dt {
+  color: var(--tl-text-secondary);
+}
+
+.up__versions dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--tl-text);
+}
