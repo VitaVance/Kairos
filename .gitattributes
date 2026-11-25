@@ -1,0 +1,24 @@
+# Normalise line endings so the same file is byte-identical on every machine.
+#
+# `text=auto` lets git store LF in the repository and check out the platform
+# native ending. Without this, a Windows checkout committed CRLF, a Linux CI
+# run saw the whole tree as modified, and every diff was noise.
+* text=auto eol=lf
+
+# Windows-only scripts must keep CRLF: cmd.exe and PowerShell both mishandle
+# LF-only batch files in ways that are hard to diagnose.
+*.ps1   text eol=crlf
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+
+# Binary — never touch these.
+*.png   binary
+*.ico   binary
+*.icns  binary
+*.db    binary
+*.exe   binary
+*.msi   binary
+
+# Lockfile churn is huge and rarely read; keep it out of language stats and
+# from merge conflicts where possible.
+pnpm-lock.yaml   -diff linguist-generated
