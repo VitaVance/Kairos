@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, eachDay, startOfWeek } from '@todolist/core';
 import { useRangeEntries } from '../data/useCalendarEntries';
-import { formatRange, localDateKey } from './time-math';
+import { entryTimeLabel, localDateKey } from './time-math';
 
 export interface TimelineViewProps {
   cursor: LocalDate;
@@ -58,7 +58,7 @@ export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
                 {entries.map((e) => (
                   <li className="tv__item" key={`${e.source}-${e.id}`}>
                     <span className="tv__axis" aria-hidden="true" />
-                    <time className="tv__time">{e.allDay ? '全天' : formatRange(e.startAt, e.endAt)}</time>
+                    <time className="tv__time">{entryTimeLabel(e)}</time>
                     <div
                       className={`tv__event${e.done ? ' tv__event--done' : ''}`}
                       style={{ ['--chip-color' as string]: e.color }}

@@ -10,6 +10,7 @@ import {
   formatMinutes,
   formatMinuteRange,
   formatRange,
+  entryTimeLabel,
   hourLabel,
   layoutOverlapping,
   localDateKey,
@@ -287,6 +288,7 @@ export function WeekView({
                 <Chip
                   key={`${entry.source}-${entry.id}`}
                   title={entry.title}
+                  time={entry.period ? entryTimeLabel(entry) : undefined}
                   color={entry.color}
                   done={entry.done}
                   allDay

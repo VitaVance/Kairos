@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { Instant } from '@todolist/core';
 import {
   MINUTES_PER_DAY,
   SNAP_MINUTES,
+  entryTimeLabel,
   formatMinuteRange,
   formatMinutes,
   hourLabel,
@@ -238,5 +240,35 @@ describe('drag-to-select time math', () => {
   it('formats a padded range label', () => {
     expect(formatMinuteRange(630, 690)).toBe('10:30 – 11:30');
     expect(formatMinuteRange(0, 60)).toBe('00:00 – 01:00');
+  });
+});
+
+describe('entryTimeLabel', () => {
+  const day = {
+    allDay: true,
+    period: null,
+    startAt: '2026-12-01T00:00:00.000Z' as Instant,
+    endAt: '2026-12-01T23:59:59.999Z' as Instant,
+  };
+
+  it('labels a day-precision all-day entry 全天', () => {
+    expect(entryTimeLabel(day)).toBe('全天');
+  });
+
+  it('labels each half-day bucket', () => {
+    expect(entryTimeLabel({ ...day, period: 'morning' })).toBe('上午');
+    expect(entryTimeLabel({ ...day, period: 'afternoon' })).toBe('下午');
+    expect(entryTimeLabel({ ...day, period: 'evening' })).toBe('晚上');
+  });
+
+  it('keeps the formatted range for a timed entry', () => {
+    expect(
+      entryTimeLabel({
+        allDay: false,
+        period: null,
+        startAt: new Date(2026, 11, 1, 8, 0).toISOString() as Instant,
+        endAt: new Date(2026, 11, 1, 9, 0).toISOString() as Instant,
+      }),
+    ).toBe('8:00 - 9:00');
   });
 });

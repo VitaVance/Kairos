@@ -9,7 +9,7 @@ import {
   SNAP_MINUTES,
   formatMinutes,
   formatMinuteRange,
-  formatRange,
+  entryTimeLabel,
   hourLabel,
   layoutOverlapping,
   localDateKey,
@@ -232,6 +232,7 @@ export function MultiDayView({
                     <Chip
                       key={`${entry.source}-${entry.id}`}
                       title={entry.title}
+                      time={entry.period ? entryTimeLabel(entry) : undefined}
                       color={entry.color}
                       done={entry.done}
                       allDay
@@ -291,7 +292,7 @@ export function MultiDayView({
                       >
                         <Chip
                           title={b.entry.title}
-                          time={b.entry.allDay ? '全天' : formatRange(b.entry.startAt, b.entry.endAt)}
+                          time={entryTimeLabel(b.entry)}
                           color={b.entry.color}
                           done={b.entry.done}
                           allDay={b.entry.allDay}

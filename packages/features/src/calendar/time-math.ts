@@ -1,5 +1,7 @@
 /** Pure time math for the calendar surfaces — no DOM, no React, unit-tested. */
+import type { CalendarEntry } from '@todolist/core';
 import { APP_TIME_ZONE } from '@todolist/core';
+import { PERIOD_LABEL } from '../pickers/picker-math';
 
 const HH_MM = /^(\d{2}):(\d{2})$/;
 
@@ -160,6 +162,22 @@ export function formatRange(startIso: string, endIso: string): string {
     return m === 0 ? `${h}:00` : `${h}:${String(m).padStart(2, '0')}`;
   };
   return `${fmt(startIso)} - ${fmt(endIso)}`;
+}
+
+/**
+ * The time label an entry should carry on its chip.
+ *
+ * A day task and a period task both sit in the all-day strip (`allDay: true`),
+ * so without the period both would read "全天". The period task's whole point
+ * is to name its half-day, so it wins over `allDay`; everything else falls
+ * through to the same range label the views already rendered.
+ */
+export function entryTimeLabel(
+  entry: Pick<CalendarEntry, 'allDay' | 'period' | 'startAt' | 'endAt'>,
+): string {
+  if (entry.period) return PERIOD_LABEL[entry.period];
+  if (entry.allDay) return '全天';
+  return formatRange(entry.startAt, entry.endAt);
 }
 
 /** 24h clock label for the hour gutter, with 正午 at 12. */

@@ -3,7 +3,7 @@ import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, startOfWeek } from '@todolist/core';
 import { Chip, SegmentedControl } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
-import { formatRange, localDateKey } from './time-math';
+import { entryTimeLabel, formatRange, localDateKey } from './time-math';
 import './calendar.css';
 
 export type MultiWeekDensity = 2 | 3 | 4;
@@ -180,7 +180,7 @@ export function MultiWeekView({
                           <div className="mwv__chip" key={`${entry.source}-${entry.id}`}>
                             <Chip
                               title={entry.title}
-                              time={entry.allDay ? undefined : formatRange(entry.startAt, entry.endAt)}
+                              time={entry.period ? entryTimeLabel(entry) : entry.allDay ? undefined : formatRange(entry.startAt, entry.endAt)}
                               color={entry.color}
                               done={entry.done}
                               allDay={entry.allDay}

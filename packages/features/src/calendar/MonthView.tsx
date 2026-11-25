@@ -4,7 +4,7 @@ import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, startOfWeek } from '@todolist/core';
 import { Chip, EmptyState } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
-import { localDateKey } from './time-math';
+import { entryTimeLabel, localDateKey } from './time-math';
 import './calendar.css';
 
 export interface MonthViewProps {
@@ -127,6 +127,7 @@ export function MonthView({ cursor, today, onDayClick, onOpenDay, onCreateAt, on
                       <Chip
                         key={`${e.source}-${e.id}`}
                         title={e.title}
+                        time={e.period ? entryTimeLabel(e) : undefined}
                         color={e.color}
                         done={e.done}
                         allDay={e.allDay}
