@@ -1,0 +1,268 @@
+# Build and publish release artifacts when a version tag is pushed.
+#
+#   git tag v0.2.0 && git push origin v0.2.0
+#
+# Produces, per platform, the installer plus the signed `latest.json` that the
+# in-app updater reads. Nothing is published unless every gate passes first.
+#
+# ---------------------------------------------------------------------------
+# TWO INDEPENDENT SIGNATURES. Do not conflate them.
+# ---------------------------------------------------------------------------
+# 1. Tauri updater signature (TAURI_SIGNING_PRIVATE_KEY)
+#    `tauri-plugin-updater` verifies a minisign signature stored in the `.sig`
+#    file / `latest.json` against `plugins.updater.pubkey`. It is what the app
+#    checks before installing an update.
+# 2. Windows Authenticode signature (SignPath Foundation, below)
+#    SmartScreen and Windows verify the publisher certificate embedded in the
+#    `.exe` / `.msi`. It is what stops the "unknown publisher" prompt.
+#
+# ORDERING IS LOAD-BEARING:
+#   Authenticode signing modifies the installer bytes. Tauri's updater `.sig`
+#   is a signature *over those bytes*. Therefore SignPath MUST run first, and
+#   the updater `.sig` MUST be regenerated over the Authenticode-signed file
+#   afterwards (the "Re-sign updater artifacts" step). Doing it the other way
+#   round ships installers whose `.sig` no longer matches, and every existing
+#   install silently refuses the update.
+#
+# SignPath signs only inside CI (the private key lives in SignPath's HSM and is
+# never exportable), so a local `pnpm desktop:build` stays unsigned by design.
+# Only artifacts produced by this workflow are Authenticode-signed.
+#
+# Required repository secrets:
+#   TAURI_SIGNING_PRIVATE_KEY          — the updater key file's contents
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD — its password (empty string if none)
+#   SIGNPATH_API_TOKEN                 — optional; enables Authenticode signing.
+#                                        If absent, the release is still built
+#                                        and published, just unsigned.
+#
+# Losing the updater key means existing installs can no longer be updated; back
+# it up somewhere durable and secret. It is the one thing in this repo that
+# must never be committed.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.2.0)'
+        required: true
+
+permissions:
+  contents: write
+  # SignPath reads the workflow run + artifact it was handed.
+  actions: read
+
+jobs:
+  # Gate: never publish a build that does not pass the same checks as main.
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Architecture boundaries
+        run: pnpm deps:check
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+
+  publish:
+    needs: verify
+    runs-on: windows-latest
+    env:
+      # tauri-action is configured with a no-op `tauriScript` further down, so
+      # it must not try to rebuild. It publishes what is already on disk.
+      TAURI_BUNDLE_DIR: apps/desktop/src-tauri/target/release/bundle
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      # Cold Rust builds dominate the runtime; caching makes re-releases cheap.
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri -> target
+
+      - run: pnpm install --frozen-lockfile
+
+      # Decide once whether Authenticode signing is available.
+      #
+      # SignPath needs FIVE values to run: a token plus four slugs from your
+      # SignPath setup. Gating on the token alone was a trap — with the token
+      # set but the slugs still at their `YOUR-…` defaults, the signing request
+      # is submitted with garbage identifiers and fails the release after the
+      # expensive Rust build has already run. So the gate requires all five.
+      #
+      # None of these are secrets except the token: the slugs identify a public
+      # signing project. Storing them as repository *variables* (Settings →
+      # Secrets and variables → Actions → Variables) keeps the workflow file
+      # free of per-fork edits. Leave every one of them unset and the release
+      # still succeeds — just unsigned.
+      - name: Detect SignPath availability
+        id: signpath
+        shell: bash
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORG: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          SIGNPATH_PROJECT: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          SIGNPATH_POLICY: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          SIGNPATH_ARTIFACT_CONFIG: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+        run: |
+          missing=""
+          [ -z "${SIGNPATH_API_TOKEN}" ]       && missing="${missing} SIGNPATH_API_TOKEN(secret)"
+          [ -z "${SIGNPATH_ORG}" ]             && missing="${missing} SIGNPATH_ORGANIZATION_ID(vars)"
+          [ -z "${SIGNPATH_PROJECT}" ]         && missing="${missing} SIGNPATH_PROJECT_SLUG(vars)"
+          [ -z "${SIGNPATH_POLICY}" ]          && missing="${missing} SIGNPATH_SIGNING_POLICY_SLUG(vars)"
+          [ -z "${SIGNPATH_ARTIFACT_CONFIG}" ] && missing="${missing} SIGNPATH_ARTIFACT_CONFIGURATION_SLUG(vars)"
+
+          if [ -z "${missing}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Authenticode signing enabled via SignPath."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Authenticode signing disabled. Unset:${missing}. The release will still build and publish, but Windows will show 「未知发布者」 on install. See docs/RELEASING.md."
+          fi
+
+      # Step 1 of the signing order: build UNSIGNED. With createUpdaterArtifacts
+      # enabled, this also writes `.sig` files over the unsigned installers.
+      # Those are placeholders for now; the re-sign step replaces them.
+      - name: Build (unsigned)
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: pnpm tauri:build
+
+      # Step 2: hand the artifacts that need Authenticode signing to SignPath.
+      # Uploaded as a ZIP (default), preserving the `nsis/` and `msi/` layout,
+      # which is what the SignPath artifact configuration must expect.
+      - name: Upload installers for signing
+        if: steps.signpath.outputs.enabled == 'true'
+        id: upload-unsigned
+        uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-installers
+          if-no-files-found: error
+          path: |
+            apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+            apps/desktop/src-tauri/target/release/bundle/msi/*.msi
+
+      # Step 3: submit the signing request and wait for the signed copy.
+      #
+      # The four slugs come from repository variables, not this file — see the
+      # "Detect SignPath availability" step. Nothing here needs editing per-fork.
+      - name: Submit SignPath signing request
+        if: steps.signpath.outputs.enabled == 'true'
+        id: signpath-submit
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          connector-url: 'https://pipelineconnector.connectors.signpath.io/GitHubActions/GitHubCom'
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          artifact-configuration-slug: ${{ vars.SIGNPATH_ARTIFACT_CONFIGURATION_SLUG }}
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-artifacts
+          # Optional: only define this if your artifact configuration declares
+          # a `version` parameter (it must match tauri.conf.json `version`).
+          # parameters: |
+          #   version: "0.1.0"
+
+      # Step 4: put the signed installers back where Tauri bundled them. The
+      # filenames are unchanged, so tauri-action finds them by its normal path
+      # templates. Copying by basename keeps this independent of the exact
+      # directory layout inside the signed ZIP.
+      - name: Replace installers with signed copies
+        if: steps.signpath.outputs.enabled == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          count=0
+          while IFS= read -r -d '' signed; do
+            base="$(basename "$signed")"
+            case "$base" in
+              *-setup.exe) dest="${TAURI_BUNDLE_DIR}/nsis" ;;
+              *.msi)       dest="${TAURI_BUNDLE_DIR}/msi" ;;
+              *) continue ;;
+            esac
+            cp -f "$signed" "$dest/$base"
+            count=$((count + 1))
+          done < <(find signed-artifacts -type f \( -name '*-setup.exe' -o -name '*.msi' \) -print0)
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No signed installers were downloaded; refusing to publish unsigned artifacts."
+            exit 1
+          fi
+          echo "Replaced $count installer(s) with Authenticode-signed copies."
+
+      # Step 5 (the ordering fix): Authenticode signing changed the installer
+      # bytes, so the updater `.sig` files produced in step 1 are now stale.
+      # Regenerate them over the signed files. `--app-version` binds the
+      # signature to the release version, matching what `tauri build` does.
+      #
+      # `tauri signer sign` only reads the installer and writes `<file>.sig`
+      # next to it; it does not touch the Authenticode signature.
+      - name: Re-sign updater artifacts over the Authenticode-signed installers
+        if: steps.signpath.outputs.enabled == 'true'
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./apps/desktop/src-tauri/tauri.conf.json').version")"
+          shopt -s nullglob
+          files=(
+            "${TAURI_BUNDLE_DIR}"/nsis/*-setup.exe
+            "${TAURI_BUNDLE_DIR}"/msi/*.msi
+          )
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No installers found to re-sign."
+            exit 1
+          fi
+          for f in "${files[@]}"; do
+            echo "Signing updater artifact: $f (version $version)"
+            pnpm --filter @todolist/desktop exec tauri signer sign \
+              --app-version "$version" "$(pwd)/$f"
+          done
+
+      # tauri-action always builds before publishing and has no input to skip
+      # it. Pointing `tauriScript` at a no-op makes it publish the artifacts
+      # already on disk — signed when SignPath ran, unsigned otherwise —
+      # instead of rebuilding and overwriting them. It locates `latest.json`
+      # and the `.sig` files from those same paths, so the manifest carries the
+      # signatures regenerated above.
+      - name: Publish release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: 'node ./scripts/ci/noop-tauri-build.mjs'
+          tagName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseName: ${{ github.event.inputs.tag || github.ref_name }}
+          releaseBody: |
+            See the assets below to download and install.
+
+             Windows 用户请下载 `清单_*_x64-setup.exe`（安装包）或 `.msi`。
+            已安装旧版本的应用会自动收到更新提示。
+          releaseDraft: true
+          prerelease: false

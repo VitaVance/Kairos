@@ -1,0 +1,62 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Architecture boundaries
+        run: pnpm deps:check
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build web bundle
+        run: pnpm --filter @todolist/desktop build
+
+  # The desktop binary needs Rust; keep it separate so web CI stays fast.
+  desktop:
+    runs-on: windows-latest
+    needs: verify
+    if: github.event_name == 'push'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build desktop app
+        # `--no-bundle` on purpose. `tauri.conf.json` has
+        # `createUpdaterArtifacts: true`, so bundling signs the installer and
+        # fails outright when TAURI_SIGNING_PRIVATE_KEY is absent — and it must
+        # stay absent here, because CI on a fork PR never sees the secret. This
+        # job only proves the Rust side compiles and links; the signed bundle
+        # is release.yml's job, where the key does exist.
+        run: pnpm --filter @todolist/desktop tauri build --no-bundle
