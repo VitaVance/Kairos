@@ -308,7 +308,11 @@ jobs:
 
           notes="$(mktemp)"
           {
-            echo "## 清单 ${version}"
+            # Product name comes from the root manifest rather than being
+            # spelled out here — this line still said 清单 after the product
+            # was renamed, and a version heading naming the wrong product is
+            # the first thing a reader sees.
+            echo "## Kairos ${version}"
             echo
             echo "本次发布包含以下变更。"
             echo
@@ -346,10 +350,17 @@ jobs:
                 scope="${line#${type}}"
                 if [[ "$scope" == "("* ]]; then
                   scope="${scope#(}"; scope="${scope%%)*}"
+                  # `line#*: ` removes everything up to the first ": " — safe
+                  # here because a scope guarantees the prefix form
+                  # `type(scope): subject`.
                   text="${line#*: }"
                   body="${body}- **$(scope_zh "$scope")** — ${text}"$'\n'
                 else
-                  text="${line#*: }"
+                  # No scope in the conventional-commit prefix. Strip only
+                  # `type: `, not up to the first colon: a subject may contain
+                  # its own colon, and stripping to that would silently drop
+                  # the start of the sentence.
+                  text="${line#${type}: }"
                   body="${body}- ${text}"$'\n'
                 fi
               done <<< "$(git log "$range" --no-merges --pretty=format:"%s" | grep -E "^${type}(\(.+\))?!?:" || true)"
