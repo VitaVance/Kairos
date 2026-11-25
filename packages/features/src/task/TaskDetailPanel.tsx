@@ -566,12 +566,23 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
 
         <section className="tk-section">
           <h2 className="tk-section__title">{t('detail.sectionQuadrant')}</h2>
+          {/*
+           * Two rows of two, not one row of four.
+           *
+           * The panel is ~380px wide. Four Chinese quadrant names need roughly
+           * 420px on one line, so they either wrap into a ragged single line
+           * with one stray item, or every label ellipsises to 「重要且…」. A 2×2
+           * grid gives each label its own half-width row — which is also the
+           * shape the quadrants have on the board, so the control mirrors the
+           * model instead of fighting it.
+           */}
           <SegmentedControl
             options={quadrantOptions}
             value={quadrant}
             onChange={moveToQuadrant}
             size="sm"
             ariaLabel={t('detail.quadrantAria')}
+            className="tk-quadrant-seg"
           />
         </section>
 

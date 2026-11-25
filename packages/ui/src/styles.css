@@ -91,9 +91,17 @@
       border-color var(--tl-duration-fast) var(--tl-ease-standard);
   }
   .tl-btn--sm {
-    block-size: 26px;
+    /* 28px, not 26px: with the 13px label a 26px pill left only 6.5px of
+       vertical breathing room and read as a text link with a border. 28px is
+       the dense-desktop pointer floor; coarse pointers get 44px below. */
+    block-size: 28px;
     padding: 0 var(--tl-space-2);
     font-size: var(--tl-font-size-sm);
+  }
+  @media (any-pointer: coarse) {
+    .tl-btn--sm {
+      block-size: 44px;
+    }
   }
   .tl-btn:disabled {
     cursor: not-allowed;
@@ -327,11 +335,20 @@
   }
   .tl-chip__time {
     margin-inline-start: auto;
-    flex: 0 1 auto;
+    /* Not shrinkable. At 12px the time is ~68px wide ("14:00 - 15:00"); with
+       `flex: 0 1 auto` the title squeezed it to 45–62px and the clip cut a
+       digit off the end ("15:30 - 15:3"). A half-shown time is worse than none,
+       so the label keeps its full width and the *title* (which has its own
+       ellipsis) yields instead. Below a 118px chip the label is dropped
+       entirely by the container query below. */
+    flex: 0 0 auto;
     min-inline-size: 0;
     overflow: hidden;
     text-overflow: clip;
-    font-size: 10px;
+    /* The chip body is 12px; the time label sat a step below it at a hardcoded
+       10px. Use the same step — the label is still dropped entirely below a
+       118px chip, so the extra 2px does not steal a title glyph. */
+    font-size: var(--tl-font-size-xs);
     font-variant-numeric: tabular-nums;
     /* The time label sits on the chip's own tint, not on --tl-surface; tertiary
        ink falls below 4.5:1 over every palette's tint in dark mode. */
@@ -351,11 +368,11 @@
       display: none;
     }
   }
-  @container (max-inline-size: 64px) {
-    .tl-chip__title {
-      font-size: 10px;
-    }
-  }
+  /* The old <64px rule shrank the title to a hardcoded 10px. That title is the
+     only label a very narrow month chip has, and 10px is below the legibility
+     floor the scale already settled on. The title now stays at the chip's 12px
+     token and ellipsises inside its min-inline-size: 0 box, which is the
+     intended overflow behaviour at any width. */
   .tl-chip--done .tl-chip__title {
     text-decoration: line-through;
     color: var(--tl-text-tertiary);
@@ -449,16 +466,24 @@
     border-radius: var(--tl-radius-md);
     background: var(--tl-surface-sunken);
     /*
-     * The item height is fixed (22px / 26px), so a label that wraps overflows
-     * its own pill. English labels are far longer than the Chinese they
-     * replaced — "Urgent & important" against 「重要且紧急」 — and the quadrant
-     * control broke into three ragged lines. Let the *row* wrap instead; each
-     * label then stays on one line and the segments keep a common height.
+     * No `flex-wrap` here. Wrapping was how I first stopped long English labels
+     * from overflowing their pill, but it trades one defect for another: a
+     * four-item control whose last item is a few pixels too wide breaks onto a
+     * second line and the group reads as two unrelated rows. Chinese labels in
+     * the same control then look needlessly ragged.
+     *
+     * The row now stays on one line and the items share the width. A single
+     * item that is still too narrow ellipsises rather than pushing its
+     * neighbours down — a truncated word is a better failure than a broken
+     * alignment, and the full text stays available via `title`.
      */
-    flex-wrap: wrap;
     max-inline-size: 100%;
+    overflow: hidden;
   }
   .tl-seg__item {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     border: 0;
     border-radius: var(--tl-radius-sm);
     background: transparent;
@@ -473,9 +498,21 @@
       color var(--tl-duration-fast) var(--tl-ease-standard);
   }
   .tl-seg--sm .tl-seg__item {
-    block-size: 22px;
-    padding: 0 var(--tl-space-2);
+    /* 28px, not 22px: the label grew to 12px and the control has to grow with
+       it, or the text sits flush against the pill's edges. Still under the
+       44px touch minimum because this is a desktop pointer target sitting in
+       a dense two-row group; the coarse-pointer block below lifts it. */
+    block-size: 28px;
+    padding: 0 var(--tl-space-3);
     font-size: var(--tl-font-size-xs);
+  }
+  /* The "coarse-pointer block below lifts it" above did not exist yet. Touch
+     targets need the full 44px; the fine-pointer size above stays dense. */
+  @media (any-pointer: coarse) {
+    .tl-seg__item,
+    .tl-seg--sm .tl-seg__item {
+      block-size: 44px;
+    }
   }
   .tl-seg__item:hover {
     color: var(--tl-text);

@@ -248,7 +248,7 @@
   align-items: center;
   justify-content: flex-end;
   padding-inline-end: 6px;
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   /* The strip is a stub above the grid, not body copy; secondary ink would
      shout. Tertiary is dimmer but still clears 3:1 on the subtle surface. */
   color: var(--tl-text-tertiary);
@@ -357,7 +357,7 @@
 .cal-day__hourlabel {
   position: absolute;
   inset-inline-end: var(--tl-space-2);
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-tertiary);
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -687,7 +687,7 @@
   background: var(--tl-surface-subtle);
   color: var(--tl-text-secondary);
   font: inherit;
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-medium);
   font-variant-numeric: tabular-nums;
   line-height: 1.4;
@@ -812,7 +812,7 @@
   border-radius: var(--tl-radius-full);
   background: var(--tl-surface-sunken);
   color: var(--tl-text-secondary);
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   white-space: nowrap;
 }
 
@@ -844,7 +844,7 @@
 
 .mwv__more {
   padding-inline-start: 4px;
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
 }
 
@@ -980,7 +980,7 @@
 }
 
 .mdv__dayname {
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-tertiary);
   letter-spacing: 0.02em;
 }
@@ -1003,7 +1003,7 @@
   display: flex;
   justify-content: flex-end;
   padding-inline-end: 6px;
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -1139,7 +1139,7 @@
 }
 
 .yrv__legend-label {
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   font-variant-numeric: tabular-nums;
   color: var(--tl-text-secondary);
 }
@@ -1174,13 +1174,19 @@
      16px gutters and the bottom pad ran 8px past the container at 1440×900,
      so the last row scrolled under the fold. At 12px the 3×4 grid fits the
      container exactly and the rows flex up to consume it. */
-  /* `minmax(0, 1fr)`, NOT `minmax(min-content, 1fr)`. With `min-content` the
-     card's intrinsic height is a floor, so at 1440×900 the three rows measured
-     650px inside a 593px container and clipped 9–12月 — the very thing the
-     fill was supposed to prevent. A zero floor lets the rows divide exactly
-     the available height; if a card genuinely cannot fit, `.yrv__container`
-     scrolls, so nothing is unreachable either way. */
-  grid-auto-rows: minmax(0, 1fr);
+  /* `minmax(min-content, 1fr)`, not `minmax(0, 1fr)`. The zero floor let the
+     rows divide ANY available height, which is right at 1440×900 — but at the
+     960×640 window minimum a 4-row grid (the 4-column layout at 1440 becomes
+     3 columns here) squeezed each card to 96px while its six weeks plus the
+     weekday row needed ~130px, so all twelve cards clipped their own last
+     weeks. A `min-content` floor makes the card's intrinsic height a floor
+     again: rows still flex UP to fill a tall container, but a short container
+     makes `.yrv__container` scroll rather than crop a month. The earlier
+     650px-vs-593px measurement that motivated the zero floor predates the
+     smaller cell floor and the gap change; re-measured at 1440×900 the rows
+     land at ~218px, well inside the 686px container, so no scroll appears
+     there. */
+  grid-auto-rows: minmax(min-content, 1fr);
   /* `block-size`, not `min-block-size`: the grid must be exactly as tall as the
      container so `1fr` rows divide that height. `min-block-size: 100%` only set
      a floor — the content was free to grow past it, which is why three rows
@@ -1197,7 +1203,14 @@
 
 /* 3 → 4 columns by the container's own width. Capped at 4: past this the cards
    grow wider rather than more numerous, which keeps the day numerals legible
-   and stops twelve months collapsing into one cramped row. */
+   and stops twelve months collapsing into one cramped row.
+
+   Kept at 880px after measuring with the raised type: a 4-column card is
+   ~260px wide at 1440×900, giving a ~37px day cell — ample for a 12px
+   numeral. Raising the threshold would force a 4th month row and make the
+   grid taller than the container, which is worse than a slightly narrower
+   card. Below 880px the grid stays at three columns (~29px cells at the 960px
+   window minimum), still enough for 12px. */
 @container (min-inline-size: 880px) {
   .yrv__grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1210,12 +1223,16 @@
   gap: var(--tl-space-1);
   min-inline-size: 0;
   padding: var(--tl-space-2);
-  /* The grid owns the row height; the card must not add to it. `overflow:
-     hidden` is the backstop so a month whose 6-week shape needs a few more
-     pixels crops its own trailing padding instead of pushing 9–12月 under the
-     fold. Nothing meaningful is clipped: the cell floor (14px) already keeps
-     every numeral fully visible. */
-  min-block-size: 0;
+  /* `overflow: hidden` makes a grid item's automatic minimum size zero, which
+     is why an explicit floor is needed: without it a short container (the
+     960×640 window minimum, 3 columns → 4 rows) compressed every card to 96px
+     and all twelve clipped their trailing weeks. 156px is the intrinsic height
+     of a six-week month at the raised type — header 19 + gap 4 + weekday 14 +
+     6 rows × 16px (14px cell floor + 2px padding) + 5 × 1px gaps + 16px padding
+     + 2px border. A row that fits flexes above it (minmax(min-content, 1fr));
+     a container shorter than 4 × 156px scrolls `.yrv__container` instead of
+     cropping any month. */
+  min-block-size: 156px;
   overflow: hidden;
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-lg);
@@ -1277,7 +1294,13 @@
 .yrv__weekday {
   padding-block-end: 2px;
   text-align: center;
-  font-size: 9px;
+  /* Was a hardcoded 9px — the size the user was complaining about. The narrow
+     weekday initials are 1 glyph each (~8px at 12px), and the tightest case
+     is a 3-column card at the 960px window minimum, where each day cell is
+     ~29px wide; 12px fits with room to spare. `line-height: 1` keeps the row
+     from adding a full line box on top of the month header. */
+  font-size: var(--tl-font-size-xs);
+  line-height: 1;
   font-weight: var(--tl-font-weight-medium);
   color: var(--tl-text-tertiary);
 }
@@ -1369,18 +1392,19 @@
   block-size: 18px;
   padding: 0 2px;
   border-radius: var(--tl-radius-full);
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   line-height: 1;
   color: var(--tl-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
-/* At four columns the cards are ~270–390px wide, so the mini calendar earns a
-   step up from the cramped 9/10px it needed at twelve. Declared after the
-   base .yrv__weekday / .yrv__daynum rules so it actually wins. */
+/* The mini calendar now uses --tl-font-size-xs at every width, so this
+   container query no longer has a smaller base to step up from. It is kept
+   only because both declarations are the token value; a future ramp could
+   lower the base and re-enable the step here. */
 @container (min-inline-size: 880px) {
   .yrv__weekday {
-    font-size: 10px;
+    font-size: var(--tl-font-size-xs);
   }
 
   .yrv__daynum {

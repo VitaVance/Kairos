@@ -12,6 +12,13 @@ export interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   size?: 'sm' | 'md';
   ariaLabel?: string;
+  /**
+   * Extra class on the group element, for the rare caller whose container is
+   * narrow enough that the items need a different layout (see the 2×2 quadrant
+   * picker in the task panel). Layout only — a caller must not restyle the
+   * items themselves, or the control stops looking like one control.
+   */
+  className?: string;
 }
 
 /**
@@ -24,6 +31,7 @@ export function SegmentedControl<T extends string>({
   onChange,
   size = 'md',
   ariaLabel,
+  className,
 }: SegmentedControlProps<T>) {
   const { t } = useTranslation('common');
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -44,7 +52,7 @@ export function SegmentedControl<T extends string>({
   };
 
   return (
-    <div className={`tl-seg tl-seg--${size}`} role="radiogroup" aria-label={ariaLabel ?? t('a11y.switch')}>
+    <div className={`tl-seg tl-seg--${size}${className ? ` ${className}` : ''}`} role="radiogroup" aria-label={ariaLabel ?? t('a11y.switch')}>
       {options.map((opt, i) => {
         const active = opt.value === value;
         return (

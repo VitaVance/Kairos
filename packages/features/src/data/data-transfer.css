@@ -453,7 +453,9 @@
 }
 
 .dt-btn--sm {
-  block-size: 26px;
+  /* 28px, matching .tl-btn--sm: a 26px pill with a 13px label was the same
+     cramped control the scale change set out to fix. */
+  block-size: 28px;
   padding: 0 var(--tl-space-2);
   font-size: var(--tl-font-size-sm);
 }

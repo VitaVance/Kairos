@@ -86,9 +86,11 @@
   box-sizing: border-box;
   padding: 2px 8px;
   /* Completion is the row's main interaction; the grab cursor belongs to the
-     handle alone. min-height keeps the 32px checkbox hit target from being
-     clipped while staying far below the old 28px+ row height. */
-  min-height: 34px;
+     handle alone. */
+  /* 36px, up from 34: the chevron and checkbox now own 32px squares, and
+     with 2px block padding a 34px row left them 2px taller than its content
+     box — adjacent rows could touch. 36px holds both without adding air. */
+  min-height: 36px;
   border-radius: var(--tl-radius-sm);
   /* The row body is the completion target. The grab cursor belongs to the
      handle alone; the checkbox and chevron set their own pointer cursor. */
@@ -260,6 +262,13 @@
   .tk-checkline {
     min-block-size: 44px;
   }
+  /* The drill-in chevrons are the row's only route to the detail panel; on
+     touch they must be a full 44px square, not the dense 32px one. */
+  .tk-row__open,
+  .qz-row__open {
+    inline-size: 44px;
+    block-size: 44px;
+  }
 }
 
 /* ---------------- Month view ---------------- */
@@ -378,8 +387,11 @@
   display: grid;
   place-items: center;
   align-self: flex-start;
-  min-width: 22px;
-  height: 22px;
+  /* 26px, up from 22: the numeral is 13px (sm) and a 22px pill with 6px inline
+     padding left under 4px of vertical air, so "31" nearly touched the edge.
+     26px keeps the pill compact but gives the glyph room. */
+  min-width: 26px;
+  height: 26px;
   padding: 0 6px;
   border-radius: var(--tl-radius-full);
   font-size: var(--tl-font-size-sm);
@@ -430,7 +442,11 @@
   align-self: flex-end;
   padding-inline: 4px 2px;
   background: var(--mv-ground);
-  font-size: 10px;
+  /* 12px, not a hardcoded 10px: this is the only affordance telling the user
+     the cell has more events, so it must be readable at the same size as the
+     chips it summarises. It is a sticky label inside the cell, not a control,
+     so this does not change the cell's geometry. */
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
 }
 
@@ -468,7 +484,7 @@
   top: 0;
   z-index: var(--tl-z-sticky);
   display: grid;
-  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 60px repeat(7, minmax(0, 1fr));
   flex: none;
   border-bottom: 1px solid var(--tl-border);
   background: var(--tl-surface);
@@ -508,7 +524,10 @@
 }
 
 .wv__dayname {
-  font-size: 10px;
+  /* 12px, the xs step: the weekday line under the day number is how a user
+     tells Thu from Fri in a dense 7-column grid, and it was the smallest text
+     in the view. The head row grows 2px; the column grid is unaffected. */
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-tertiary);
   letter-spacing: 0.02em;
 }
@@ -550,7 +569,7 @@
 .wv__body {
   position: relative;
   display: grid;
-  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 60px repeat(7, minmax(0, 1fr));
   min-height: 0;
   padding-block-start: 8px;
 }
@@ -565,7 +584,10 @@
   display: flex;
   justify-content: flex-end;
   padding-right: 6px;
-  font-size: 10px;
+  /* 12px, the xs step: hour rules are scanned vertically; at 10px they read
+     as hairlines rather than labels. The 60px gutter holds a 5-char "08:00"
+     comfortably. */
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -712,7 +734,9 @@
   border-radius: var(--tl-radius-full);
   background: var(--tl-accent-tint);
   color: var(--tl-accent-ink);
-  font-size: 10px;
+  /* 10px was the smallest text in the app, on a badge that carries the day's
+     event count — at the new base 14px the badge looked like a smudge. xs. */
+  font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-medium);
 }
 
@@ -991,6 +1015,26 @@
   flex-basis: 100%;
 }
 
+/*
+ * Four quadrant names, two rows of two.
+ *
+ * At the panel's ~380px the four Chinese labels need about 420px on one line,
+ * so a single row either wraps raggedly or ellipsises every label to
+ * 「重要且…」. Half-width cells give each name room, and the 2×2 shape matches
+ * the quadrant board the values come from.
+ */
+.tk-quadrant-seg {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  inline-size: 100%;
+}
+.tk-quadrant-seg .tl-seg__item {
+  /* Centred: these are cells in a grid now, not pills in a row — a
+     left-aligned label in a wide cell reads as a list item. `text-align`
+     rather than `justify-content` because the item is a plain block button. */
+  text-align: center;
+}
+
 .tk-checkline {
   display: inline-flex;
   align-items: center;
@@ -1132,9 +1176,9 @@
   /* Same box model as .qz-row so both list surfaces share one rhythm. */
   box-sizing: border-box;
   padding: 2px 8px;
-  /* Row stays compact but tall enough to hold the 32px checkbox hit target
-     without clipping it or changing the visual rhythm of dense lists. */
-  min-block-size: 34px;
+  /* 36px, matching .qz-row: the 32px checkbox and chevron hit targets plus
+     2px block padding no longer fit a 34px content box. */
+  min-block-size: 36px;
   border-radius: var(--tl-radius-sm);
   /* The row body is the completion target (one click, no aiming); the chevron
      and the checkbox are the only nested controls. */
@@ -1184,6 +1228,10 @@
 
 .tk-row__delete {
   flex: none;
+  /* A text button with 2px block padding measured ~20px tall — under the
+     24px pointer minimum. The min-block-size lifts the hit area without
+     changing the row (36px) or the label. */
+  min-block-size: 28px;
   padding: 2px var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -1221,14 +1269,15 @@
 
 /* The only path to the detail panel, so it is always visible (a hidden-on-
    hover control would strand touch and keyboard users). Quiet by default,
-   accent on hover/focus; 28px square keeps it easy to hit without turning the
-   row into a button bar. */
+   accent on hover/focus; 32px square is the dense-desktop pointer floor for a
+   control that now holds a 14px SVG and is the row's primary drill-in. The
+   34px row grows to 36px to hold it; coarse pointers get the 44px rule below. */
 .tk-row__open {
   display: inline-grid;
   place-items: center;
   flex: none;
-  inline-size: 28px;
-  block-size: 28px;
+  inline-size: 32px;
+  block-size: 32px;
   padding: 0;
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -1268,13 +1317,15 @@
 
 /* Quadrant row chevron: same shape and behaviour as the flat row's, sized to
    the quadrant row's tighter rhythm. Always visible — it is the only way to
-   the detail panel from this surface. */
+   the detail panel from this surface. 32px, up from 24px: the old square was
+   smaller than the 14px chevron plus padding and sat under the UI's own 32px
+   pointer floor. */
 .qz-row__open {
   display: inline-grid;
   place-items: center;
   flex: none;
-  inline-size: 24px;
-  block-size: 24px;
+  inline-size: 32px;
+  block-size: 32px;
   margin-inline-end: -4px;
   padding: 0;
   border: 0;

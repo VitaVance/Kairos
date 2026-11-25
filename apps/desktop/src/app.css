@@ -70,7 +70,16 @@ body {
   overflow: hidden;
 }
 
-.app-content[data-fill='true'] > * {
+/*
+ * Only the *view* fills the remaining space.
+ *
+ * This used to be `> *`, which also stretched the reminder banner: a banner
+ * that should be 44px tall grew to share the column, pushing a full-height
+ * calendar view down and leaving a large empty block above it. The banner is
+ * a notification strip, not a pane — it keeps its intrinsic height and the
+ * view below takes everything else.
+ */
+.app-content[data-fill='true'] > :not(.reminder-banner) {
   flex: 1;
   min-block-size: 0;
   min-width: 0;
@@ -104,7 +113,7 @@ body {
      sunken tone is one step off the rail in all six looks. */
   background: var(--tl-surface-sunken);
   box-shadow: inset 0 0 0 1px var(--tl-border);
-  font-size: 12px;
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
 }
 
@@ -249,11 +258,11 @@ body {
 
 .app-placeholder p {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--tl-font-size-lg);
 }
 
 .app-placeholder span {
-  font-size: 12px;
+  font-size: var(--tl-font-size-xs);
 }
 
 .visually-hidden {

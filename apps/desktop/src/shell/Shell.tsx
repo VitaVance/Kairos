@@ -135,6 +135,10 @@ function ShellBody({
   const [openTaskId, setOpenTaskId] = useState<TaskId | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [filter, setFilter] = useState<SidebarFilter>({ kind: 'all' });
+  // The rail's Tasks icon selects the flat, date-grouped list independently of
+  // the sidebar's quick filters: with no filter the list shows every task,
+  // grouped by due date (overdue / today / … / undated).
+  const [taskListMode, setTaskListMode] = useState(false);
   const [editingEntry, setEditingEntry] = useState<CalendarEntry | null>(null);
   const [editor, setEditor] = useState<{
     open: boolean;
@@ -179,11 +183,13 @@ function ShellBody({
   const activeListId = filter.kind === 'list' ? filter.listId : null;
 
   // The sidebar's 今天 / 最近7天 shortcuts render a flat list; every other
-  // filter stays on the quadrant. The window is computed with core's day
-  // arithmetic so no raw `LocalDate` string is ever compared here: today is
-  // offset 0 and recent is the inclusive span 0…6.
-  const flatView = filter.kind === 'today' || filter.kind === 'recent';
+  // filter stays on the quadrant. The rail's Tasks icon is the other way into
+  // that flat screen, with the whole task set and no date window. The window is
+  // computed with core's day arithmetic so no raw `LocalDate` string is ever
+  // compared here: today is offset 0 and recent is the inclusive span 0…6.
+  const flatView = taskListMode || filter.kind === 'today' || filter.kind === 'recent';
   const flatTasks = useMemo(() => {
+    if (taskListMode) return tasks ?? [];
     if (filter.kind !== 'today' && filter.kind !== 'recent') return [];
     const lastOffset = filter.kind === 'today' ? 0 : 6;
     const lastDay = addDays(today, lastOffset);
@@ -191,7 +197,7 @@ function ShellBody({
       if (task.dueDate === null) return false;
       return daysFromToday(task.dueDate, today) >= 0 && daysFromToday(task.dueDate, lastDay) <= 0;
     });
-  }, [filter.kind, tasks, today]);
+  }, [taskListMode, filter.kind, tasks, today]);
 
   const removeTask = useCallback(
     (id: TaskId) => {
@@ -224,6 +230,8 @@ function ShellBody({
         // namespace even if it did.
         return listLabel(list);
       }
+      // The flat list opened from the rail's Tasks icon, not the 2×2 board.
+      if (taskListMode) return t('nav.tasks');
       return t('filter.quadrant');
     }
 
@@ -282,10 +290,32 @@ function ShellBody({
     }
 
     return `${monthYear(cursor)}${yearSuffix(y ?? cursor.slice(0, 4))}`;
-  }, [view, cursor, filter, lists, weeksShown, daysShown, t]);
+  }, [view, cursor, filter, taskListMode, lists, weeksShown, daysShown, t]);
 
+  /**
+   * Rail navigation. Selecting a calendar/quadrant view leaves the rail's flat
+   * list; the sidebar's list filters also leave it so the two task surfaces
+   * cannot disagree about what is on screen.
+   */
   const onSelectView = useCallback((next: ViewKind) => {
+    setTaskListMode(false);
     setView(next);
+  }, []);
+
+  const openTaskList = useCallback(() => {
+    setFilter({ kind: 'all' });
+    setTaskListMode(true);
+    setView('quadrant');
+  }, []);
+
+  /**
+   * The 2×2 board. Clearing the date filter matters: `filter.kind === 'today'`
+   * would otherwise keep `TaskListScreen` on screen under the quadrants icon.
+   */
+  const openQuadrants = useCallback(() => {
+    setFilter({ kind: 'all' });
+    setTaskListMode(false);
+    setView('quadrant');
   }, []);
 
   const openCreateEvent = useCallback(
@@ -366,6 +396,9 @@ function ShellBody({
       <SideRail
         view={view}
         onSelectView={onSelectView}
+        taskListActive={view === 'quadrant' && flatView}
+        onOpenTaskList={openTaskList}
+        onOpenQuadrants={openQuadrants}
         onOpenSearch={() => setSearchOpen(true)}
         onOpenTransfer={() => setTransferOpen(true)}
         onOpenUpdate={() => setUpdateOpen(true)}

@@ -92,8 +92,10 @@
 }
 
 .list-sidebar__head .tl-icon-btn {
-  inline-size: 24px;
-  block-size: 24px;
+  /* 28px, up from 24: the add-list control now holds a larger glyph and the
+     old 24px square was at the pointer-minimum edge. */
+  inline-size: 28px;
+  block-size: 28px;
 }
 
 /* ---------------- Lists ---------------- */
@@ -186,8 +188,10 @@
 
 /* The … button only appears on hover / focus, but stays reachable by keyboard. */
 .list-sidebar__more {
-  inline-size: 26px;
-  block-size: 26px;
+  /* 28px, up from 26: it is a hover-revealed icon button; 26px was under the
+     row's 30px and the pointer floor of the other controls. */
+  inline-size: 28px;
+  block-size: 28px;
   opacity: 0;
   transition: opacity var(--tl-duration-fast) var(--tl-ease-standard);
 }
@@ -322,7 +326,9 @@
 }
 
 .list-sidebar__danger {
-  block-size: 26px;
+  /* 28px, matching .tl-btn--sm: a text-button this small was pinching its
+     13px label. */
+  block-size: 28px;
   padding: 0 var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
