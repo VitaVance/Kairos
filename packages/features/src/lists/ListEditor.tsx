@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, TextField } from '@todolist/ui';
+import { Button, TextField, useTranslation } from '@todolist/ui';
 
 /**
  * The 8 curated list hues, mirrored from `--tl-hue-1-base … --tl-hue-8-base`
@@ -46,6 +46,8 @@ export function ListEditor({
   onSubmit,
   onCancel,
 }: ListEditorProps) {
+  const { t } = useTranslation('lists');
+  const { t: tCommon } = useTranslation('common');
   const [name, setName] = useState(initialName);
   const [color, setColor] = useState(initialColor);
   const [busy, setBusy] = useState(false);
@@ -71,7 +73,7 @@ export function ListEditor({
     <div
       className="list-editor"
       role="group"
-      aria-label={mode === 'create' ? '新建清单' : '编辑清单'}
+      aria-label={mode === 'create' ? t('editor.groupCreate') : t('editor.groupRename')}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           e.stopPropagation();
@@ -83,21 +85,21 @@ export function ListEditor({
         value={name}
         onChange={setName}
         onSubmit={() => void submit()}
-        placeholder={mode === 'create' ? '清单名称' : '新的清单名称'}
-        label={mode === 'create' ? '新清单名称' : '清单名称'}
+        placeholder={mode === 'create' ? t('editor.placeholderCreate') : t('editor.placeholderRename')}
+        label={mode === 'create' ? t('editor.labelCreate') : t('editor.labelRename')}
         disabled={disabled || busy}
         autoFocus
       />
 
-      <div className="list-editor__swatches" role="radiogroup" aria-label="清单颜色">
+      <div className="list-editor__swatches" role="radiogroup" aria-label={t('editor.colorGroup')}>
         {LIST_HUE_HEX.map((hue, i) => (
           <button
             key={hue}
             type="button"
             role="radio"
             aria-checked={color === hue}
-            aria-label={`颜色 ${i + 1}`}
-            title={`颜色 ${i + 1}`}
+            aria-label={t('sidebar.colorSwatch', { index: i + 1 })}
+            title={t('sidebar.colorSwatch', { index: i + 1 })}
             className={`list-editor__swatch${color === hue ? ' list-editor__swatch--selected' : ''}`}
             style={{ background: hue }}
             disabled={disabled || busy}
@@ -114,10 +116,10 @@ export function ListEditor({
 
       <div className="list-editor__actions">
         <Button variant="ghost" size="sm" onClick={onCancel} disabled={busy}>
-          取消
+          {tCommon('buttons.cancel')}
         </Button>
         <Button variant="primary" size="sm" onClick={() => void submit()} disabled={saveDisabled}>
-          {mode === 'create' ? '创建' : '保存'}
+          {mode === 'create' ? t('editor.create') : tCommon('buttons.save')}
         </Button>
       </div>
     </div>

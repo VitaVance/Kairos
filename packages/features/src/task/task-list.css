@@ -102,3 +102,14 @@
   place-items: center;
   min-block-size: 240px;
 }
+
+/* English labels are longer than the Chinese ones (All day / Morning /
+   Afternoon / Evening / Exact time; "Mon" … "Sun"). Let the five-way precision
+   switch and the weekday row wrap inside the 380px detail panel instead of
+   overflowing it. Scoped to the task panel so other screens' segmented
+   controls keep their single-line layout. */
+.tk-schedule .tl-seg,
+.tk-repeat__weekdays {
+  flex-wrap: wrap;
+  max-inline-size: 100%;
+}

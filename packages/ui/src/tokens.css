@@ -57,6 +57,22 @@
    */
   --tl-tint-base: var(--tl-surface);
 
+  /* ---- Year-view heat ramp ---------------------------------------------
+     Five steps for the calendar year heatmap: 0 is an empty day, 4 is a very
+     busy one. Derived from the *palette's* accent and the *current surface*
+     rather than spelled out six times: `--tl-accent` and `--tl-tint-base`
+     are themselves overridden per palette and per theme, so one definition
+     resolves correctly in all six combinations (A/B/C × light/dark).
+     Mixing toward `--tl-tint-base` (never white) is what keeps step 1 a dark
+     tint rather than a glaring white bar in dark mode.
+     Step 4 stops at 60% so `--tl-text` still reads as ink on top of it in
+     light mode; full accent remains reserved for "today" and selection. */
+  --tl-heat-0: var(--tl-surface-subtle);
+  --tl-heat-1: color-mix(in oklab, var(--tl-accent) 15%, var(--tl-tint-base));
+  --tl-heat-2: color-mix(in oklab, var(--tl-accent) 30%, var(--tl-tint-base));
+  --tl-heat-3: color-mix(in oklab, var(--tl-accent) 45%, var(--tl-tint-base));
+  --tl-heat-4: color-mix(in oklab, var(--tl-accent) 60%, var(--tl-tint-base));
+
   /* ---- Brand & actions -------------------------------------------------- */
   --tl-accent: #3b82f6;
   --tl-accent-hover: #2f74e8;

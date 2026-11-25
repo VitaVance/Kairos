@@ -1,9 +1,17 @@
 import { useMemo, useState } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, startOfWeek } from '@todolist/core';
-import { Chip, SegmentedControl } from '@todolist/ui';
+import { Chip, SegmentedControl, useTranslation } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
-import { entryTimeLabel, formatRange, localDateKey } from './time-math';
+import {
+  entryTimeLabel,
+  formatMonthDay,
+  formatMonthName,
+  formatNumericMonthDay,
+  formatRange,
+  localDateKey,
+  weekdayLabels,
+} from './time-math';
 import './calendar.css';
 
 export type MultiWeekDensity = 2 | 3 | 4;
@@ -34,15 +42,7 @@ export interface MultiWeekViewProps {
   onOpenDay?: (date: LocalDate) => void;
 }
 
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
-
-const DENSITY_OPTIONS = [
-  { value: '2', label: '2周' },
-  { value: '3', label: '3周' },
-  { value: '4', label: '4周' },
-] as const;
-
-type DensityValue = (typeof DENSITY_OPTIONS)[number]['value'];
+type DensityValue = '2' | '3' | '4';
 
 const CHIPS_PER_DAY = 3;
 
@@ -62,6 +62,12 @@ export function MultiWeekView({
   onOpenWeek,
   onOpenDay,
 }: MultiWeekViewProps) {
+  const { t } = useTranslation('calendar');
+  const densityOptions = (['2', '3', '4'] as const).map((value) => ({
+    value,
+    label: t('spanWeeks', { weeks: Number(value) }),
+  }));
+  const weekdays = weekdayLabels('narrow');
   const [density, setDensityState] = useState<DensityValue>(String(weeks) as DensityValue);
   const weekCount = Number(density) as MultiWeekDensity;
 
@@ -93,14 +99,14 @@ export function MultiWeekView({
     return map;
   }, [data]);
 
-  const status = loading && !data ? '加载中…' : data && data.length === 0 ? '没有安排' : null;
+  const status = loading && !data ? t('loading') : data && data.length === 0 ? t('empty') : null;
 
   return (
     <div className={`mwv${onOpenWeek ? ' mwv--weeklinks' : ''}`}>
       <div className="mwv__toolbar">
         {error ? (
           <span className="cal-error" role="alert">
-            日程加载失败：{error.message}
+            {t('loadFailed', { message: error.message })}
           </span>
         ) : (
           <span className="mwv__status" role="status">
@@ -108,25 +114,25 @@ export function MultiWeekView({
           </span>
         )}
         <SegmentedControl
-          options={DENSITY_OPTIONS}
+          options={densityOptions}
           value={density}
           onChange={setDensity}
           size="sm"
-          ariaLabel="显示周数"
+          ariaLabel={t('multiWeek.spanLabel')}
         />
       </div>
 
       <div className="mwv__scroll">
         <div className="mwv__weekdays" aria-hidden="true">
           {onOpenWeek ? <span className="mwv__weekday mwv__weekday--gutter" /> : null}
-          {WEEKDAYS.map((d) => (
-            <span key={d} className="mwv__weekday">
+          {weekdays.map((d, i) => (
+            <span key={i} className="mwv__weekday">
               {d}
             </span>
           ))}
         </div>
 
-        <div className="mwv__grid" role="grid" aria-label={`${weekCount} 周视图`}>
+        <div className="mwv__grid" role="grid" aria-label={t('multiWeek.gridAria', { weeks: weekCount })}>
           {weeksOfDays.map((week) => {
             const monday = week[0];
             return (
@@ -136,10 +142,10 @@ export function MultiWeekView({
                     <button
                       type="button"
                       className="mwv__weekopen"
-                      aria-label={`打开 ${Number(monday.slice(5, 7))}月${Number(monday.slice(8))}日当周`}
+                      aria-label={t('multiWeek.openWeekAria', { date: formatMonthDay(monday) })}
                       onClick={() => onOpenWeek(monday)}
                     >
-                      {Number(monday.slice(5, 7))}/{Number(monday.slice(8))}
+                      {formatNumericMonthDay(monday)}
                     </button>
                   </div>
                 ) : null}
@@ -161,7 +167,7 @@ export function MultiWeekView({
                           <button
                             type="button"
                             className={`mwv__date mwv__datebtn${isToday ? ' mwv__date--today' : ''}`}
-                            aria-label={`打开 ${Number(day.slice(5, 7))}月${Number(day.slice(8))}日`}
+                            aria-label={t('openDayAria', { date: formatMonthDay(day) })}
                             onClick={() => onOpenDay(day)}
                           >
                             {Number(day.slice(8))}
@@ -172,7 +178,7 @@ export function MultiWeekView({
                           </span>
                         )}
                         {firstOfMonth ? (
-                          <span className="mwv__monthtag">{Number(day.slice(5, 7))}月</span>
+                          <span className="mwv__monthtag">{formatMonthName(Number(day.slice(5, 7)))}</span>
                         ) : null}
                       </div>
                       <div className="mwv__events">

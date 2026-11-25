@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { LocalDate, Task, TaskId } from '@todolist/core';
-import { Checkbox } from '@todolist/ui';
+import { Checkbox, useTranslation } from '@todolist/ui';
 import { formatDue } from './due-label';
 
 export interface TaskListRowProps {
@@ -21,6 +21,8 @@ export interface TaskListRowProps {
  * the parent owns the mutations so every row shares one reload cycle.
  */
 export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = false }: TaskListRowProps) {
+  const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
   const [confirming, setConfirming] = useState(false);
   const done = task.status === 'done';
   const due = formatDue(task, today);
@@ -37,7 +39,11 @@ export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = f
       <Checkbox
         checked={done}
         onChange={() => onToggle(task.id)}
-        aria-label={done ? `取消完成 ${task.title}` : `完成 ${task.title}`}
+        aria-label={
+          done
+            ? t('row.uncompleteAria', { title: task.title })
+            : t('row.completeAria', { title: task.title })
+        }
       />
       <button type="button" className="tk-row__title" onClick={() => onOpen(task.id)}>
         {task.title}
@@ -48,7 +54,11 @@ export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = f
       <button
         type="button"
         className={`tk-row__delete${confirming ? ' tk-row__delete--confirm' : ''}`}
-        aria-label={confirming ? `确认删除 ${task.title}` : `删除 ${task.title}`}
+        aria-label={
+          confirming
+            ? t('row.confirmDeleteAria', { title: task.title })
+            : t('row.deleteAria', { title: task.title })
+        }
         onClick={() => {
           if (confirming) onDelete(task.id);
           else setConfirming(true);
@@ -63,7 +73,7 @@ export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = f
           }
         }}
       >
-        {confirming ? '确认' : '删除'}
+        {confirming ? t('row.confirm') : tCommon('buttons.delete')}
       </button>
     </div>
   );

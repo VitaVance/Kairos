@@ -145,6 +145,11 @@
 
 .tk-cal__jump-month {
   block-size: 32px;
+  min-inline-size: 0;
+  padding-inline: var(--tl-space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   border: 1px solid transparent;
   border-radius: var(--tl-radius-sm);
   background: var(--tl-surface-subtle);

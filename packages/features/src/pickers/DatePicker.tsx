@@ -9,22 +9,34 @@ import {
   ChevronRightIcon,
   IconButton,
   Popover,
+  useTranslation,
 } from '@todolist/ui';
 import { buildMonthGrid } from '../calendar/year-math';
 import { trapTabKey } from './picker-nav';
 import {
-  WEEKDAY_SHORT,
   dayInMonth,
   dayOf,
   formatDayLabel,
   formatFriendlyDate,
   formatMonthHeading,
+  formatYearHeading,
   monthKeyOf,
+  monthNames,
   nextMonday,
   shiftMonth,
+  weekdayLong,
+  weekdayShort,
 } from './picker-math';
 import type { MonthKey } from './picker-math';
 import './pickers.css';
+
+/**
+ * The full weekday name for a column header, resolved lazily from the active
+ * locale so the grid stays a single Intl-derived source. `index` is Monday-first.
+ */
+function weekdayLongAt(index: number, lng: string): string {
+  return weekdayLong(lng)[index] ?? '';
+}
 
 export interface DatePickerProps {
   /** Currently selected day, or null when unset. */
@@ -43,8 +55,6 @@ export interface DatePickerProps {
   /** Extra class on the trigger button. */
   className?: string;
 }
-
-const MONTHS_SHORT = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
 
 /**
  * Themeable date field: a friendly trigger that opens a Monday-first month
@@ -67,9 +77,14 @@ export function DatePicker({
   today: todayProp,
   disabled = false,
   label,
-  placeholder = '设置日期',
+  placeholder,
   className = '',
 }: DatePickerProps) {
+  const { t, i18n } = useTranslation('pickers');
+  const lng = i18n.resolvedLanguage ?? i18n.language;
+  const months = useMemo(() => monthNames(lng), [lng]);
+  const weekdays = useMemo(() => weekdayShort(lng), [lng]);
+  const displayPlaceholder = placeholder ?? t('date.placeholder');
   const today = todayProp ?? todayLocal();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const dayRefs = useRef(new Map<string, HTMLButtonElement>());
@@ -163,7 +178,7 @@ export function DatePicker({
     setFocusDate((prev) => dayInMonth(next, dayOf(prev)));
   };
 
-  const triggerText = value === null ? placeholder : formatFriendlyDate(value, today);
+  const triggerText = value === null ? displayPlaceholder : formatFriendlyDate(value, today, null, lng);
 
   return (
     <>
@@ -184,7 +199,7 @@ export function DatePicker({
       <Popover open={open} onClose={close} anchorRef={triggerRef} width={286}>
         <div className="tk-cal" onKeyDown={trapTabKey}>
           <div className="tk-cal__head">
-            <IconButton label="上个月" variant="quiet" onClick={() => stepMonth(-1)}>
+            <IconButton label={t('date.prevMonth')} variant="quiet" onClick={() => stepMonth(-1)}>
               <ChevronLeftIcon size={16} />
             </IconButton>
             <button
@@ -193,10 +208,10 @@ export function DatePicker({
               aria-expanded={jumping}
               onClick={() => setJumping((v) => !v)}
             >
-              {formatMonthHeading(viewMonth)}
+              {formatMonthHeading(viewMonth, lng)}
               <ChevronDownIcon size={14} />
             </button>
-            <IconButton label="下个月" variant="quiet" onClick={() => stepMonth(1)}>
+            <IconButton label={t('date.nextMonth')} variant="quiet" onClick={() => stepMonth(1)}>
               <ChevronRightIcon size={16} />
             </IconButton>
           </div>
@@ -204,23 +219,23 @@ export function DatePicker({
           {jumping ? (
             <div className="tk-cal__jump">
               <div className="tk-cal__jump-year">
-                <IconButton label="上一年" variant="quiet" onClick={() => stepYear(-1)}>
+                <IconButton label={t('date.prevYear')} variant="quiet" onClick={() => stepYear(-1)}>
                   <ChevronLeftIcon size={16} />
                 </IconButton>
                 <span className="tk-cal__jump-label" aria-live="polite">
-                  {viewMonth.year}年
+                  {formatYearHeading(viewMonth.year, lng)}
                 </span>
-                <IconButton label="下一年" variant="quiet" onClick={() => stepYear(1)}>
+                <IconButton label={t('date.nextYear')} variant="quiet" onClick={() => stepYear(1)}>
                   <ChevronRightIcon size={16} />
                 </IconButton>
               </div>
-              <div className="tk-cal__jump-months" role="group" aria-label="选择月份">
-                {MONTHS_SHORT.map((name, index) => {
+              <div className="tk-cal__jump-months" role="group" aria-label={t('date.selectMonth')}>
+                {months.map((name, index) => {
                   const month = index + 1;
                   const active = month === viewMonth.month;
                   return (
                     <button
-                      key={name}
+                      key={month}
                       type="button"
                       className={`tk-cal__jump-month${active ? ' tk-cal__jump-month--active' : ''}`}
                       aria-pressed={active}
@@ -241,12 +256,12 @@ export function DatePicker({
             <div
               className="tk-cal__grid"
               role="grid"
-              aria-label={formatMonthHeading(viewMonth)}
+              aria-label={formatMonthHeading(viewMonth, lng)}
               onKeyDown={onGridKeyDown}
             >
               <div className="tk-cal__weekdays" role="row">
-                {WEEKDAY_SHORT.map((name) => (
-                  <span key={name} className="tk-cal__weekday" role="columnheader" aria-label={`星期${name}`}>
+                {weekdays.map((name, index) => (
+                  <span key={index} className="tk-cal__weekday" role="columnheader" aria-label={weekdayLongAt(index, lng)}>
                     {name}
                   </span>
                 ))}
@@ -279,7 +294,7 @@ export function DatePicker({
                         className={classes}
                         aria-selected={isSelected}
                         aria-current={isToday ? 'date' : undefined}
-                        aria-label={formatDayLabel(cell.date)}
+                        aria-label={formatDayLabel(cell.date, lng)}
                         onClick={() => select(cell.date)}
                       >
                         {dayOf(cell.date)}
@@ -293,13 +308,13 @@ export function DatePicker({
 
           <div className="tk-cal__quick">
             <button type="button" className="tk-cal__chip" onClick={() => select(today)}>
-              今天
+              {t('date.today')}
             </button>
             <button type="button" className="tk-cal__chip" onClick={() => select(addDays(today, 1))}>
-              明天
+              {t('date.tomorrow')}
             </button>
             <button type="button" className="tk-cal__chip" onClick={() => select(nextMonday(today))}>
-              下周一
+              {t('date.nextMonday')}
             </button>
           </div>
 
@@ -313,7 +328,7 @@ export function DatePicker({
                   onClear();
                 }}
               >
-                清除
+                {t('date.clear')}
               </button>
             </div>
           ) : null}

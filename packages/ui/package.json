@@ -11,6 +11,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "lint": "tsc --noEmit"
   },
   "peerDependencies": {
@@ -22,6 +23,11 @@
     "@types/react-dom": "^19.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.7"
+  },
+  "dependencies": {
+    "i18next": "^27.2.6",
+    "react-i18next": "^18.0.3"
   }
 }

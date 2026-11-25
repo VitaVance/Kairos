@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent } from 'react';
 import type { LocalDate, Task, TaskId, TaskList } from '@todolist/core';
-import { QUADRANT_LABEL, quadrantOf } from '@todolist/core';
+import { quadrantOf } from '@todolist/core';
 import type { QuadrantKey } from '@todolist/ui';
-import { Badge, CollapsibleSection, EmptyState, TextField, QUADRANT_COLOR } from '@todolist/ui';
+import { Badge, CollapsibleSection, EmptyState, TextField, QUADRANT_COLOR, useTranslation } from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
 import { useAppServices } from '../services';
 import { useToast } from '../undo/UndoProvider';
@@ -25,7 +25,21 @@ const ORDER: QuadrantKey[] = [
   'unimportant',
 ];
 
+/**
+ * Domain quadrant key → catalog key. `QUADRANT_LABEL` in core stays the
+ * canonical Chinese vocabulary for non-UI consumers; the screen renders the
+ * translated name instead, so the label map can differ per language.
+ */
+const QUADRANT_NAME_KEY = {
+  'urgent-important': 'quadrant.names.urgentImportant',
+  'not-urgent-important': 'quadrant.names.notUrgentImportant',
+  'urgent-not-important': 'quadrant.names.urgentNotImportant',
+  unimportant: 'quadrant.names.unimportant',
+} as const;
+
 export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: QuadrantScreenProps) {
+  const { t } = useTranslation('lists');
+  const quadrantName = useCallback((q: QuadrantKey) => t(QUADRANT_NAME_KEY[q]), [t]);
   const { tasks: taskService } = useAppServices();
   // `data` already contains the optimistic toggles from useTasks, so a
   // completion renders before the write resolves.
@@ -86,7 +100,7 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
       const title = (drafts[quadrant] ?? '').trim();
       if (!title) return;
       if (!inboxListId) {
-        notify('没有可用的清单，无法创建任务');
+        notify(t('quadrant.noList'));
         return;
       }
       setDrafts((d) => ({ ...d, [quadrant]: '' }));
@@ -99,10 +113,10 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
         console.error('添加任务失败', err);
         // Restore the draft so a failed create never silently eats the text.
         setDrafts((d) => ({ ...d, [quadrant]: title }));
-        notify('添加任务失败，请重试');
+        notify(t('quadrant.addFailed'));
       }
     },
-    [drafts, inboxListId, mutate, notify, taskService],
+    [drafts, inboxListId, mutate, notify, taskService, t],
   );
 
   /**
@@ -117,7 +131,7 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
       if (!current || quadrantOf(current) === quadrant) return;
       try {
         await mutate(() => taskService.moveToQuadrant(id, quadrant));
-        setAnnouncement(`已移动到「${QUADRANT_LABEL[quadrant]}」`);
+        setAnnouncement(t('quadrant.moved', { quadrant: quadrantName(quadrant) }));
         // The row unmounts from its old card and remounts in the new one, so
         // a focused handle loses focus. Move it with the task, then flash the
         // destination card so keyboard users can see where it went.
@@ -130,26 +144,26 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
         // The move is not optimistic: `mutate` only bumps the revision after
         // the write resolves, so a rejection leaves the rendered snapshot
         // untouched — nothing to roll back, but the user must be told.
-        notify('移动象限失败，请重试');
+        notify(t('quadrant.moveFailed'));
       }
     },
-    [all, mutate, notify, taskService],
+    [all, mutate, notify, quadrantName, taskService, t],
   );
 
   const toggle = useCallback(
     (id: TaskId) => {
-      const title = all.find((task) => task.id === id)?.title ?? '任务';
+      const title = all.find((task) => task.id === id)?.title ?? t('quadrant.untitledTask');
       toggleDone(id, title);
     },
-    [all, toggleDone],
+    [all, toggleDone, t],
   );
 
   // A completion that fails is reported by `toggleDone`; a *load* failure was
   // previously indistinguishable from an empty board (both rendered nothing),
   // so surface it once per failed snapshot.
   useEffect(() => {
-    if (error) notify(`加载任务失败：${error.message}`);
-  }, [error, notify]);
+    if (error) notify(t('quadrant.loadFailed', { detail: error.message }));
+  }, [error, notify, t]);
 
   useEffect(
     () => () => {
@@ -174,8 +188,9 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
     handle.focus();
   }, [grouped]);
 
-  if (loading && !data) return <EmptyState message="加载中…" />;
-  if (error && !data) return <EmptyState message="任务加载失败" hint="请稍后重试" />;
+  if (loading && !data) return <EmptyState message={t('quadrant.loading')} />;
+  if (error && !data)
+    return <EmptyState message={t('quadrant.loadErrorTitle')} hint={t('quadrant.loadErrorHint')} />;
 
   return (
     <div ref={gridRef} className={`qz-grid${draggingId ? ' qz-grid--dragging' : ''}`}>
@@ -193,7 +208,7 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
           <section
             key={q}
             className={`qz-card${dragOver === q ? ' qz-card--over' : ''}${flash === q ? ' qz-card--flash' : ''}`}
-            aria-label={QUADRANT_LABEL[q]}
+            aria-label={quadrantName(q)}
             data-qz-quadrant={q}
             onDragEnter={(e) => {
               if (!isQuadrantDrag(e)) return;
@@ -222,20 +237,20 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
             }}
           >
             <header className="qz-card__head">
-              <Badge label={QUADRANT_LABEL[q]} color={color.color} count={open.length} />
+              <Badge label={quadrantName(q)} color={color.color} count={open.length} />
             </header>
 
             <TextField
               value={drafts[q] ?? ''}
               onChange={(v) => setDrafts((d) => ({ ...d, [q]: v }))}
               onSubmit={() => void addTask(q)}
-              placeholder="添加任务，回车确认"
-              label={`在「${QUADRANT_LABEL[q]}」添加任务`}
+              placeholder={t('quadrant.addPlaceholder')}
+              label={t('quadrant.addLabel', { quadrant: quadrantName(q) })}
               className="qz-card__add"
             />
 
             <div className="qz-card__list">
-              {open.length === 0 && done.length === 0 ? <EmptyState message="没有任务" compact /> : null}
+              {open.length === 0 && done.length === 0 ? <EmptyState compact /> : null}
               {open.map((task) => (
                 <QuadrantRow
                   key={task.id}
@@ -270,7 +285,7 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
             </div>
 
             {done.length > 0 ? (
-              <CollapsibleSection title="已完成" count={done.length} defaultOpen={false}>
+              <CollapsibleSection title={t('quadrant.completed')} count={done.length} defaultOpen={false}>
                 {done.map((task) => (
                   <QuadrantRow
                     key={task.id}

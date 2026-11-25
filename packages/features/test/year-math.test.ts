@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { localDateKey } from '../src/calendar/time-math.js';
-import { buildMonthGrid, buildYear, heatByDay, heatLevel, MAX_HEAT } from '../src/calendar/year-math.js';
+import {
+  buildMonthGrid,
+  buildYear,
+  heatByDay,
+  heatStep,
+  HEAT_BUCKETS,
+  MAX_HEAT,
+} from '../src/calendar/year-math.js';
 
 describe('buildMonthGrid', () => {
   it('always returns six Monday-first rows of seven cells', () => {
@@ -39,17 +46,40 @@ describe('buildYear', () => {
   });
 });
 
-describe('heatLevel', () => {
-  it('maps entry counts onto 0–4 dots', () => {
-    expect(heatLevel(0)).toBe(0);
-    expect(heatLevel(1)).toBe(1);
-    expect(heatLevel(3)).toBe(3);
-    expect(heatLevel(4)).toBe(4);
-    expect(heatLevel(9)).toBe(MAX_HEAT);
+describe('heatStep', () => {
+  it('maps zero entries to the empty step', () => {
+    expect(heatStep(0)).toBe(0);
   });
 
-  it('treats negatives as empty', () => {
-    expect(heatLevel(-2)).toBe(0);
+  it('lands boundary counts in the documented bucket', () => {
+    // Boundaries from HEAT_BUCKETS: 1–2, 3–4, 5–6, 7+.
+    expect(heatStep(1)).toBe(1);
+    expect(heatStep(2)).toBe(1);
+    expect(heatStep(3)).toBe(2);
+    expect(heatStep(4)).toBe(2);
+    expect(heatStep(5)).toBe(3);
+    expect(heatStep(6)).toBe(3);
+    expect(heatStep(7)).toBe(4);
+  });
+
+  it('agrees with the legend buckets at every boundary', () => {
+    for (const bucket of HEAT_BUCKETS) {
+      expect(heatStep(bucket.min)).toBe(bucket.step);
+      if (bucket.max !== null) {
+        expect(heatStep(bucket.max)).toBe(bucket.step);
+        expect(heatStep(bucket.max + 1)).toBe(Math.min(MAX_HEAT, bucket.step + 1));
+      }
+    }
+  });
+
+  it('caps a very large count at the top step', () => {
+    expect(heatStep(500)).toBe(MAX_HEAT);
+    expect(heatStep(Number.POSITIVE_INFINITY)).toBe(MAX_HEAT);
+  });
+
+  it('treats negative and NaN input as empty without throwing', () => {
+    expect(heatStep(-2)).toBe(0);
+    expect(heatStep(Number.NaN)).toBe(0);
   });
 });
 
@@ -64,6 +94,7 @@ describe('heatByDay', () => {
       ],
       2026,
     );
+    // Raw counts, not steps: the cell's aria-label must state the real number.
     // Mid-day UTC instants resolve to the same local day at every offset.
     expect(heat.get(localDateKey('2026-03-04T09:00:00.000Z'))).toBe(2);
     expect(heat.get(localDateKey('2026-03-05T09:00:00.000Z'))).toBe(1);
@@ -79,11 +110,12 @@ describe('heatByDay', () => {
     expect(heat.has('2026-11-30')).toBe(false);
   });
 
-  it('caps a very busy day at the maximum', () => {
+  it('reports the raw count for a very busy day (stepping happens at render)', () => {
     const heat = heatByDay(
       Array.from({ length: 12 }, () => ({ startAt: '2026-06-01T09:00:00.000Z' })),
       2026,
     );
-    expect(heat.get(localDateKey('2026-06-01T09:00:00.000Z'))).toBe(MAX_HEAT);
+    expect(heat.get(localDateKey('2026-06-01T09:00:00.000Z'))).toBe(12);
+    expect(heatStep(12)).toBe(MAX_HEAT);
   });
 });

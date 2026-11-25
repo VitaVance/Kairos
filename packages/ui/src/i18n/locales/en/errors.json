@@ -1,0 +1,14 @@
+{
+  "boundary": {
+    "title": "Something went wrong",
+    "hint": "This action could not be completed. Try again, or reload the page.",
+    "details": "Error details",
+    "unknown": "Unknown error"
+  },
+  "async": {
+    "failed": "Action failed: {{detail}}"
+  },
+  "task": {
+    "deleteFailed": "Could not delete the task. Please try again."
+  }
+}

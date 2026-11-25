@@ -15,6 +15,9 @@ export * from './components/CollapsibleSection';
 export * from './components/ScrollArea';
 export * from './icons';
 export * from './themes/index';
+// i18n lives in the ui package so feature packages can `useTranslation()` from
+// a single dependency and share one runtime (see i18n/index.ts).
+export * from './i18n/index';
 
 export type ChipModel = ChipProps;
 

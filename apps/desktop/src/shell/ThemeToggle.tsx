@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { IconButton, Popover } from '@todolist/ui';
+import { IconButton, Popover, useTranslation } from '@todolist/ui';
 import {
-  PALETTE_LABEL,
   applyPalette,
   applyThemeMode,
   PREFERS_DARK_QUERY,
@@ -16,23 +15,18 @@ import type { Palette, ThemeMode } from './theme';
  * Theme picker: two independent axes in one popover.
  *
  *   appearance  light / dark / system   → `data-theme`   (tokens.css dark block)
- *   palette     清简 / 专注 / 纸墨        → `data-palette` (direction A/B/C)
+ *   palette     refined / protool / editorial → `data-palette` (direction A/B/C)
  *
  * They compose, so all six combinations work. `system` is resolved before it
  * ever reaches the attribute, and the palette is applied independently of it.
+ *
+ * Labels come from the `shell:theme` namespace rather than PALETTE_LABEL: the
+ * palette names are user-facing copy, and this menu must switch language live
+ * like the rest of the shell.
  */
 
-const MODE_OPTIONS: readonly { value: ThemeMode; label: string }[] = [
-  { value: 'light', label: '浅色' },
-  { value: 'dark', label: '深色' },
-  { value: 'system', label: '跟随系统' },
-];
-
-const PALETTE_OPTIONS: readonly { value: Palette; label: string; hint: string }[] = [
-  { value: 'refined', label: '清简', hint: '冷调中性 · 蓝色强调' },
-  { value: 'protool', label: '专注', hint: '暖白 · 靛蓝 · 高密度' },
-  { value: 'editorial', label: '纸墨', hint: '纸感 · 赭黄靛苔' },
-];
+const MODE_VALUES: readonly ThemeMode[] = ['light', 'dark', 'system'];
+const PALETTE_VALUES: readonly Palette[] = ['refined', 'protool', 'editorial'];
 
 /** Small swatch trio so each palette is recognisable before you try it. */
 const PALETTE_SWATCH: Record<Palette, readonly string[]> = {
@@ -47,6 +41,7 @@ export interface ThemeToggleProps {
 }
 
 export function ThemeToggle({ onChange }: ThemeToggleProps) {
+  const { t } = useTranslation('shell');
   const [mode, setMode] = useState<ThemeMode>(() => readStoredTheme());
   const [palette, setPalette] = useState<Palette>(() => readStoredPalette());
   const [open, setOpen] = useState(false);
@@ -89,7 +84,7 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
     <>
       <IconButton
         ref={anchorRef}
-        label={`主题：${PALETTE_LABEL[palette]}`}
+        label={t('theme.toggle', { palette: t(`theme.palettes.${palette}.name`) })}
         variant="quiet"
         className="sh-theme-toggle"
         aria-haspopup="dialog"
@@ -101,42 +96,42 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
 
       <Popover open={open} onClose={() => setOpen(false)} anchorRef={anchorRef} width={248} align="end">
         <div className="th-menu">
-          <div className="th-menu__group" role="group" aria-label="外观">
-            <span className="th-menu__label">外观</span>
+          <div className="th-menu__group" role="group" aria-label={t('theme.appearance')}>
+            <span className="th-menu__label">{t('theme.appearance')}</span>
             <div className="th-menu__row">
-              {MODE_OPTIONS.map((o) => (
+              {MODE_VALUES.map((value) => (
                 <button
-                  key={o.value}
+                  key={value}
                   type="button"
-                  className={`th-menu__chip${mode === o.value ? ' is-active' : ''}`}
-                  aria-pressed={mode === o.value}
-                  onClick={() => chooseMode(o.value)}
+                  className={`th-menu__chip${mode === value ? ' is-active' : ''}`}
+                  aria-pressed={mode === value}
+                  onClick={() => chooseMode(value)}
                 >
-                  {o.label}
+                  {t(`theme.mode.${value}`)}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="th-menu__group" role="group" aria-label="配色">
-            <span className="th-menu__label">配色</span>
+          <div className="th-menu__group" role="group" aria-label={t('theme.palette')}>
+            <span className="th-menu__label">{t('theme.palette')}</span>
             <div className="th-menu__palettes">
-              {PALETTE_OPTIONS.map((o) => (
+              {PALETTE_VALUES.map((value) => (
                 <button
-                  key={o.value}
+                  key={value}
                   type="button"
-                  className={`th-menu__palette${palette === o.value ? ' is-active' : ''}`}
-                  aria-pressed={palette === o.value}
-                  onClick={() => choosePalette(o.value)}
+                  className={`th-menu__palette${palette === value ? ' is-active' : ''}`}
+                  aria-pressed={palette === value}
+                  onClick={() => choosePalette(value)}
                 >
                   <span className="th-menu__swatch" aria-hidden="true">
-                    {PALETTE_SWATCH[o.value].map((c) => (
+                    {PALETTE_SWATCH[value].map((c) => (
                       <i key={c} style={{ background: c }} />
                     ))}
                   </span>
                   <span className="th-menu__palette-text">
-                    <strong>{o.label}</strong>
-                    <small>{o.hint}</small>
+                    <strong>{t(`theme.palettes.${value}.name`)}</strong>
+                    <small>{t(`theme.palettes.${value}.hint`)}</small>
                   </span>
                 </button>
               ))}

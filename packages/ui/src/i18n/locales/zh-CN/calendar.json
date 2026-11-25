@@ -1,0 +1,66 @@
+{
+  "loading": "加载中…",
+  "loadFailed": "日程加载失败：{{message}}",
+  "empty": "没有安排",
+  "emptyHint": "点击时间轴空白处新建日程，或按住拖动选择时间段",
+  "today": "今天",
+  "allDay": "全天",
+  "noon": "正午",
+  "period": {
+    "morning": "上午",
+    "afternoon": "下午",
+    "evening": "晚上"
+  },
+  "spanDays": "{{days}}天",
+  "spanWeeks": "{{weeks}}周",
+  "openDayAria": "打开 {{date}} 的日视图",
+  "event": {
+    "newTitle": "新建日程",
+    "editTitle": "编辑日程",
+    "escToClose": "Esc 关闭",
+    "noWriteService": "日程编辑需要接入写入端口",
+    "taskEntryReadonly": "任务类日程需在任务详情中修改",
+    "fields": {
+      "title": "标题",
+      "start": "开始",
+      "startDate": "开始日期",
+      "startTime": "开始时间",
+      "end": "结束",
+      "endDate": "结束日期",
+      "endDateExclusive": "结束日期（不包含）",
+      "endTime": "结束时间",
+      "list": "清单",
+      "notes": "备注"
+    },
+    "titlePlaceholder": "日程标题",
+    "allDay": "全天",
+    "noList": "无清单",
+    "notesPlaceholder": "备注（可选）",
+    "titleRequired": "请填写日程标题",
+    "incomplete": "请填写完整的开始和结束日期时间",
+    "rangeError": "结束时间必须晚于开始时间",
+    "confirmDeleteLabel": "确认删除日程",
+    "confirmDiscardLabel": "放弃未保存的修改",
+    "confirmDeleteMessage": "删除后无法恢复，确定要删除这个日程吗？",
+    "confirmDiscardMessage": "有未保存的修改，确定要放弃吗？",
+    "back": "返回",
+    "discard": "放弃",
+    "saving": "保存中…"
+  },
+  "multiDay": {
+    "spanLabel": "显示天数"
+  },
+  "multiWeek": {
+    "spanLabel": "显示周数",
+    "gridAria": "{{weeks}} 周视图",
+    "openWeekAria": "打开 {{date}}当周"
+  },
+  "year": {
+    "empty": "这一年还没有安排",
+    "legendAria": "日程密度图例",
+    "legendEntries": "{{range}} 项",
+    "openMonth": "打开{{month}}视图",
+    "dayCount": "{{date}}，{{entries}} 项",
+    "dayEmpty": "{{date}}，无安排"
+  }
+}

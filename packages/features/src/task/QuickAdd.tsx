@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { todayLocal } from '@todolist/core';
 import type { LocalDate, ListId, Quadrant } from '@todolist/core';
-import { PlusIcon, TextField } from '@todolist/ui';
+import { PlusIcon, TextField, useTranslation } from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
 import { useAppServices } from '../services';
 import { useToast } from '../undo/UndoProvider';
@@ -13,8 +13,6 @@ export interface QuickAddProps {
   /** Defaults to the machine's local day; overridable for tests. */
   today?: LocalDate;
 }
-
-const PLACEHOLDER = '添加任务，回车确认（/重要 /紧急 @14:00）';
 
 /** Importance × urgency → quadrant, matching the tokens `/重要` and `/紧急`. */
 function quadrantFor(important: boolean, urgent: boolean): Quadrant {
@@ -30,6 +28,7 @@ function quadrantFor(important: boolean, urgent: boolean): Quadrant {
  * that shows it refreshes without parent wiring.
  */
 export function QuickAdd({ onCreated, today = todayLocal() }: QuickAddProps) {
+  const { t } = useTranslation('task');
   const { tasks: taskService, lists } = useAppServices();
   const { mutate } = useTasks();
   const notify = useToast();
@@ -44,7 +43,7 @@ export function QuickAdd({ onCreated, today = todayLocal() }: QuickAddProps) {
       if (!listId) {
         // Without a list there is nowhere to put the task; say so instead of
         // swallowing the keypress (a no-op here reads as a broken input).
-        notify('没有可用的清单，无法创建任务');
+        notify(t('quickAdd.noList'));
         return;
       }
 
@@ -70,14 +69,14 @@ export function QuickAdd({ onCreated, today = todayLocal() }: QuickAddProps) {
           }
         });
       } catch (error) {
-        console.error('快速添加任务失败', error);
+        console.error('Quick add task failed', error);
         setValue((current) => (current.length === 0 ? raw : current));
-        notify('添加任务失败，请重试');
+        notify(t('quickAdd.failed'));
         return;
       }
       onCreated?.();
     },
-    [lists, mutate, notify, onCreated, taskService, today],
+    [lists, mutate, notify, onCreated, taskService, today, t],
   );
 
   return (
@@ -87,8 +86,8 @@ export function QuickAdd({ onCreated, today = todayLocal() }: QuickAddProps) {
         onChange={setValue}
         onSubmit={() => void submit(value)}
         leadingIcon={<PlusIcon />}
-        placeholder={PLACEHOLDER}
-        label="快速添加任务"
+        placeholder={t('quickAdd.placeholder')}
+        label={t('quickAdd.label')}
         aria-keyshortcuts="Enter"
       />
     </div>

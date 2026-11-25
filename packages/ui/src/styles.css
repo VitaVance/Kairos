@@ -25,6 +25,31 @@
 @layer tl.components {
   :root {
     color-scheme: light;
+    /*
+     * Pin the scrollbar to one width for the whole app.
+     *
+     * `color-scheme: dark` swaps in the OS dark scrollbar, and on Windows the
+     * two are not the same width. Any container whose scrollbar is not styled
+     * therefore changes its content width when the theme changes, so every
+     * column, card and chip reflows by a few pixels the moment the user
+     * switches theme. That reads as the layout jumping on a colour change.
+     *
+     * Styling the scrollbar here — rather than only on `.tl-scroll` — means
+     * containers that never adopted that utility class (`.app-content`, the
+     * calendar grids, the sidebar) are covered too. `scrollbar-width` also
+     * affects Firefox, where the `-webkit-` rules are ignored.
+     */
+    scrollbar-width: thin;
+    scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  }
+  :root::-webkit-scrollbar,
+  :root *::-webkit-scrollbar {
+    inline-size: 8px;
+    block-size: 8px;
+  }
+  :root::-webkit-scrollbar-track,
+  :root *::-webkit-scrollbar-track {
+    background: transparent;
   }
   [data-theme='dark'] {
     color-scheme: dark;

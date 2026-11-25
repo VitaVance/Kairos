@@ -9,6 +9,7 @@ import type {
   TaskId,
   TaskList,
 } from '@todolist/core';
+import { initI18n } from '@todolist/ui';
 import {
   BACKUP_FORMAT,
   BACKUP_VERSION,
@@ -25,6 +26,11 @@ import {
   computeUpcoming,
   shouldFire,
 } from '../src/reminders/ReminderScheduler.js';
+
+// Validation messages now come from the `misc` catalog. Pin English so these
+// assertions check wording against the source-of-truth catalog, not the
+// machine's locale.
+initI18n('en');
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -264,7 +270,7 @@ describe('parseImport validation', () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.errors).toHaveLength(1);
-    expect(result.errors[0]).toContain('JSON 解析失败');
+    expect(result.errors[0]).toContain('Could not parse JSON');
   });
 
   it('rejects a wrong format with a clear message', () => {
@@ -290,7 +296,7 @@ describe('parseImport validation', () => {
     const result = parseImport(json);
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.errors.some((e) => e.includes('不支持的备份版本'))).toBe(true);
+    expect(result.errors.some((e) => e.includes('unsupported backup version'))).toBe(true);
   });
 
   it('collects every record error rather than stopping at the first', () => {

@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -22,8 +23,9 @@ export function SegmentedControl<T extends string>({
   value,
   onChange,
   size = 'md',
-  ariaLabel = '切换',
+  ariaLabel,
 }: SegmentedControlProps<T>) {
+  const { t } = useTranslation('common');
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const onKeyDown = (e: React.KeyboardEvent, index: number) => {
@@ -42,7 +44,7 @@ export function SegmentedControl<T extends string>({
   };
 
   return (
-    <div className={`tl-seg tl-seg--${size}`} role="radiogroup" aria-label={ariaLabel}>
+    <div className={`tl-seg tl-seg--${size}`} role="radiogroup" aria-label={ariaLabel ?? t('a11y.switch')}>
       {options.map((opt, i) => {
         const active = opt.value === value;
         return (

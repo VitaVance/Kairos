@@ -1,7 +1,7 @@
 import { useId, useMemo } from 'react';
 import type { LocalDate, Task, TaskId, TaskList } from '@todolist/core';
 import { addDays, compareTasks, daysFromToday, startOfWeek } from '@todolist/core';
-import { EmptyState } from '@todolist/ui';
+import { EmptyState, useTranslation } from '@todolist/ui';
 import { QuickAdd } from './QuickAdd';
 import { TaskListRow } from './TaskListRow';
 import './task-list.css';
@@ -24,14 +24,17 @@ export interface DueGroup {
 }
 
 /** Product order. Empty groups are dropped, never rendered as a blank header. */
-const GROUP_ORDER: readonly { readonly key: DueGroupKey; readonly label: string }[] = [
-  { key: 'overdue', label: '已逾期' },
-  { key: 'today', label: '今天' },
-  { key: 'tomorrow', label: '明天' },
-  { key: 'this-week', label: '本周内' },
-  { key: 'later', label: '之后' },
-  { key: 'undated', label: '无日期' },
-];
+const GROUP_ORDER: readonly DueGroupKey[] = ['overdue', 'today', 'tomorrow', 'this-week', 'later', 'undated'];
+
+/** Message key per group; labels are resolved in the component (needs `t`). */
+export const GROUP_LABEL_KEY = {
+  overdue: 'list.groups.overdue',
+  today: 'list.groups.today',
+  tomorrow: 'list.groups.tomorrow',
+  'this-week': 'list.groups.thisWeek',
+  later: 'list.groups.later',
+  undated: 'list.groups.undated',
+} as const satisfies Record<DueGroupKey, string>;
 
 /**
  * Which group a task's local due date belongs to.
@@ -63,7 +66,11 @@ export function dueGroupOf(
  * `compareTasks` (open before done, then by due instant, then creation), and
  * empty buckets are omitted. The input array is never mutated.
  */
-export function groupTasksByDue(tasks: readonly Task[], today: LocalDate): readonly DueGroup[] {
+export function groupTasksByDue(
+  tasks: readonly Task[],
+  today: LocalDate,
+  labelFor: (key: DueGroupKey) => string = (key) => GROUP_LABEL_KEY[key],
+): readonly DueGroup[] {
   const lastDayOfWeek = daysFromToday(addDays(startOfWeek(today), 6), today);
 
   const buckets: Record<DueGroupKey, Task[]> = {
@@ -79,11 +86,11 @@ export function groupTasksByDue(tasks: readonly Task[], today: LocalDate): reado
   }
 
   const groups: DueGroup[] = [];
-  for (const { key, label } of GROUP_ORDER) {
+  for (const key of GROUP_ORDER) {
     const bucket = buckets[key];
     if (bucket.length === 0) continue;
     bucket.sort(compareTasks);
-    groups.push({ key, label, tasks: bucket });
+    groups.push({ key, label: labelFor(key), tasks: bucket });
   }
   return groups;
 }
@@ -117,7 +124,11 @@ export function TaskListScreen({
   fresh,
   onCreate,
 }: TaskListScreenProps) {
-  const groups = useMemo(() => groupTasksByDue(tasks, today), [tasks, today]);
+  const { t } = useTranslation('task');
+  const groups = useMemo(
+    () => groupTasksByDue(tasks, today, (key) => t(GROUP_LABEL_KEY[key])),
+    [tasks, today, t],
+  );
   const baseId = useId();
 
   return (
@@ -132,7 +143,7 @@ export function TaskListScreen({
 
       {groups.length === 0 ? (
         <div className="flat-empty">
-          <EmptyState message="没有任务" />
+          <EmptyState message={t('list.empty')} />
         </div>
       ) : (
         groups.map((group) => {

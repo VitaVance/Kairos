@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import './data-transfer.css';
 import type { DragEvent } from 'react';
+import { useTranslation } from '@todolist/ui';
 import type { AppServices } from '../services';
 import { useAppServices, useLists, useRevision } from '../services';
 import { useUndoOptional } from '../undo/UndoProvider';
@@ -33,6 +34,12 @@ export interface DataTransferPanelProps {
    * wired yet — the UI then refuses to apply rather than pretend.
    */
   onApply?: ((data: BackupData, mode: MergeMode) => Promise<void>) | null;
+  /**
+   * Deletes every task, list and event. Omitted/null means the write port is
+   * not wired yet, and the destructive control is not offered at all: a button
+   * that looks like it works is worse than no button.
+   */
+  onReset?: (() => Promise<void>) | null;
 }
 
 type ImportPhase =
@@ -57,6 +64,42 @@ function timestampSlug(date: Date): string {
 /** Default JSON backup file name, exposed for hosts and tests. */
 export function exportFileName(date: Date): string {
   return `todolist-backup-${timestampSlug(date)}.json`;
+}
+
+/** The `misc` translator, inferred from the hook so no i18next type import is needed. */
+export type MiscT = ReturnType<typeof useTranslation<'misc'>>['t'];
+
+/**
+ * The reset copy, in one place.
+ *
+ * The button deletes *everything*, not just the seeded rows: after the user has
+ * edited a seeded row there is no reliable way to tell it apart from their own
+ * content. The wording therefore says "everything" and never "sample data" — a
+ * destructive action must be described as what it does. The catalog text is
+ * safety-critical; do not soften it while translating.
+ */
+export function resetCopy(t: MiscT) {
+  return {
+    heading: t('data.reset.heading'),
+    hint: t('data.reset.hint'),
+    trigger: t('data.reset.trigger'),
+    confirm: t('data.reset.confirm'),
+    confirmAction: t('data.reset.confirmAction'),
+    busy: t('data.reset.busy'),
+    alertLabel: t('data.reset.alertLabel'),
+  };
+}
+
+/** "About to delete: 17 tasks · 4 lists · 12 events…" for the confirmation body. */
+export function resetLossLine(
+  t: MiscT,
+  counts: { tasks: number; lists: number; events: number },
+): string {
+  return t('data.reset.loss', {
+    tasks: t('data.count.tasks', { count: counts.tasks }),
+    lists: t('data.count.lists', { count: counts.lists }),
+    events: t('data.count.events', { count: counts.events }),
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +156,8 @@ async function readAllEvents(services: AppServices): Promise<BackupData['events'
 // Panel
 // ---------------------------------------------------------------------------
 
-export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelProps) {
+export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTransferPanelProps) {
+  const { t } = useTranslation('misc');
   const panelId = useId();
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -125,6 +169,8 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [confirmMode, setConfirmMode] = useState<MergeMode | null>(null);
+  /** Two-step confirm for the destructive reset, like `TaskDetailPanel`. */
+  const [confirmReset, setConfirmReset] = useState(false);
 
   const [exportPreview, setExportPreview] = useState<{
     readonly fileName: string;
@@ -165,21 +211,21 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
   const readFile = useCallback(async (file: File) => {
     setError(null);
     setConfirmMode(null);
-    setStatus(`正在解析 ${file.name}…`);
+    setStatus(t('data.status.parsing', { file: file.name }));
 
     let text: string;
     try {
       text = await file.text();
     } catch {
-      setPhase({ kind: 'invalid', fileName: file.name, errors: ['无法读取该文件'] });
-      setStatus(`「${file.name}」读取失败`);
+      setPhase({ kind: 'invalid', fileName: file.name, errors: [t('data.errors.cannotRead')] });
+      setStatus(t('data.status.readFailed', { file: file.name }));
       return;
     }
 
     const result = parseImport(text);
     if (!result.ok) {
       setPhase({ kind: 'invalid', fileName: file.name, errors: result.errors });
-      setStatus(`「${file.name}」校验失败，共 ${result.errors.length} 个问题`);
+      setStatus(t('data.status.invalid', { file: file.name, count: result.errors.length }));
       return;
     }
 
@@ -188,9 +234,14 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
     const rebuilt = exportToJson(result.data, { exportedAt: new Date().toISOString() as BackupFile['exportedAt'] });
     setPhase({ kind: 'valid', fileName: file.name, file: rebuilt });
     setStatus(
-      `「${file.name}」校验通过：任务 ${result.data.tasks.length} · 清单 ${result.data.lists.length} · 日程 ${result.data.events.length}`,
+      t('data.status.valid', {
+        file: file.name,
+        tasks: t('data.count.tasks', { count: result.data.tasks.length }),
+        lists: t('data.count.lists', { count: result.data.lists.length }),
+        events: t('data.count.events', { count: result.data.events.length }),
+      }),
     );
-  }, []);
+  }, [t]);
 
   const onFiles = useCallback(
     (files: FileList | null) => {
@@ -242,12 +293,12 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
       document.body.appendChild(link);
       link.click();
       link.remove();
-      setStatus(`已导出 ${fileName}（${formatBytes(blob.size)}）`);
+      setStatus(t('data.status.exported', { file: fileName, size: formatBytes(blob.size) }));
     } finally {
       // Revoking synchronously can race the click in some engines; defer one loop.
       setTimeout(() => URL.revokeObjectURL(url), 0);
     }
-  }, []);
+  }, [t]);
 
   const downloadJson = useCallback(() => {
     if (exportPreview) download(exportPreview.json, exportPreview.fileName, 'application/json');
@@ -290,7 +341,7 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
       try {
         await onApply(phase.file.data, mode);
         if (mode === 'replace') undoStack?.clear();
-        setStatus(mode === 'replace' ? '已替换导入完成' : '已合并导入完成');
+        setStatus(mode === 'replace' ? t('data.status.replaceDone') : t('data.status.mergeDone'));
         resetImport();
         onClose();
       } catch (err) {
@@ -299,11 +350,32 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
         setBusy(false);
       }
     },
-    [writable, onApply, phase, onClose, resetImport, undoStack],
+    [writable, onApply, phase, onClose, resetImport, undoStack, t],
   );
+
+  const resetAll = useCallback(async () => {
+    if (!onReset) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await onReset();
+      // Every row the stack pointed at is gone; replaying a closure would
+      // resurrect content the user just asked to delete.
+      undoStack?.clear();
+      setStatus(t('data.status.resetDone'));
+      resetImport();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setConfirmReset(false);
+    } finally {
+      setBusy(false);
+    }
+  }, [onReset, onClose, resetImport, undoStack, t]);
 
   if (!open) return null;
 
+  const copy = resetCopy(t);
   const importCounts =
     phase.kind === 'valid'
       ? {
@@ -324,9 +396,15 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
       <section id={panelId} className="dt-panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
         <header className="dt-panel__head">
           <h2 id={titleId} className="dt-panel__title">
-            数据导入导出
+            {t('data.title')}
           </h2>
-          <button ref={closeRef} type="button" className="dt-close" aria-label="关闭" onClick={onClose}>
+          <button
+            ref={closeRef}
+            type="button"
+            className="dt-close"
+            aria-label={t('buttons.close', { ns: 'common' })}
+            onClick={onClose}
+          >
             <span aria-hidden="true">✕</span>
           </button>
         </header>
@@ -334,49 +412,48 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
         {/* ------------------------------- Export ------------------------ */}
         <section className="dt-section" aria-labelledby={`${panelId}-export-label`}>
           <h3 id={`${panelId}-export-label`} className="dt-section__title">
-            导出
+            {t('data.export.heading')}
           </h3>
-          <p className="dt-section__hint">
-            完整备份包含任务、清单与日程，可原样导入恢复；CSV 适合在表格软件中查看，但不含 id。
-          </p>
+          <p className="dt-section__hint">{t('data.export.hint')}</p>
 
           {exportPreview ? (
             <div className="dt-export">
               <dl className="dt-export__meta">
                 <div className="dt-export__row">
-                  <dt>文件名</dt>
+                  <dt>{t('data.export.fileName')}</dt>
                   <dd className="dt-mono">{exportPreview.fileName}</dd>
                 </div>
                 <div className="dt-export__row">
-                  <dt>大小</dt>
+                  <dt>{t('data.export.size')}</dt>
                   <dd>{formatBytes(exportPreview.bytes)}</dd>
                 </div>
                 <div className="dt-export__row">
-                  <dt>内容</dt>
+                  <dt>{t('data.export.content')}</dt>
                   <dd>
-                    任务 {exportPreview.counts.tasks} · 清单 {exportPreview.counts.lists} · 日程{' '}
-                    {exportPreview.counts.events}
+                    {t('data.count.tasks', { count: exportPreview.counts.tasks })} ·{' '}
+                    {t('data.count.lists', { count: exportPreview.counts.lists })} ·{' '}
+                    {t('data.count.events', { count: exportPreview.counts.events })}
                   </dd>
                 </div>
               </dl>
               <div className="dt-actions">
                 <button type="button" className="dt-btn dt-btn--primary" onClick={downloadJson}>
-                  导出 JSON
+                  {t('data.export.json')}
                 </button>
                 <button type="button" className="dt-btn" onClick={downloadCsv}>
-                  导出 CSV
+                  {t('data.export.csv')}
                 </button>
               </div>
             </div>
           ) : (
-            <p className="dt-empty">当前没有可导出的数据。</p>
+            <p className="dt-empty">{t('data.export.empty')}</p>
           )}
         </section>
 
         {/* ------------------------------- Import ------------------------ */}
         <section className="dt-section" aria-labelledby={`${panelId}-import-label`}>
           <h3 id={`${panelId}-import-label`} className="dt-section__title">
-            导入
+            {t('data.import.heading')}
           </h3>
 
           <div
@@ -392,9 +469,9 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
             <span className="dt-drop__icon" aria-hidden="true">
               ⤓
             </span>
-            <span className="dt-drop__title">拖放 JSON 备份到此处</span>
+            <span className="dt-drop__title">{t('data.import.dropTitle')}</span>
             <span id={`${panelId}-drop-hint`} className="dt-drop__hint">
-              或选择文件（.json）
+              {t('data.import.dropHint')}
             </span>
             {/*
               A real file input, kept visible and styled through
@@ -415,7 +492,7 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
           {phase.kind === 'invalid' ? (
             <div className="dt-errors" role="alert">
               <p className="dt-errors__title">
-                「{phase.fileName}」无法导入，共 {phase.errors.length} 个问题：
+                {t('data.import.invalidTitle', { file: phase.fileName, count: phase.errors.length })}
               </p>
               <ul className="dt-errors__list">
                 {phase.errors.map((message, index) => (
@@ -423,7 +500,7 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
                 ))}
               </ul>
               <button type="button" className="dt-btn dt-btn--ghost dt-btn--sm" onClick={resetImport}>
-                清除
+                {t('data.import.clear')}
               </button>
             </div>
           ) : null}
@@ -432,24 +509,24 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
             <div className="dt-preview">
               <p className="dt-preview__file dt-mono">{phase.fileName}</p>
               <table className="dt-table">
-                <caption className="dt-visually-hidden">导入内容预览</caption>
+                <caption className="dt-visually-hidden">{t('data.import.previewCaption')}</caption>
                 <thead>
                   <tr>
-                    <th scope="col">类型</th>
-                    <th scope="col">数量</th>
+                    <th scope="col">{t('data.import.columnType')}</th>
+                    <th scope="col">{t('data.import.columnCount')}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
-                    <th scope="row">任务</th>
+                    <th scope="row">{t('data.labels.tasks')}</th>
                     <td>{importCounts.tasks}</td>
                   </tr>
                   <tr>
-                    <th scope="row">清单</th>
+                    <th scope="row">{t('data.labels.lists')}</th>
                     <td>{importCounts.lists}</td>
                   </tr>
                   <tr>
-                    <th scope="row">日程</th>
+                    <th scope="row">{t('data.labels.events')}</th>
                     <td>{importCounts.events}</td>
                   </tr>
                 </tbody>
@@ -457,28 +534,36 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
 
               {plan ? (
                 <p className="dt-preview__plan">
-                  合并预览：新增 {plan.merge.counts.added} · 更新 {plan.merge.counts.updated} · 跳过{' '}
-                  {plan.merge.counts.skipped}；替换预览：新增 {plan.replace.counts.added} · 移除{' '}
-                  {plan.replace.counts.removed}
+                  {t('data.import.plan', {
+                    added: plan.merge.counts.added,
+                    updated: plan.merge.counts.updated,
+                    skipped: plan.merge.counts.skipped,
+                    removed: plan.replace.counts.removed,
+                  })}
                 </p>
               ) : null}
 
               {!writable ? (
                 <p className="dt-note" role="note">
-                  写入端口尚未接入，导入功能暂不可用（可预览校验结果）。
+                  {t('data.import.notWritable')}
                 </p>
               ) : confirmMode !== null ? (
-                <div className="dt-confirm" role="alertdialog" aria-label="确认导入">
+                <div
+                  className="dt-confirm"
+                  role="alertdialog"
+                  aria-label={t('data.import.confirmLabel')}
+                >
                   <p className="dt-confirm__text">
                     {confirmMode === 'replace'
-                      ? '替换导入会删除当前全部任务、清单与日程，仅保留备份中的内容。此操作无法撤销。'
-                      : '合并导入会新增缺失记录，并用较新的数据覆盖同 id 的现有记录。'}
+                      ? t('data.import.confirmReplace')
+                      : t('data.import.confirmMerge')}
                   </p>
                   {confirmMode === 'replace' && discardWarning ? (
                     <p className="dt-confirm__text dt-confirm__loss">
-                      当前有 {discardWarning.lost} 条任务不在该备份中
-                      {discardWarning.done > 0 ? `（其中 ${discardWarning.done} 条已完成）` : ''}
-                      ，替换后会永久丢失。建议先「导出 JSON」留一份备份。
+                      {t(discardWarning.done > 0 ? 'data.import.discardWithDone' : 'data.import.discard', {
+                        tasks: t('data.prose.tasks', { count: discardWarning.lost }),
+                        done: t('data.prose.done', { count: discardWarning.done }),
+                      })}
                     </p>
                   ) : null}
                   <div className="dt-actions">
@@ -488,7 +573,11 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
                       disabled={busy}
                       onClick={() => void apply(confirmMode)}
                     >
-                      {busy ? '处理中…' : `确认${confirmMode === 'replace' ? '替换' : '合并'}`}
+                      {busy
+                        ? t('data.import.busy')
+                        : confirmMode === 'replace'
+                          ? t('data.import.confirmReplaceAction')
+                          : t('data.import.confirmMergeAction')}
                     </button>
                     <button
                       type="button"
@@ -496,7 +585,7 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
                       disabled={busy}
                       onClick={() => setConfirmMode(null)}
                     >
-                      取消
+                      {t('buttons.cancel', { ns: 'common' })}
                     </button>
                   </div>
                 </div>
@@ -506,19 +595,19 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
                     type="button"
                     className="dt-btn dt-btn--danger dt-btn--sm"
                     disabled={!writable || busy}
-                    title={writable ? undefined : '写入端口尚未接入'}
+                    title={writable ? undefined : t('data.import.notWritableTitle')}
                     onClick={() => setConfirmMode('replace')}
                   >
-                    替换导入
+                    {t('data.import.replace')}
                   </button>
                   <button
                     type="button"
                     className="dt-btn dt-btn--primary dt-btn--sm"
                     disabled={!writable || busy}
-                    title={writable ? undefined : '写入端口尚未接入'}
+                    title={writable ? undefined : t('data.import.notWritableTitle')}
                     onClick={() => setConfirmMode('merge')}
                   >
-                    合并导入
+                    {t('data.import.merge')}
                   </button>
                   <button
                     type="button"
@@ -526,13 +615,63 @@ export function DataTransferPanel({ open, onClose, onApply }: DataTransferPanelP
                     disabled={busy}
                     onClick={resetImport}
                   >
-                    取消
+                    {t('buttons.cancel', { ns: 'common' })}
                   </button>
                 </div>
               )}
             </div>
           ) : null}
         </section>
+
+        {/* ------------------------------- Reset ------------------------- */}
+        {onReset ? (
+          <section className="dt-section dt-section--danger" aria-labelledby={`${panelId}-reset-label`}>
+            <h3 id={`${panelId}-reset-label`} className="dt-section__title">
+              {copy.heading}
+            </h3>
+            <p className="dt-section__hint">{copy.hint}</p>
+
+            {confirmReset ? (
+              <div className="dt-confirm" role="alertdialog" aria-label={copy.alertLabel}>
+                <p className="dt-confirm__text">{copy.confirm}</p>
+                {exportPreview && exportPreview.counts.tasks + exportPreview.counts.lists + exportPreview.counts.events > 0 ? (
+                  <p className="dt-confirm__text dt-confirm__loss">
+                    {resetLossLine(t, exportPreview.counts)}
+                  </p>
+                ) : null}
+                <div className="dt-actions">
+                  <button
+                    type="button"
+                    className="dt-btn dt-btn--danger dt-btn--sm"
+                    disabled={busy}
+                    onClick={() => void resetAll()}
+                  >
+                    {busy ? copy.busy : copy.confirmAction}
+                  </button>
+                  <button
+                    type="button"
+                    className="dt-btn dt-btn--ghost dt-btn--sm"
+                    disabled={busy}
+                    onClick={() => setConfirmReset(false)}
+                  >
+                    {t('buttons.cancel', { ns: 'common' })}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="dt-actions">
+                <button
+                  type="button"
+                  className="dt-btn dt-btn--danger dt-btn--sm"
+                  disabled={busy}
+                  onClick={() => setConfirmReset(true)}
+                >
+                  {copy.trigger}
+                </button>
+              </div>
+            )}
+          </section>
+        ) : null}
 
         {error ? (
           <p className="dt-note dt-note--error" role="alert">

@@ -1,0 +1,59 @@
+{
+  "nav": {
+    "main": "Main navigation",
+    "tasks": "Tasks",
+    "calendar": "Calendar",
+    "calendarWithView": "Calendar ({{view}})",
+    "quadrant": "Quadrants",
+    "search": "Search",
+    "backup": "Backup and restore",
+    "checkUpdates": "Check for updates",
+    "shortcuts": "Keyboard shortcuts",
+    "me": "Me"
+  },
+  "views": {
+    "month": "Month",
+    "week": "Week",
+    "day": "Day",
+    "agenda": "Agenda",
+    "multiDay": "Multi-day",
+    "multiWeek": "Multi-week",
+    "year": "Year"
+  },
+  "topBar": {
+    "newEvent": "New event",
+    "previous": "Previous",
+    "next": "Next",
+    "today": "Today"
+  },
+  "filter": {
+    "today": "Today",
+    "recent": "Last 7 days",
+    "list": "List",
+    "quadrant": "Quadrants"
+  },
+  "theme": {
+    "toggle": "Theme: {{palette}}",
+    "appearance": "Appearance",
+    "palette": "Palette",
+    "mode": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    },
+    "palettes": {
+      "refined": {
+        "name": "Refined",
+        "hint": "Cool neutral · blue accent"
+      },
+      "protool": {
+        "name": "Focus",
+        "hint": "Warm white · indigo · dense"
+      },
+      "editorial": {
+        "name": "Paper & Ink",
+        "hint": "Paper tone · ochre & indigo"
+      }
+    }
+  }
+}

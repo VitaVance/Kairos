@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, eachDay, startOfWeek } from '@todolist/core';
+import { useTranslation } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
-import { entryTimeLabel, localDateKey } from './time-math';
+import { entryTimeLabel, localDateKey, weekdayLabels } from './time-math';
 
 export interface TimelineViewProps {
   cursor: LocalDate;
@@ -11,10 +12,11 @@ export interface TimelineViewProps {
   span?: number;
 }
 
-const WEEKDAY = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-
 /** Agenda view: days as sections, entries as a vertical timeline per day. */
 export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
+  const { t } = useTranslation('calendar');
+  // Monday-first, locale-derived; the index `i` matches `eachDay` from a week start.
+  const weekdays = weekdayLabels('short');
   const start = useMemo(() => startOfWeek(cursor), [cursor]);
   const days = useMemo(() => eachDay(start, addDays(start, span - 1)), [start, span]);
   const { data, loading, error } = useRangeEntries(start, addDays(start, span - 1));
@@ -35,10 +37,10 @@ export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
 
   return (
     <div className="tv">
-      {loading && !data ? <p className="cal-status" role="status">加载中…</p> : null}
+      {loading && !data ? <p className="cal-status" role="status">{t('loading')}</p> : null}
       {error ? (
         <p className="cal-error" role="alert">
-          日程加载失败：{error.message}
+          {t('loadFailed', { message: error.message })}
         </p>
       ) : null}
       {days.map((day, i) => {
@@ -48,11 +50,11 @@ export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
           <section className={`tv__day${isToday ? ' tv__day--today' : ''}`} key={day}>
             <header className="tv__head">
               <span className={`tv__date${isToday ? ' tv__date--today' : ''}`}>{Number(day.slice(8))}</span>
-              <span className="tv__weekday">{WEEKDAY[i]}</span>
-              {isToday ? <span className="tv__badge">今天</span> : null}
+              <span className="tv__weekday">{weekdays[i]}</span>
+              {isToday ? <span className="tv__badge">{t('today')}</span> : null}
             </header>
             {entries.length === 0 ? (
-              <p className="tv__empty">没有安排</p>
+              <p className="tv__empty">{t('empty')}</p>
             ) : (
               <ol className="tv__list">
                 {entries.map((e) => (

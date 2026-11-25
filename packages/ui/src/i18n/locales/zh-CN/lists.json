@@ -1,0 +1,83 @@
+{
+  "sidebar": {
+    "nav": "清单导航",
+    "quickFilters": "快捷筛选",
+    "today": "今天",
+    "recent": "最近7天",
+    "all": "全部",
+    "heading": "清单",
+    "newList": "新建清单",
+    "missingPort": "写入端口未接入，清单暂时无法修改",
+    "noLists": "还没有清单",
+    "taskCount_one": "{{count}} 个任务",
+    "taskCount_other": "{{count}} 个任务",
+    "listActions": "清单操作：{{name}}",
+    "menuLabel": "{{name}} 操作",
+    "untitledList": "该清单",
+    "colorGroup": "更换「{{name}}」的颜色",
+    "colorSwatch": "颜色 {{index}}",
+    "deletionOpenOnly_one": "「{{name}}」下还有 {{count}} 个未完成任务。任务不会被一并删除；请先处理这些任务（可拖到其他清单），再删除清单。",
+    "deletionOpenOnly_other": "「{{name}}」下还有 {{count}} 个未完成任务。任务不会被一并删除；请先处理这些任务（可拖到其他清单），再删除清单。",
+    "deletionDoneOnly_one": "「{{name}}」下还有 {{count}} 个已完成任务。任务不会被一并删除；请先处理这些任务，再删除清单。",
+    "deletionDoneOnly_other": "「{{name}}」下还有 {{count}} 个已完成任务。任务不会被一并删除；请先处理这些任务，再删除清单。",
+    "deletionMixed_one": "「{{name}}」下还有 {{count}} 个任务（其中 {{open}} 个未完成）。任务不会被一并删除；请先处理这些任务（可拖到其他清单），再删除清单。",
+    "deletionMixed_other": "「{{name}}」下还有 {{count}} 个任务（其中 {{open}} 个未完成）。任务不会被一并删除；请先处理这些任务（可拖到其他清单），再删除清单。"
+  },
+  "menu": {
+    "rename": "重命名",
+    "recolor": "更换颜色",
+    "delete": "删除"
+  },
+  "deleteConfirm": {
+    "dialogLabel": "删除清单 {{name}}",
+    "question": "确定删除「{{name}}」？",
+    "blocked_one": "「{{name}}」下还有 {{count}} 个任务（其中 {{open}} 个未完成）。任务不会被一并删除；请先处理这些任务，再删除清单。",
+    "blocked_other": "「{{name}}」下还有 {{count}} 个任务（其中 {{open}} 个未完成）。任务不会被一并删除；请先处理这些任务，再删除清单。",
+    "confirm": "确认删除",
+    "blockedHint": "清单中还有任务"
+  },
+  "editor": {
+    "groupCreate": "新建清单",
+    "groupRename": "编辑清单",
+    "placeholderCreate": "清单名称",
+    "placeholderRename": "新的清单名称",
+    "labelCreate": "新清单名称",
+    "labelRename": "清单名称",
+    "colorGroup": "清单颜色",
+    "create": "创建"
+  },
+  "undo": {
+    "createList": "已新建清单「{{name}}」",
+    "renameList": "已重命名「{{name}}」",
+    "recolorList": "已更换清单颜色",
+    "deleteList": "已删除清单「{{name}}」",
+    "moveTask": "已将「{{task}}」移到「{{list}}」"
+  },
+  "quadrant": {
+    "names": {
+      "urgentImportant": "重要且紧急",
+      "notUrgentImportant": "重要不紧急",
+      "urgentNotImportant": "不重要但紧急",
+      "unimportant": "不重要不紧急"
+    },
+    "loading": "加载中…",
+    "loadErrorTitle": "任务加载失败",
+    "loadErrorHint": "请稍后重试",
+    "loadFailed": "加载任务失败：{{detail}}",
+    "noList": "没有可用的清单，无法创建任务",
+    "addFailed": "添加任务失败，请重试",
+    "addPlaceholder": "添加任务，回车确认",
+    "addLabel": "在「{{quadrant}}」添加任务",
+    "moveFailed": "移动象限失败，请重试",
+    "moved": "已移动到「{{quadrant}}」",
+    "untitledTask": "任务",
+    "completed": "已完成",
+    "inbox": "收集箱"
+  },
+  "row": {
+    "dragAria": "拖动「{{title}}」到其他象限",
+    "dragHint": "拖动到其他象限，或聚焦后用方向键移动",
+    "markDone": "完成「{{title}}」",
+    "markOpen": "取消完成「{{title}}」"
+  }
+}

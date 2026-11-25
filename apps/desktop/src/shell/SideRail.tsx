@@ -1,5 +1,5 @@
 import type { ViewKind } from '@todolist/features';
-import { IconButton } from '@todolist/ui';
+import { IconButton, useTranslation } from '@todolist/ui';
 import { ArchiveIcon, CalendarIcon, GridIcon, HelpIcon, InboxIcon, RefreshIcon, SearchIcon } from './icons';
 
 export interface SideRailProps {
@@ -16,15 +16,29 @@ export interface SideRailProps {
   onOpenHelp?: () => void;
 }
 
+/** Calendar views whose name is worth appending to the rail's calendar label. */
+// `as const` (not an annotated Record) keeps the values as key literals, so
+// `t()` still type-checks the lookup instead of accepting any string.
+const CALENDAR_VIEW_KEY = {
+  month: 'views.month',
+  week: 'views.week',
+  day: 'views.day',
+  agenda: 'views.agenda',
+  'multi-day': 'views.multiDay',
+  'multi-week': 'views.multiWeek',
+  year: 'views.year',
+} as const satisfies Partial<Record<ViewKind, string>>;
+
 /**
  * The narrow icon rail. Purely navigation — it knows nothing about tasks.
  *
  * The highlight is derived from the `view` that is actually on screen, never a
  * second `nav` state (the old `nav` could desync: `g w` changed the view while
- * the rail still lit 任务). 四象限 is the app's only task screen, so that icon
- * represents it; 日历 covers every calendar view. 任务 is the home entry into
- * the same task screen and, as in the design reference, is not itself a lit
- * destination — exactly one item is ever marked current.
+ * the rail still lit the task icon). The quadrants are the app's only task
+ * screen, so that icon represents it; the calendar icon covers every calendar
+ * view. The task icon is the home entry into the same task screen and, as in
+ * the design reference, is not itself a lit destination — exactly one item is
+ * ever marked current.
  */
 export function SideRail({
   view,
@@ -34,31 +48,26 @@ export function SideRail({
   onOpenUpdate,
   onOpenHelp,
 }: SideRailProps) {
+  const { t } = useTranslation('shell');
   const onQuadrant = view === 'quadrant';
   const onCalendar = !onQuadrant;
-  const CALENDAR_VIEW_LABEL: Partial<Record<ViewKind, string>> = {
-    month: '月视图',
-    week: '周视图',
-    day: '日视图',
-    agenda: '日程',
-    'multi-day': '多日',
-    'multi-week': '多周',
-    year: '年视图',
-  };
-  const visibleViewLabel = CALENDAR_VIEW_LABEL[view];
-  const calendarLabel = visibleViewLabel ? `日历（${visibleViewLabel}）` : '日历';
+  const calendarViewKey: (typeof CALENDAR_VIEW_KEY)[keyof typeof CALENDAR_VIEW_KEY] | undefined =
+    CALENDAR_VIEW_KEY[view as keyof typeof CALENDAR_VIEW_KEY];
+  const calendarLabel = calendarViewKey
+    ? t('nav.calendarWithView', { view: t(calendarViewKey) })
+    : t('nav.calendar');
 
   return (
-    <nav className="side-rail" aria-label="主导航">
+    <nav className="side-rail" aria-label={t('nav.main')}>
       <div className="side-rail__avatar" aria-hidden="true">
-        <span>我</span>
+        <span>{t('nav.me')}</span>
       </div>
 
       <div className="side-rail__group">
         <button
           type="button"
           className="side-rail__item"
-          aria-label="任务"
+          aria-label={t('nav.tasks')}
           onClick={() => onSelectView('quadrant')}
         >
           <InboxIcon />
@@ -75,25 +84,25 @@ export function SideRail({
         <button
           type="button"
           className={`side-rail__item${onQuadrant ? ' side-rail__item--active' : ''}`}
-          aria-label="四象限"
+          aria-label={t('nav.quadrant')}
           aria-current={onQuadrant ? 'page' : undefined}
           onClick={() => onSelectView('quadrant')}
         >
           <GridIcon />
         </button>
-        <button type="button" className="side-rail__item" aria-label="搜索" onClick={onOpenSearch}>
+        <button type="button" className="side-rail__item" aria-label={t('nav.search')} onClick={onOpenSearch}>
           <SearchIcon />
         </button>
       </div>
 
       <div className="side-rail__group side-rail__group--bottom">
-        <IconButton label="备份与恢复" variant="quiet" onClick={onOpenTransfer}>
+        <IconButton label={t('nav.backup')} variant="quiet" onClick={onOpenTransfer}>
           <ArchiveIcon />
         </IconButton>
-        <IconButton label="检查更新" variant="quiet" onClick={onOpenUpdate}>
+        <IconButton label={t('nav.checkUpdates')} variant="quiet" onClick={onOpenUpdate}>
           <RefreshIcon />
         </IconButton>
-        <IconButton label="快捷键帮助" variant="quiet" className="side-rail__help" onClick={onOpenHelp}>
+        <IconButton label={t('nav.shortcuts')} variant="quiet" className="side-rail__help" onClick={onOpenHelp}>
           <HelpIcon />
         </IconButton>
       </div>

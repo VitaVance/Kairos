@@ -1,15 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DuePeriod, LocalDate, Quadrant, Recurrence, Task, TaskList, TaskSchedule, Weekday } from '@todolist/core';
-import { QUADRANT_LABEL, duePrecisionOf, quadrantOf, todayLocal } from '@todolist/core';
-import { Button, Checkbox, SegmentedControl, TextField } from '@todolist/ui';
+import { duePrecisionOf, quadrantOf, todayLocal } from '@todolist/core';
+import { Button, Checkbox, SegmentedControl, TextField, currentLanguage, i18n, useTranslation } from '@todolist/ui';
 import type { QuadrantKey } from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
 import { useAppServices } from '../services';
 import { DatePicker } from '../pickers/DatePicker';
 import { TimePicker } from '../pickers/TimePicker';
-import { formatFriendlyDate, PERIOD_LABEL } from '../pickers/picker-math';
-import { formatDue } from './due-label';
-import { WEEKDAY_LABELS, defaultRecurrence, describeRecurrence, intervalUnit } from './recurrence-label';
+import { formatDueDate, periodLabel } from './due-label';
+import { defaultRecurrence, describeRecurrence, intervalUnit, weekdayLabels } from './recurrence-label';
 import type { RecurrenceFrequencyChoice } from './recurrence-label';
 
 export interface TaskDetailPanelProps {
@@ -25,14 +24,12 @@ const QUADRANTS: readonly QuadrantKey[] = [
   'unimportant',
 ];
 
-const QUADRANT_OPTIONS = QUADRANTS.map((q) => ({ value: q, label: QUADRANT_LABEL[q] }));
-
-const FREQUENCY_OPTIONS: readonly { value: RecurrenceFrequencyChoice; label: string }[] = [
-  { value: 'none', label: '不重复' },
-  { value: 'daily', label: '每天' },
-  { value: 'weekly', label: '每周' },
-  { value: 'monthly', label: '每月' },
-];
+const QUADRANT_KEYS = {
+  'urgent-important': 'quadrant.urgentImportant',
+  'not-urgent-important': 'quadrant.notUrgentImportant',
+  'urgent-not-important': 'quadrant.urgentNotImportant',
+  unimportant: 'quadrant.unimportant',
+} as const satisfies Record<QuadrantKey, string>;
 
 /** Local wall-clock `HH:MM` of an instant, or `''` when absent. */
 function localTimeOf(instant: string | null): string {
@@ -49,14 +46,6 @@ function localTimeOf(instant: string | null): string {
  * only extra step, and `'none'` displays as `全天` (see `applyPrecision`).
  */
 export type PrecisionChoice = 'day' | DuePeriod | 'time';
-
-const PRECISION_OPTIONS: readonly { value: PrecisionChoice; label: string }[] = [
-  { value: 'day', label: '全天' },
-  { value: 'morning', label: PERIOD_LABEL.morning },
-  { value: 'afternoon', label: PERIOD_LABEL.afternoon },
-  { value: 'evening', label: PERIOD_LABEL.evening },
-  { value: 'time', label: '具体时间' },
-];
 
 type ScheduleFields = Pick<Task, 'dueDate' | 'dueAt' | 'allDay' | 'duePeriod'>;
 
@@ -105,14 +94,21 @@ export function scheduleForChoice(
  * 「无固定时间」 for a half-day: the user has to be able to tell that the
  * bucket is not a clock time.
  */
-export function scheduleHint(task: ScheduleFields, today: LocalDate): string {
+export function scheduleHint(
+  task: ScheduleFields,
+  today: LocalDate,
+  lng: string = currentLanguage(),
+): string {
+  const t = i18n.getFixedT(lng, 'task');
   const precision = duePrecisionOf(task);
-  if (precision === 'none' || task.dueDate === null) return '无日期';
-  const date = formatFriendlyDate(task.dueDate, today);
-  if (precision === 'day') return `${date} · 全天`;
-  if (precision === 'period') return `${formatDue(task, today)} · 无固定时间`;
+  if (precision === 'none' || task.dueDate === null) return t('detail.hint.noDate');
+  const date = formatDueDate(task.dueDate, today, lng);
+  if (precision === 'day') return t('detail.hint.day', { date });
+  if (precision === 'period') {
+    return t('detail.hint.period', { date, period: periodLabel(task.duePeriod!, lng) });
+  }
   const clock = localTimeOf(task.dueAt);
-  return clock.length > 0 ? `${date} ${clock}` : date;
+  return clock.length > 0 ? t('detail.hint.time', { date, clock }) : date;
 }
 
 /**
@@ -123,8 +119,27 @@ export function scheduleHint(task: ScheduleFields, today: LocalDate): string {
  * the freshly reloaded task. Local state is limited to transient edit UI.
  */
 export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) {
+  const { t } = useTranslation('task');
+  const { t: tCommon } = useTranslation('common');
   const { tasks: taskService } = useAppServices();
   const { mutate, toggleDone } = useTasks();
+  const lng = currentLanguage();
+
+  const precisionOptions = [
+    { value: 'day' as const, label: t('detail.precision.day') },
+    { value: 'morning' as const, label: t('detail.precision.morning') },
+    { value: 'afternoon' as const, label: t('detail.precision.afternoon') },
+    { value: 'evening' as const, label: t('detail.precision.evening') },
+    { value: 'time' as const, label: t('detail.precision.time') },
+  ];
+  const frequencyOptions: readonly { value: RecurrenceFrequencyChoice; label: string }[] = [
+    { value: 'none', label: t('repeat.frequency.none') },
+    { value: 'daily', label: t('repeat.frequency.daily') },
+    { value: 'weekly', label: t('repeat.frequency.weekly') },
+    { value: 'monthly', label: t('repeat.frequency.monthly') },
+  ];
+  const quadrantOptions = QUADRANTS.map((q) => ({ value: q, label: t(QUADRANT_KEYS[q]) }));
+  const weekdayLabelsHere = weekdayLabels(lng);
 
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(task.title);
@@ -185,11 +200,11 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
     const next = titleDraft.trim();
     setEditingTitle(false);
     if (next.length === 0 || next === task.title) return;
-    run(() => taskService.rename(task.id, next), '重命名失败，请重试');
+    run(() => taskService.rename(task.id, next), t('detail.errors.rename'));
   };
 
   const moveToQuadrant = (next: QuadrantKey) => {
-    run(() => taskService.moveToQuadrant(task.id, next as Quadrant), '移动象限失败，请重试');
+    run(() => taskService.moveToQuadrant(task.id, next as Quadrant), t('detail.errors.moveQuadrant'));
   };
 
   /**
@@ -198,7 +213,7 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
    * A cleared date goes through `unschedule` instead (see `onClearDate`).
    */
   const reschedule = (schedule: TaskSchedule) => {
-    run(() => taskService.schedule(task.id, schedule), '保存时间失败，请重试');
+    run(() => taskService.schedule(task.id, schedule), t('detail.errors.saveTime'));
   };
 
   const currentDate = (): LocalDate => task.dueDate ?? todayLocal();
@@ -228,7 +243,7 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
 
   /** 清除: core exposes an explicit unschedule use case, so drop the date/time. */
   const onClearDate = () => {
-    run(() => taskService.unschedule(task.id), '清除日期失败，请重试');
+    run(() => taskService.unschedule(task.id), t('detail.errors.clearDate'));
   };
 
   // --- repeat -------------------------------------------------------------
@@ -236,7 +251,7 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
   const frequency: RecurrenceFrequencyChoice = recurrence?.frequency ?? 'none';
 
   const saveRecurrence = (next: Recurrence | null) => {
-    run(() => taskService.setRecurrence(task.id, next), '保存重复规则失败，请重试');
+    run(() => taskService.setRecurrence(task.id, next), t('detail.errors.saveRecurrence'));
   };
 
   // Keep the drafts in step with the stored rule (switching frequency, or a
@@ -310,8 +325,8 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
         await mutate(() => taskService.remove(task.id));
         onClose();
       } catch (err) {
-        console.error('删除任务失败', err);
-        setError(err instanceof Error && err.message.length > 0 ? err.message : '删除失败，请重试');
+        console.error('Delete task failed', err);
+        setError(err instanceof Error && err.message.length > 0 ? err.message : t('detail.errors.delete'));
         setConfirmDelete(false);
       } finally {
         inFlight.current = false;
@@ -354,7 +369,7 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
     <aside
       ref={panelRef}
       className="tk-panel"
-      aria-label="任务详情"
+      aria-label={t('detail.ariaLabel')}
       role="dialog"
       aria-modal="false"
       tabIndex={-1}
@@ -364,7 +379,9 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
         <Checkbox
           checked={done}
           onChange={() => toggleDone(task.id, task.title)}
-          aria-label={done ? `取消完成 ${task.title}` : `完成 ${task.title}`}
+          aria-label={done
+            ? t('detail.uncompleteAria', { title: task.title })
+            : t('detail.completeAria', { title: task.title })}
         />
 
         <div
@@ -383,7 +400,7 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
               value={titleDraft}
               onChange={setTitleDraft}
               autoFocus
-              label="编辑任务标题"
+              label={t('detail.editTitle')}
               className="tk-panel__title-field"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -411,21 +428,21 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
           )}
         </div>
 
-        <Button variant="ghost" size="sm" onClick={onClose} aria-label="关闭任务详情">
-          关闭
+        <Button variant="ghost" size="sm" onClick={onClose} aria-label={t('detail.closeAria')}>
+          {tCommon('buttons.close')}
         </Button>
       </header>
 
       <div className="tk-panel__body">
         <section className="tk-section">
-          <h2 className="tk-section__title">日期</h2>
+          <h2 className="tk-section__title">{t('detail.sectionDate')}</h2>
           <div className="tk-schedule">
             <DatePicker
               value={task.dueDate}
               onChange={onDateChange}
               onClear={task.dueDate === null ? undefined : onClearDate}
               disabled={busy}
-              label="截止日期"
+              label={t('detail.dateLabel')}
               className="tk-schedule__date"
             />
             {/*
@@ -436,13 +453,13 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
              * and auto-adopting today is the specified fallback.
              */}
             <div className="tk-schedule__period">
-              <span className="tk-schedule__label">时间精度</span>
+              <span className="tk-schedule__label">{t('detail.precisionLabel')}</span>
               <SegmentedControl
-                options={PRECISION_OPTIONS}
+                options={precisionOptions}
                 value={precision}
                 onChange={onPrecisionChange}
                 size="sm"
-                ariaLabel="时间精度"
+                ariaLabel={t('detail.precisionAria')}
               />
             </div>
             {/* A period implies allDay, so the clock field is gone, not greyed:
@@ -452,45 +469,45 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
                 value={timeValue || null}
                 onChange={onTimeChange}
                 disabled={busy}
-                label="具体时间"
+                label={t('detail.timeLabel')}
                 className="tk-schedule__time"
               />
             ) : null}
-            <p className="tk-section__hint tk-schedule__hint">{scheduleHint(task, todayLocal())}</p>
+            <p className="tk-section__hint tk-schedule__hint">{scheduleHint(task, todayLocal(), lng)}</p>
           </div>
         </section>
 
         <section className="tk-section">
-          <h2 className="tk-section__title">重复</h2>
+          <h2 className="tk-section__title">{t('detail.sectionRepeat')}</h2>
           <SegmentedControl
-            options={FREQUENCY_OPTIONS}
+            options={frequencyOptions}
             value={frequency}
             onChange={onFrequencyChange}
             size="sm"
-            ariaLabel="重复频率"
+            ariaLabel={t('repeat.frequencyAria')}
           />
           {recurrence !== null ? (
             <div className="tk-repeat">
               <label className="tk-repeat__interval">
-                <span className="tk-repeat__label">间隔</span>
+                <span className="tk-repeat__label">{t('detail.repeatIntervalLabel')}</span>
                 <input
                   type="number"
                   className="tk-input tk-repeat__number"
                   min={1}
                   max={999}
                   step={1}
-                  aria-label="重复间隔"
+                  aria-label={t('detail.repeatIntervalAria')}
                   disabled={busy}
                   value={intervalDraft}
                   onChange={(e) => setIntervalDraft(e.target.value)}
                   onBlur={commitInterval}
                 />
-                <span className="tk-repeat__unit">{intervalUnit(recurrence.frequency)}</span>
+                <span className="tk-repeat__unit">{intervalUnit(recurrence.frequency, lng, recurrence.interval)}</span>
               </label>
 
               {recurrence.frequency === 'weekly' ? (
-                <div className="tk-repeat__weekdays" role="group" aria-label="重复的星期">
-                  {WEEKDAY_LABELS.map((label, index) => {
+                <div className="tk-repeat__weekdays" role="group" aria-label={t('detail.repeatWeekdaysAria')}>
+                  {weekdayLabelsHere.map((label, index) => {
                     const weekday = index as Weekday;
                     const active = recurrence.weekdays.includes(weekday);
                     return (
@@ -511,64 +528,64 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
 
               {recurrence.frequency === 'monthly' ? (
                 <label className="tk-repeat__interval">
-                  <span className="tk-repeat__label">每月</span>
+                  <span className="tk-repeat__label">{t('detail.repeatMonthDayLabel')}</span>
                   <input
                     type="number"
                     className="tk-input tk-repeat__number"
                     min={1}
                     max={31}
                     step={1}
-                    aria-label="每月的哪一天"
+                    aria-label={t('detail.repeatMonthDayAria')}
                     disabled={busy}
                     value={monthDayDraft}
                     onChange={(e) => setMonthDayDraft(e.target.value)}
                     onBlur={commitMonthDay}
                   />
-                  <span className="tk-repeat__unit">日</span>
+                  <span className="tk-repeat__unit">{t('detail.repeatMonthDayUnit')}</span>
                 </label>
               ) : null}
 
               <label className="tk-repeat__until">
-                <span className="tk-repeat__label">直到</span>
+                <span className="tk-repeat__label">{t('detail.repeatUntilLabel')}</span>
                 <DatePicker
                   value={recurrence.until ?? null}
                   onChange={(date) => patchRecurrence({ until: date })}
                   onClear={() => patchRecurrence({ until: null })}
-                  label="重复结束日期"
-                  placeholder="不结束"
+                  label={t('detail.repeatUntilAria')}
+                  placeholder={t('detail.repeatUntilPlaceholder')}
                   className="tk-repeat__date"
                 />
               </label>
 
-              <p className="tk-section__hint">{describeRecurrence(recurrence)}</p>
-              <p className="tk-section__hint">勾选完成时会自动推进到下一次。</p>
+              <p className="tk-section__hint">{describeRecurrence(recurrence, lng)}</p>
+              <p className="tk-section__hint">{t('detail.repeatAutoAdvance')}</p>
             </div>
           ) : null}
         </section>
 
         <section className="tk-section">
-          <h2 className="tk-section__title">象限</h2>
+          <h2 className="tk-section__title">{t('detail.sectionQuadrant')}</h2>
           <SegmentedControl
-            options={QUADRANT_OPTIONS}
+            options={quadrantOptions}
             value={quadrant}
             onChange={moveToQuadrant}
             size="sm"
-            ariaLabel="移动到象限"
+            ariaLabel={t('detail.quadrantAria')}
           />
         </section>
 
         <section className="tk-section">
-          <h2 className="tk-section__title">清单</h2>
+          <h2 className="tk-section__title">{t('detail.sectionList')}</h2>
           <label className="tk-select">
-            <span className="tl-visually-hidden">任务所属清单</span>
+            <span className="tl-visually-hidden">{t('detail.listAria')}</span>
             <select
               className="tk-input tl-select"
-              aria-label="任务所属清单"
+              aria-label={t('detail.listAria')}
               value={task.listId}
               disabled={busy}
               onChange={(e) => {
                 const next = lists.find((l) => l.id === e.target.value);
-                if (next) run(() => taskService.moveToList(task.id, next.id), '移动到清单失败，请重试');
+                if (next) run(() => taskService.moveToList(task.id, next.id), t('detail.errors.moveList'));
               }}
             >
               {lists.map((l) => (
@@ -581,18 +598,18 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
         </section>
 
         <section className="tk-section">
-          <h2 className="tk-section__title">备注</h2>
+          <h2 className="tk-section__title">{t('detail.sectionNotes')}</h2>
           <textarea
             ref={notesRef}
             className="tk-input tk-notes"
             rows={4}
-            aria-label="备注"
+            aria-label={t('detail.notesAria')}
             defaultValue={task.notes}
-            placeholder="添加备注…"
+            placeholder={t('detail.notesPlaceholder')}
             disabled={busy}
             onBlur={(e) => {
               const next = e.target.value;
-              if (next !== task.notes) run(() => taskService.updateNotes(task.id, next), '保存备注失败，请重试');
+              if (next !== task.notes) run(() => taskService.updateNotes(task.id, next), t('detail.errors.saveNotes'));
             }}
           />
         </section>
@@ -608,15 +625,15 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
         {confirmDelete ? (
           <div className="tk-confirm">
             <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(false)} disabled={busy}>
-              取消
+              {tCommon('buttons.cancel')}
             </Button>
             <Button variant="danger" size="sm" onClick={onDelete} disabled={busy}>
-              {busy ? '删除中…' : '确认删除'}
+              {busy ? t('detail.deleting') : t('detail.confirmDelete')}
             </Button>
           </div>
         ) : (
           <Button variant="danger" size="sm" onClick={onDelete} disabled={busy}>
-            删除
+            {tCommon('buttons.delete')}
           </Button>
         )}
       </footer>

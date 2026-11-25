@@ -1,57 +1,95 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { LocalDate } from '@todolist/core';
 import { initTemporal } from '@todolist/core';
+import { initI18n } from '@todolist/ui';
+import en from '../../ui/src/i18n/locales/en/pickers.json';
+import zh from '../../ui/src/i18n/locales/zh-CN/pickers.json';
 import {
   dayInMonth,
   formatClock,
   formatDayLabel,
   formatFriendlyDate,
   formatMonthHeading,
+  formatYearHeading,
   monthKeyOf,
+  monthNames,
   nextMonday,
   parseTimeInput,
   shiftMonth,
   splitClock,
+  weekdayShort,
 } from '../src/pickers/picker-math.js';
 
+type Catalog = { readonly [key: string]: string | Catalog };
+
+function leafPaths(catalog: Catalog, prefix = ''): string[] {
+  return Object.entries(catalog).flatMap(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key;
+    return typeof value === 'string' ? [path] : leafPaths(value, path);
+  });
+}
+
+const sorted = (list: string[]) => [...list].sort();
+
 beforeAll(async () => {
+  initI18n('en');
   await initTemporal();
 });
 
 const d = (value: string) => value as LocalDate;
 
+describe('pickers namespace', () => {
+  it('en and zh-CN have identical key paths', () => {
+    expect(sorted(leafPaths(zh))).toEqual(sorted(leafPaths(en)));
+  });
+
+  it('zh-CN still reads the original wording', () => {
+    const today = d('2026-11-24');
+    expect(formatFriendlyDate(today, today, null, 'zh-CN')).toBe('今天');
+    expect(formatFriendlyDate(d('2026-03-05'), today, 'evening', 'zh-CN')).toBe('3月5日 · 晚上');
+    expect(formatMonthHeading({ year: 2026, month: 11 }, 'zh-CN')).toBe('2026年11月');
+    expect(monthNames('zh-CN')).toEqual([
+      '1月', '2月', '3月', '4月', '5月', '6月',
+      '7月', '8月', '9月', '10月', '11月', '12月',
+    ]);
+  });
+});
+
 describe('friendly date labels', () => {
+  // English is the source language for these assertions; zh-CN coverage lives
+  // in the namespace block above so the catalog cannot silently lose a key.
   const today = d('2026-11-24');
 
   it('names adjacent days the way every other task surface does', () => {
-    expect(formatFriendlyDate(today, today)).toBe('今天');
-    expect(formatFriendlyDate(d('2026-11-25'), today)).toBe('明天');
-    expect(formatFriendlyDate(d('2026-11-26'), today)).toBe('后天');
-    expect(formatFriendlyDate(d('2026-11-23'), today)).toBe('昨天');
+    expect(formatFriendlyDate(today, today, null, 'en')).toBe('Today');
+    expect(formatFriendlyDate(d('2026-11-25'), today, null, 'en')).toBe('Tomorrow');
+    expect(formatFriendlyDate(d('2026-11-26'), today, null, 'en')).toBe('in 2 days');
+    expect(formatFriendlyDate(d('2026-11-23'), today, null, 'en')).toBe('Yesterday');
   });
 
-  it('shows M月D日 inside the current year and the full year otherwise', () => {
-    expect(formatFriendlyDate(d('2026-03-05'), today)).toBe('3月5日');
-    expect(formatFriendlyDate(d('2027-03-05'), today)).toBe('2027年3月5日');
+  it('shows M D inside the current year and the full year otherwise', () => {
+    expect(formatFriendlyDate(d('2026-03-05'), today, null, 'en')).toBe('Mar 5');
+    expect(formatFriendlyDate(d('2027-03-05'), today, null, 'en')).toBe('Mar 5, 2027');
   });
 
   it('appends the half-day bucket the same way formatDue does', () => {
-    expect(formatFriendlyDate(today, today, 'morning')).toBe('今天 · 上午');
-    expect(formatFriendlyDate(d('2026-03-05'), today, 'evening')).toBe('3月5日 · 晚上');
-    expect(formatFriendlyDate(today, today, null)).toBe('今天');
+    expect(formatFriendlyDate(today, today, 'morning', 'en')).toBe('Today · Morning');
+    expect(formatFriendlyDate(d('2026-03-05'), today, 'evening', 'en')).toBe('Mar 5 · Evening');
+    expect(formatFriendlyDate(today, today, null, 'en')).toBe('Today');
   });
 
   it('marks the weekday of a day cell (Monday-first)', () => {
-    expect(formatDayLabel(d('2026-11-24'))).toBe('2026年11月24日 周二');
-    expect(formatDayLabel(d('2026-11-23'))).toBe('2026年11月23日 周一');
-    expect(formatDayLabel(d('2026-11-29'))).toBe('2026年11月29日 周日');
+    expect(formatDayLabel(d('2026-11-24'), 'en')).toBe('Tuesday, November 24, 2026');
+    expect(formatDayLabel(d('2026-11-23'), 'en')).toBe('Monday, November 23, 2026');
+    expect(formatDayLabel(d('2026-11-29'), 'en')).toBe('Sunday, November 29, 2026');
   });
 });
 
 describe('month navigation', () => {
   it('parses and formats a month key', () => {
     expect(monthKeyOf(d('2026-11-24'))).toEqual({ year: 2026, month: 11 });
-    expect(formatMonthHeading({ year: 2026, month: 1 })).toBe('2026年1月');
+    expect(formatMonthHeading({ year: 2026, month: 1 }, 'en')).toBe('January 2026');
+    expect(formatYearHeading(2026, 'en')).toBe('2026');
   });
 
   it('shifts across a year boundary', () => {
@@ -71,6 +109,11 @@ describe('month navigation', () => {
     expect(nextMonday(d('2026-11-24'))).toBe('2026-11-30');
     // Called on a Monday, it still means the following Monday.
     expect(nextMonday(d('2026-11-23'))).toBe('2026-11-30');
+  });
+
+  it('labels weekdays Monday-first in both locales', () => {
+    expect(weekdayShort('en')).toEqual(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']);
+    expect(weekdayShort('zh-CN')).toEqual(['周一', '周二', '周三', '周四', '周五', '周六', '周日']);
   });
 });
 

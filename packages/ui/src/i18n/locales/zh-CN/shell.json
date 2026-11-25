@@ -1,0 +1,59 @@
+{
+  "nav": {
+    "main": "主导航",
+    "tasks": "任务",
+    "calendar": "日历",
+    "calendarWithView": "日历（{{view}}）",
+    "quadrant": "四象限",
+    "search": "搜索",
+    "backup": "备份与恢复",
+    "checkUpdates": "检查更新",
+    "shortcuts": "快捷键帮助",
+    "me": "我"
+  },
+  "views": {
+    "month": "月视图",
+    "week": "周视图",
+    "day": "日视图",
+    "agenda": "日程",
+    "multiDay": "多日",
+    "multiWeek": "多周",
+    "year": "年视图"
+  },
+  "topBar": {
+    "newEvent": "新建日程",
+    "previous": "上一个",
+    "next": "下一个",
+    "today": "今天"
+  },
+  "filter": {
+    "today": "今天",
+    "recent": "最近7天",
+    "list": "清单",
+    "quadrant": "四象限"
+  },
+  "theme": {
+    "toggle": "主题：{{palette}}",
+    "appearance": "外观",
+    "palette": "配色",
+    "mode": {
+      "light": "浅色",
+      "dark": "深色",
+      "system": "跟随系统"
+    },
+    "palettes": {
+      "refined": {
+        "name": "清简",
+        "hint": "冷调中性 · 蓝色强调"
+      },
+      "protool": {
+        "name": "专注",
+        "hint": "暖白 · 靛蓝 · 高密度"
+      },
+      "editorial": {
+        "name": "纸墨",
+        "hint": "纸感 · 赭黄靛苔"
+      }
+    }
+  }
+}

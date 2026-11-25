@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { FocusEvent as ReactFocusEvent, ReactNode } from 'react';
-import { Button } from '@todolist/ui';
+import { Button, useTranslation } from '@todolist/ui';
 import { useBumpRevision } from '../services';
 import { DEFAULT_UNDO_LIMIT, createUndoStack } from './undo-stack';
 import type { UndoCommand, UndoStack } from './undo-stack';
@@ -54,6 +54,7 @@ export interface UndoProviderProps {
  * Mount inside `AppServicesProvider` — it needs the revision context.
  */
 export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProviderProps) {
+  const { t } = useTranslation('misc');
   const bump = useBumpRevision();
   const [stack] = useState<UndoStack>(() => createUndoStack(max));
   const [flags, setFlags] = useState<{ canUndo: boolean; canRedo: boolean }>({
@@ -230,7 +231,7 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
                 disabled={!flags.canUndo}
                 onClick={onUndoClick}
               >
-                撤销
+                {t('undo.action')}
               </Button>
             ) : null}
           </div>

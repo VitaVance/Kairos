@@ -1,0 +1,66 @@
+{
+  "loading": "Loading…",
+  "loadFailed": "Failed to load events: {{message}}",
+  "empty": "Nothing scheduled",
+  "emptyHint": "Click an empty slot to create an event, or drag to select a time range",
+  "today": "Today",
+  "allDay": "All day",
+  "noon": "Noon",
+  "period": {
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening"
+  },
+  "spanDays": "{{days}} days",
+  "spanWeeks": "{{weeks}} weeks",
+  "openDayAria": "Open {{date}} in day view",
+  "event": {
+    "newTitle": "New event",
+    "editTitle": "Edit event",
+    "escToClose": "Esc to close",
+    "noWriteService": "Event editing needs a write-capable data source",
+    "taskEntryReadonly": "Task entries are edited from the task details",
+    "fields": {
+      "title": "Title",
+      "start": "Start",
+      "startDate": "Start date",
+      "startTime": "Start time",
+      "end": "End",
+      "endDate": "End date",
+      "endDateExclusive": "End date (exclusive)",
+      "endTime": "End time",
+      "list": "List",
+      "notes": "Notes"
+    },
+    "titlePlaceholder": "Event title",
+    "allDay": "All day",
+    "noList": "No list",
+    "notesPlaceholder": "Notes (optional)",
+    "titleRequired": "Enter a title for the event",
+    "incomplete": "Enter a complete start and end date and time",
+    "rangeError": "The end must be after the start",
+    "confirmDeleteLabel": "Confirm event deletion",
+    "confirmDiscardLabel": "Discard unsaved changes",
+    "confirmDeleteMessage": "This cannot be undone. Delete this event?",
+    "confirmDiscardMessage": "Discard unsaved changes?",
+    "back": "Back",
+    "discard": "Discard",
+    "saving": "Saving…"
+  },
+  "multiDay": {
+    "spanLabel": "Days shown"
+  },
+  "multiWeek": {
+    "spanLabel": "Weeks shown",
+    "gridAria": "{{weeks}}-week view",
+    "openWeekAria": "Open the week of {{date}}"
+  },
+  "year": {
+    "empty": "Nothing scheduled this year",
+    "legendAria": "Event density legend",
+    "legendEntries": "{{range}} entries",
+    "openMonth": "Open {{month}}",
+    "dayCount": "{{date}}, {{entries}} entries",
+    "dayEmpty": "{{date}}, no entries"
+  }
+}

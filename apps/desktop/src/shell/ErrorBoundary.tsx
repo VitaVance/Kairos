@@ -1,5 +1,6 @@
 import { Component, useEffect, useRef } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
+import { i18n } from '@todolist/ui';
 
 /**
  * Error handling for the desktop shell.
@@ -7,9 +8,19 @@ import type { ErrorInfo, ReactNode } from 'react';
  * React error boundaries only catch errors thrown during *render*. Async
  * failures (rejected promises, setTimeout callbacks, event handlers) slip
  * through, so `useGlobalErrorHandler()` covers those.
+ *
+ * Text is read through `i18n.getFixedT(null, 'errors')` rather than
+ * `useTranslation`: a class cannot use hooks, and no language switcher is
+ * mounted while this fallback replaces the shell, so there is nothing to
+ * re-render on `languageChanged`.
  */
 
 const LOG_PREFIX = '[todolist] ErrorBoundary';
+
+/** Catalog-bound translator for the `errors` namespace. */
+function te() {
+  return i18n.getFixedT(null, 'errors');
+}
 
 export type GlobalErrorSource = 'error' | 'unhandledrejection';
 
@@ -30,10 +41,10 @@ interface ErrorBoundaryState {
 
 /** Turn anything thrown into a printable string without ever throwing. */
 function describeError(error: unknown): string {
-  if (error == null) return '未知错误';
+  if (error == null) return te()('boundary.unknown');
   if (error instanceof Error) {
     // Prefer a non-empty stack, then message, then name.
-    return error.stack || error.message || error.name || '未知错误';
+    return error.stack || error.message || error.name || te()('boundary.unknown');
   }
   if (typeof error === 'string') return error;
   try {
@@ -72,7 +83,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   static getDerivedStateFromError(error: unknown): Partial<ErrorBoundaryState> {
     // Guard against null/undefined throws; never let the boundary itself fail.
-    return { hasError: true, error: error ?? new Error('未知错误') };
+    return { hasError: true, error: error ?? new Error(te()('boundary.unknown')) };
   }
 
   override componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
@@ -101,6 +112,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
     // Defensive: describeError tolerates null/non-Error values.
     const detail = describeError(this.state.error);
+    const t = te();
 
     return (
       <div className="sh-error" role="alert">
@@ -108,20 +120,20 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
           <div className="sh-error__icon" aria-hidden="true">
             <ErrorGlyph />
           </div>
-          <h2 className="sh-error__title">出了点问题</h2>
-          <p className="sh-error__hint">这个操作没能完成。可以重试一次，或重新加载页面。</p>
+          <h2 className="sh-error__title">{t('boundary.title')}</h2>
+          <p className="sh-error__hint">{t('boundary.hint')}</p>
 
           <details className="sh-error__details">
-            <summary>错误详情</summary>
+            <summary>{t('boundary.details')}</summary>
             <pre className="sh-error__pre">{detail}</pre>
           </details>
 
           <div className="sh-error__actions">
             <button type="button" className="sh-error__btn sh-error__btn--primary" onClick={this.handleRetry}>
-              重试
+              {t('buttons.retry', { ns: 'common' })}
             </button>
             <button type="button" className="sh-error__btn sh-error__btn--secondary" onClick={this.handleReload}>
-              重新加载
+              {t('buttons.reload', { ns: 'common' })}
             </button>
           </div>
         </div>

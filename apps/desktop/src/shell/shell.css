@@ -138,6 +138,60 @@
   background: var(--tl-surface-hover);
 }
 
+/* ---------- language switcher ---------- */
+/* Lives in the same actions cluster as the theme button, so it must read as a
+   sibling control at the same 24px height — not as a form field dropped into
+   the header. Tokens only: every palette/dark combination recolours it. */
+.sh-lang {
+  display: inline-flex;
+  flex: none;
+}
+
+.sh-lang__select {
+  block-size: 24px;
+  max-inline-size: 9.5em;
+  padding: 0 22px 0 var(--tl-space-2);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-sm);
+  /* A native arrow is drawn by the OS in a colour that ignores the token
+     scheme; the chevron below is a background image in `--tl-text-secondary`. */
+  appearance: none;
+  background-color: var(--tl-surface);
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    calc(100% - 11px) 10px,
+    calc(100% - 7px) 10px;
+  background-size: 4px 4px;
+  background-repeat: no-repeat;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.sh-lang__select:hover {
+  color: var(--tl-text);
+  border-color: var(--tl-border-strong);
+}
+
+.sh-lang__select:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* The popover positions itself fixed against `.top-bar__actions`; the new
+   wrapper must not break the flex row or steal the 8px rhythm. */
+.top-bar__prefs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ---------- theme toggle ---------- */
 .sh-theme-toggle {
   width: 32px;

@@ -1,15 +1,31 @@
 import type { LocalDate, Recurrence, Weekday } from '@todolist/core';
 import { dayOfWeek } from '@todolist/core';
+import { currentLanguage, i18n } from '@todolist/ui';
 
 /**
  * Presentation helpers for the repeat picker. Pure and framework-free so the
  * wording and default-rule choices can be unit-tested without React.
+ *
+ * Every label is locale-aware: weekday names come from `Intl.DateTimeFormat`
+ * (not a hardcoded 一…日 table) and the sentence shapes use i18next plural
+ * keys, because English word order and pluralisation differ from Chinese.
  */
 
-/** Weekday labels in the same Monday-first order as `weekdays` (0 = 周一). */
-export const WEEKDAY_LABELS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'] as const;
-
 export type RecurrenceFrequencyChoice = 'none' | 'daily' | 'weekly' | 'monthly';
+
+/** 2024-01-01 is a Monday; formatting Jan 1–7 gives a Monday-first week. */
+const WEEK_START_UTC = Date.UTC(2024, 0, 1);
+
+/**
+ * Weekday labels in the same Monday-first order as `weekdays` (0 = Monday),
+ * derived from the active locale: 周一/一 ↔ Mon/M.
+ */
+export function weekdayLabels(lng: string = currentLanguage()): string[] {
+  const formatter = new Intl.DateTimeFormat(lng, { weekday: 'short', timeZone: 'UTC' });
+  return Array.from({ length: 7 }, (_, index) =>
+    formatter.format(new Date(WEEK_START_UTC + index * 86_400_000)),
+  );
+}
 
 /**
  * A sensible starting rule when the user switches the picker to `frequency`:
@@ -41,42 +57,69 @@ export function defaultRecurrence(
   }
 }
 
-/** The unit word that follows "每 N …" for a frequency. */
-export function intervalUnit(frequency: Recurrence['frequency']): string {
-  switch (frequency) {
-    case 'daily':
-      return '天';
-    case 'weekly':
-      return '周';
-    case 'monthly':
-      return '个月';
-  }
+const UNIT_KEYS = {
+  daily: 'repeat.unit.daily',
+  weekly: 'repeat.unit.weekly',
+  monthly: 'repeat.unit.monthly',
+} as const;
+
+/** The unit word that follows the interval number (Every 2 `weeks`). */
+export function intervalUnit(
+  frequency: Recurrence['frequency'],
+  lng: string = currentLanguage(),
+  count = 1,
+): string {
+  return i18n.getFixedT(lng, 'task')(UNIT_KEYS[frequency], { count });
+}
+
+function formatUntil(until: LocalDate, lng: string): string {
+  const date = new Date(
+    Number(until.slice(0, 4)),
+    Number(until.slice(5, 7)) - 1,
+    Number(until.slice(8, 10)),
+  );
+  return new Intl.DateTimeFormat(lng, { year: 'numeric', month: 'short', day: 'numeric' }).format(date);
 }
 
 /**
- * One-line summary used in the picker's hint (`每天` / `每周 一、三` /
- * `每月 15 日`). Exported for tests and reuse by list surfaces.
+ * One-line summary used in the picker's hint (每天 / 每周 周一、周三 /
+ * 每月 15 日 ↔ Every day / Every week on Mon, Wed / Every month on day 15).
+ * The sentence shapes are plural keys so English reads naturally while Chinese
+ * keeps its word order.
  */
-export function describeRecurrence(rule: Recurrence): string {
-  const every = rule.interval === 1 ? '每' : `每 ${rule.interval} `;
+export function describeRecurrence(
+  rule: Recurrence,
+  lng: string = currentLanguage(),
+): string {
+  const t = i18n.getFixedT(lng, 'task');
+  const separator = t('repeat.daySeparator');
 
   let core: string;
   switch (rule.frequency) {
     case 'daily':
-      core = rule.interval === 1 ? '每天' : `每 ${rule.interval} 天`;
+      core =
+        rule.interval === 1
+          ? t('repeat.every.day')
+          : t('repeat.every.everyNDays', { count: rule.interval });
       break;
     case 'weekly': {
       const days = [...new Set(rule.weekdays)]
         .sort((a, b) => a - b)
-        .map((weekday) => WEEKDAY_LABELS[weekday] ?? '')
-        .join('、');
-      core = `${every}周 ${days}`;
+        .map((weekday) => weekdayLabels(lng)[weekday] ?? '')
+        .join(separator);
+      core =
+        rule.interval === 1
+          ? t('repeat.every.week', { days })
+          : t('repeat.every.everyNWeeks', { count: rule.interval, days });
       break;
     }
     case 'monthly':
-      core = rule.interval === 1 ? `每月 ${rule.monthDay} 日` : `每 ${rule.interval} 个月的 ${rule.monthDay} 日`;
+      core =
+        rule.interval === 1
+          ? t('repeat.every.month', { day: rule.monthDay })
+          : t('repeat.every.everyNMonths', { count: rule.interval, day: rule.monthDay });
       break;
   }
 
-  return rule.until ? `${core}，直到 ${rule.until}` : core;
+  return rule.until ? t('repeat.until', { rule: core, date: formatUntil(rule.until, lng) }) : core;
 }

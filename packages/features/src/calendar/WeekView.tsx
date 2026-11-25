@@ -2,19 +2,21 @@ import { useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { CalendarEntry, Instant, LocalDate } from '@todolist/core';
 import { startOfWeek, addDays, startOfDay } from '@todolist/core';
-import { Chip } from '@todolist/ui';
+import { Chip, useTranslation } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
 import {
   MINUTES_PER_DAY,
   SNAP_MINUTES,
   formatMinutes,
   formatMinuteRange,
+  formatMonthDay,
   formatRange,
   entryTimeLabel,
   hourLabel,
   layoutOverlapping,
   localDateKey,
   minutesOfDay,
+  weekdayLabels,
 } from './time-math';
 import { useTimeRangeSelection } from './useTimeRangeSelection';
 import './calendar.css';
@@ -91,6 +93,9 @@ export function WeekView({
   onReschedule,
   onOpenDay,
 }: WeekViewProps) {
+  const { t } = useTranslation('calendar');
+  // Monday-first labels, indexed by position in the week (0 = Monday).
+  const weekdays = weekdayLabels('short');
   const weekStart = useMemo(() => startOfWeek(cursor), [cursor]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const { data, loading, error } = useRangeEntries(weekStart, days[6] ?? weekStart);
@@ -247,7 +252,7 @@ export function WeekView({
       <div className="wv__head">
         <div className="wv__gutter-head" />
         {days.map((day) => {
-          const weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][days.indexOf(day)];
+          const weekday = weekdays[days.indexOf(day)];
           const content = (
             <>
               <span className="wv__daynum">{Number(day.slice(8))}</span>
@@ -262,7 +267,7 @@ export function WeekView({
               type="button"
               className={`${className} wv__dayhead--button`}
               key={day}
-              aria-label={`打开 ${Number(day.slice(5, 7))}月${Number(day.slice(8))}日`}
+              aria-label={t('openDayAria', { date: formatMonthDay(day) })}
               onClick={() => onOpenDay(day)}
             >
               {content}
@@ -275,8 +280,8 @@ export function WeekView({
         })}
       </div>
 
-      <div className="wv__allday" role="group" aria-label="全天">
-        <div className="wv__gutter-head">全天</div>
+      <div className="wv__allday" role="group" aria-label={t('allDay')}>
+        <div className="wv__gutter-head">{t('allDay')}</div>
         {days.map((day) => {
           const items = allDayByDay.get(day) ?? [];
           return (
@@ -302,11 +307,11 @@ export function WeekView({
 
       {error ? (
         <p className="cal-error" role="alert">
-          日程加载失败：{error.message}
+          {t('loadFailed', { message: error.message })}
         </p>
       ) : loading && !data ? (
         <p className="wv__status" role="status">
-          加载中…
+          {t('loading')}
         </p>
       ) : null}
 

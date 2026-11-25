@@ -41,6 +41,20 @@ body {
   min-height: 0;
   padding: 12px var(--sh-gutter-x) 96px;
   overflow: auto;
+  /*
+   * Reserve the scrollbar's space whether or not it is currently visible.
+   *
+   * Without this the content width changes when the theme changes: switching
+   * `color-scheme` swaps the OS scrollbar for the other one, and on Windows
+   * the light and dark scrollbars are different widths. Every card, column and
+   * chip then reflows by several pixels — the layout "jumps" on a colour
+   * change, which is the bug this fixes.
+   *
+   * `stable` (rather than `stable both-edges`) because the gutter belongs on
+   * the scroll side only; padding it on both sides would shift the whole grid
+   * off the left content edge every other surface uses.
+   */
+  scrollbar-gutter: stable;
 }
 
 /*

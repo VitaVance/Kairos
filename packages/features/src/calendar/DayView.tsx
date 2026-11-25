@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import type { MouseEvent } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
-import { Chip, EmptyState } from '@todolist/ui';
+import { Chip, EmptyState, useTranslation } from '@todolist/ui';
 import { useDayEntries } from '../data/useCalendarEntries';
 import {
   MINUTES_PER_DAY,
   SNAP_MINUTES,
+  formatFullDate,
   formatMinutes,
   formatMinuteRange,
   formatRange,
@@ -13,6 +14,7 @@ import {
   hourLabel,
   layoutOverlapping,
   minutesOfDay,
+  weekdayLabels,
 } from './time-math';
 import { useTimeRangeSelection } from './useTimeRangeSelection';
 import './calendar.css';
@@ -34,7 +36,6 @@ export interface DayViewProps {
 
 const HOUR_PX = 58;
 const DRAG_THRESHOLD_PX = 3;
-const WEEKDAY = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
 /**
  * One-day time grid: a single wide column on a 00:00–24:00 axis.
@@ -52,6 +53,7 @@ export function DayView({
   onOpenEntry,
   hourHeight = HOUR_PX,
 }: DayViewProps) {
+  const { t } = useTranslation('calendar');
   const { data, loading, error } = useDayEntries(cursor);
 
   const pxPerMinute = hourHeight / 60;
@@ -112,25 +114,26 @@ export function DayView({
   }, [cursor]);
 
   const isToday = cursor === today;
+  // Weekday labels are derived from the active locale and walked Monday-first,
+  // so the header never inherits English's Sunday-first Intl data.
+  const weekdays = weekdayLabels('short');
 
   return (
     <div className="cal-day">
       <header className="cal-day__head">
-        <span className="cal-day__date">
-          {cursor.slice(0, 4)}年{Number(cursor.slice(5, 7))}月{Number(cursor.slice(8))}日
-        </span>
-        <span className="cal-day__weekday">{WEEKDAY[weekdayIndex]}</span>
-        {isToday ? <span className="cal-day__today">今天</span> : null}
+        <span className="cal-day__date">{formatFullDate(cursor)}</span>
+        <span className="cal-day__weekday">{weekdays[weekdayIndex]}</span>
+        {isToday ? <span className="cal-day__today">{t('today')}</span> : null}
       </header>
 
       {error ? (
         <p className="cal-error" role="alert">
-          日程加载失败：{error.message}
+          {t('loadFailed', { message: error.message })}
         </p>
       ) : null}
 
       {allDay.length > 0 ? (
-        <div className="cal-day__allday" role="group" aria-label="全天">
+        <div className="cal-day__allday" role="group" aria-label={t('allDay')}>
           {allDay.map((entry) => (
             <Chip
               key={`${entry.source}-${entry.id}`}
@@ -148,8 +151,8 @@ export function DayView({
       {!loading && !error && blocks.length === 0 && allDay.length === 0 ? (
         <div className="cal-day__empty">
           <EmptyState
-            message="没有安排"
-            hint={onCreateAt || onCreateRange ? '点击时间轴空白处新建日程，或按住拖动选择时间段' : undefined}
+            message={t('empty')}
+            hint={onCreateAt || onCreateRange ? t('emptyHint') : undefined}
             compact
           />
         </div>

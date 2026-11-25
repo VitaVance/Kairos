@@ -1,0 +1,125 @@
+{
+  "detail": {
+    "ariaLabel": "Task details",
+    "completeAria": "Mark {{title}} as done",
+    "uncompleteAria": "Mark {{title}} as not done",
+    "editTitle": "Edit task title",
+    "closeAria": "Close task details",
+    "sectionDate": "Date",
+    "sectionRepeat": "Repeat",
+    "sectionQuadrant": "Quadrant",
+    "sectionList": "List",
+    "sectionNotes": "Notes",
+    "dateLabel": "Due date",
+    "precisionLabel": "Time",
+    "precisionAria": "Time precision",
+    "timeLabel": "Exact time",
+    "hint": {
+      "noDate": "No date",
+      "day": "{{date}} · All day",
+      "period": "{{date}} · {{period}} · no set time",
+      "time": "{{date}} {{clock}}"
+    },
+    "precision": {
+      "day": "All day",
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening",
+      "time": "Exact time"
+    },
+    "repeatIntervalLabel": "Every",
+    "repeatIntervalAria": "Repeat interval",
+    "repeatWeekdaysAria": "Repeat weekdays",
+    "repeatMonthDayLabel": "Day",
+    "repeatMonthDayAria": "Day of the month",
+    "repeatMonthDayUnit": "of each month",
+    "repeatUntilLabel": "Until",
+    "repeatUntilPlaceholder": "No end",
+    "repeatUntilAria": "Repeat end date",
+    "repeatAutoAdvance": "Checking this off moves it to its next occurrence.",
+    "quadrantAria": "Move to quadrant",
+    "listAria": "Task list",
+    "notesAria": "Notes",
+    "notesPlaceholder": "Add notes…",
+    "confirmDelete": "Confirm delete",
+    "deleting": "Deleting…",
+    "errors": {
+      "rename": "Couldn't rename the task. Please try again.",
+      "moveQuadrant": "Couldn't move the task to another quadrant. Please try again.",
+      "saveTime": "Couldn't save the time. Please try again.",
+      "clearDate": "Couldn't clear the date. Please try again.",
+      "saveRecurrence": "Couldn't save the repeat rule. Please try again.",
+      "delete": "Couldn't delete the task. Please try again.",
+      "moveList": "Couldn't move the task to another list. Please try again.",
+      "saveNotes": "Couldn't save the notes. Please try again."
+    }
+  },
+  "period": {
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening"
+  },
+  "due": {
+    "withPeriod": "{{date}} · {{period}}"
+  },
+  "quadrant": {
+    "urgentImportant": "Urgent & important",
+    "notUrgentImportant": "Important, not urgent",
+    "urgentNotImportant": "Urgent, not important",
+    "unimportant": "Neither"
+  },
+  "repeat": {
+    "frequency": {
+      "none": "Doesn't repeat",
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "frequencyAria": "Repeat frequency",
+    "unit": {
+      "daily_one": "day",
+      "daily_other": "days",
+      "weekly_one": "week",
+      "weekly_other": "weeks",
+      "monthly_one": "month",
+      "monthly_other": "months"
+    },
+    "daySeparator": ", ",
+    "every": {
+      "day": "Every day",
+      "week": "Every week on {{days}}",
+      "month": "Every month on day {{day}}",
+      "everyNDays_one": "Every {{count}} day",
+      "everyNDays_other": "Every {{count}} days",
+      "everyNWeeks_one": "Every {{count}} week on {{days}}",
+      "everyNWeeks_other": "Every {{count}} weeks on {{days}}",
+      "everyNMonths_one": "Every {{count}} month on day {{day}}",
+      "everyNMonths_other": "Every {{count}} months on day {{day}}"
+    },
+    "until": "{{rule}}, until {{date}}"
+  },
+  "list": {
+    "groups": {
+      "overdue": "Overdue",
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "thisWeek": "This week",
+      "later": "Later",
+      "undated": "No date"
+    },
+    "empty": "No tasks"
+  },
+  "row": {
+    "completeAria": "Mark {{title}} as done",
+    "uncompleteAria": "Mark {{title}} as not done",
+    "deleteAria": "Delete {{title}}",
+    "confirmDeleteAria": "Confirm deleting {{title}}",
+    "confirm": "Confirm"
+  },
+  "quickAdd": {
+    "placeholder": "Add a task, press Enter (/重要, /紧急, @14:00)",
+    "label": "Quick add task",
+    "noList": "There's no list to add this task to.",
+    "failed": "Couldn't add the task. Please try again."
+  }
+}

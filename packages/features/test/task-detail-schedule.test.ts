@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { Instant, LocalDate } from '@todolist/core';
+import { initI18n } from '@todolist/ui';
 import {
   precisionChoiceOf,
   scheduleForChoice,
@@ -8,6 +9,11 @@ import {
 } from '../src/task/TaskDetailPanel';
 
 const TODAY = '2026-09-06' as LocalDate;
+const EN = 'en';
+
+beforeAll(() => {
+  initI18n(EN);
+});
 const MIDNIGHT = '2026-09-05T16:00:00.000Z' as Instant;
 const AFTERNOON = '2026-09-06T06:30:00.000Z' as Instant;
 /** The local wall clock `AFTERNOON` shows, derived the same way the panel does. */
@@ -120,27 +126,31 @@ describe('precisionChoiceOf — control reflects stored precision', () => {
 });
 
 describe('scheduleHint — grey echo uses duePrecisionOf', () => {
-  it('says 无日期 for an unscheduled task', () => {
-    expect(scheduleHint({ dueDate: null, dueAt: null, allDay: false, duePeriod: null }, TODAY)).toBe(
-      '无日期',
-    );
+  it('says "No date" for an unscheduled task', () => {
+    expect(
+      scheduleHint({ dueDate: null, dueAt: null, allDay: false, duePeriod: null }, TODAY, EN),
+    ).toBe('No date');
   });
 
   it('names the whole day', () => {
-    expect(scheduleHint({ dueDate: TODAY, dueAt: MIDNIGHT, allDay: true, duePeriod: null }, TODAY)).toBe(
-      '今天 · 全天',
-    );
+    expect(
+      scheduleHint({ dueDate: TODAY, dueAt: MIDNIGHT, allDay: true, duePeriod: null }, TODAY, EN),
+    ).toBe('Today · All day');
   });
 
   it('names the bucket and says there is no fixed time', () => {
     expect(
-      scheduleHint({ dueDate: TODAY, dueAt: MIDNIGHT, allDay: true, duePeriod: 'morning' }, TODAY),
-    ).toBe('今天 · 上午 · 无固定时间');
+      scheduleHint(
+        { dueDate: TODAY, dueAt: MIDNIGHT, allDay: true, duePeriod: 'morning' },
+        TODAY,
+        EN,
+      ),
+    ).toBe('Today · Morning · no set time');
   });
 
   it('shows the clock for an exact time', () => {
-    expect(scheduleHint({ dueDate: TODAY, dueAt: AFTERNOON, allDay: false, duePeriod: null }, TODAY)).toBe(
-      `今天 ${AFTERNOON_CLOCK}`,
-    );
+    expect(
+      scheduleHint({ dueDate: TODAY, dueAt: AFTERNOON, allDay: false, duePeriod: null }, TODAY, EN),
+    ).toBe(`Today ${AFTERNOON_CLOCK}`);
   });
 });

@@ -2,10 +2,11 @@ import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LocalDate, Task, TaskId } from '@todolist/core';
 import { daysFromToday, todayLocal } from '@todolist/core';
-import { Checkbox, EmptyState, ScrollArea, SearchIcon, TextField } from '@todolist/ui';
+import { Checkbox, EmptyState, ScrollArea, SearchIcon, TextField, useTranslation } from '@todolist/ui';
 import { useLists } from '../services';
 import { useTasks } from '../data/useTasks';
 import { applyFilters, highlightRanges, sortByRelevance } from './search';
+import { currentLanguage } from '@todolist/ui';
 import './search.css';
 
 export interface SearchPanelProps {
@@ -23,19 +24,25 @@ interface ResultGroup {
 
 const FALLBACK_COLOR = 'var(--tl-text-tertiary)';
 
-/** Human label for a due date: 今天 / 明天 / 昨天 / M月D日. */
-function dueLabel(task: Task, today: LocalDate): string | null {
+/** Human label for a due date: today / tomorrow / yesterday / Mon D. */
+function dueLabel(
+  task: Task,
+  today: LocalDate,
+  t: ReturnType<typeof useTranslation<'misc'>>['t'],
+): string | null {
   if (task.dueDate === null) return null;
   const diff = daysFromToday(task.dueDate, today);
-  if (diff === 0) return '今天';
-  if (diff === 1) return '明天';
-  if (diff === 2) return '后天';
-  if (diff === -1) return '昨天';
+  if (diff === 0) return t('search.dueToday');
+  if (diff === 1) return t('search.dueTomorrow');
+  if (diff === 2) return t('search.dueDayAfterTomorrow');
+  if (diff === -1) return t('search.dueYesterday');
   const parts = task.dueDate.split('-');
   const month = parts[1];
   const day = parts[2];
   if (!month || !day) return null;
-  return `${Number(month)}月${Number(day)}日`;
+  return new Intl.DateTimeFormat(currentLanguage(), { month: 'numeric', day: 'numeric' }).format(
+    new Date(`${task.dueDate}T00:00:00`),
+  );
 }
 
 /** Renders text with every query occurrence wrapped in <mark>. */
@@ -63,6 +70,7 @@ function HighlightedText({ text, query }: { text: string; query: string }): Reac
  * when the overlay closes.
  */
 export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
+  const { t } = useTranslation('misc');
   const { data, toggleDone, fresh } = useTasks();
   const lists = useLists();
 
@@ -111,14 +119,14 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
         const list = lists.find((l) => l.id === listId);
         out.push({
           key: listId,
-          label: list?.name ?? '未分类',
+          label: list?.name ?? t('search.uncategorized'),
           color: list?.color ?? FALLBACK_COLOR,
           tasks: bucket,
         });
       }
     }
     return out;
-  }, [filtered, lists]);
+  }, [filtered, lists, t]);
 
   const flat = useMemo(() => groups.flatMap((g) => g.tasks), [groups]);
   /** id → index into `flat`, so rows do not scan the list for every render. */
@@ -240,14 +248,14 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-label="搜索任务"
+        aria-label={t('search.dialogLabel')}
       >
         <div className="search-panel__input">
           <TextField
             value={query}
             onChange={setQuery}
-            placeholder="搜索任务标题或备注…"
-            label="搜索任务"
+            placeholder={t('search.placeholder')}
+            label={t('search.inputLabel')}
             leadingIcon={<SearchIcon size={16} />}
             aria-controls="search-results"
             aria-activedescendant={activeId}
@@ -265,12 +273,16 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
         <ScrollArea className="search-panel__results" axis="y">
           {flat.length === 0 ? (
             <EmptyState
-              message="没有匹配的任务"
-              hint={hasQuery ? `没有找到与「${query.trim()}」相关的结果` : '输入关键词开始搜索'}
+              message={t('search.emptyMessage')}
+              hint={
+                hasQuery
+                  ? t('search.emptyHintWithQuery', { query: query.trim() })
+                  : t('search.emptyHint')
+              }
               icon={<SearchIcon size={22} />}
             />
           ) : (
-            <div id="search-results" role="listbox" aria-label="搜索结果">
+            <div id="search-results" role="listbox" aria-label={t('search.resultsLabel')}>
               {groups.map((group) => (
                 <div key={group.key} className="search-group" role="group" aria-label={group.label}>
                   <div className="search-group__head">
@@ -287,7 +299,7 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
                   {group.tasks.map((task) => {
                     const index = indexById.get(task.id) ?? 0;
                     const isActive = index === selected;
-                    const due = dueLabel(task, today);
+                    const due = dueLabel(task, today, t);
                     return (
                       <div
                         key={task.id}
@@ -309,7 +321,9 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
                             checked={task.status === 'done'}
                             onChange={() => toggleDoneOption(task)}
                             aria-label={
-                              task.status === 'done' ? `取消完成 ${task.title}` : `完成 ${task.title}`
+                              task.status === 'done'
+                                ? t('search.checkboxUncomplete', { title: task.title })
+                                : t('search.checkboxComplete', { title: task.title })
                             }
                             tabIndex={-1}
                           />
@@ -332,13 +346,13 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
         <footer className="search-panel__footer">
           <span>
             <kbd>↑</kbd>
-            <kbd>↓</kbd> 选择
+            <kbd>↓</kbd> {t('search.footerSelect')}
           </span>
           <span>
-            <kbd>Enter</kbd> 打开
+            <kbd>Enter</kbd> {t('search.footerOpen')}
           </span>
           <span>
-            <kbd>Esc</kbd> 关闭
+            <kbd>Esc</kbd> {t('search.footerClose')}
           </span>
         </footer>
       </div>

@@ -1,0 +1,14 @@
+{
+  "boundary": {
+    "title": "出了点问题",
+    "hint": "这个操作没能完成。可以重试一次，或重新加载页面。",
+    "details": "错误详情",
+    "unknown": "未知错误"
+  },
+  "async": {
+    "failed": "操作失败：{{detail}}"
+  },
+  "task": {
+    "deleteFailed": "删除任务失败，请重试"
+  }
+}

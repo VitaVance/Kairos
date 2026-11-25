@@ -1,0 +1,146 @@
+{
+  "data": {
+    "title": "Import and export",
+    "export": {
+      "heading": "Export",
+      "hint": "A full backup includes tasks, lists and events and can be imported to restore them exactly. CSV is for viewing in a spreadsheet, but has no ids.",
+      "fileName": "File name",
+      "size": "Size",
+      "content": "Contents",
+      "json": "Export JSON",
+      "csv": "Export CSV",
+      "empty": "There is no data to export."
+    },
+    "import": {
+      "heading": "Import",
+      "dropTitle": "Drop a JSON backup here",
+      "dropHint": "or choose a file (.json)",
+      "invalidTitle_one": "\"{{file}}\" could not be imported ({{count}} issue):",
+      "invalidTitle_other": "\"{{file}}\" could not be imported ({{count}} issues):",
+      "clear": "Clear",
+      "previewCaption": "Import preview",
+      "columnType": "Type",
+      "columnCount": "Count",
+      "plan": "Merge preview: {{added}} added · {{updated}} updated · {{skipped}} skipped; replace preview: {{added}} added · {{removed}} removed",
+      "notWritable": "The write port is not connected yet, so importing is unavailable (you can still preview the validation result).",
+      "confirmLabel": "Confirm import",
+      "confirmReplace": "Replace import deletes every current task, list and event and keeps only what is in the backup. This cannot be undone.",
+      "confirmMerge": "Merge import adds missing records and overwrites existing records with the same id when the backup's copy is newer.",
+      "discard": "{{tasks}} in the current data are not in this backup and will be lost permanently after a replace. Export a JSON backup first just in case.",
+      "discardWithDone": "{{tasks}} in the current data are not in this backup ({{done}} completed) and will be lost permanently after a replace. Export a JSON backup first just in case.",
+      "busy": "Working…",
+      "confirmReplaceAction": "Replace",
+      "confirmMergeAction": "Merge",
+      "replace": "Replace import",
+      "merge": "Merge import",
+      "notWritableTitle": "The write port is not connected yet"
+    },
+    "reset": {
+      "heading": "Delete all data",
+      "hint": "The sample data is only there to make the features visible at a glance. To start with your own content, clear it first. This deletes every task, list and event, including the ones you added yourself; it cannot be undone. If you want a copy, export a JSON backup above first.",
+      "trigger": "Delete all data…",
+      "confirm": "This deletes every task, list and event and cannot be undone. The sample data will not come back; you can start recording your own schedule right away.",
+      "confirmAction": "Delete everything",
+      "busy": "Deleting…",
+      "alertLabel": "Delete all data?",
+      "loss": "About to delete: {{tasks}} · {{lists}} · {{events}}. Export a JSON backup first just in case."
+    },
+    "labels": {
+      "tasks": "Tasks",
+      "lists": "Lists",
+      "events": "Events"
+    },
+    "count": {
+      "tasks_one": "{{count}} task",
+      "tasks_other": "{{count}} tasks",
+      "lists_one": "{{count}} list",
+      "lists_other": "{{count}} lists",
+      "events_one": "{{count}} event",
+      "events_other": "{{count}} events"
+    },
+    "prose": {
+      "tasks_one": "{{count}} task",
+      "tasks_other": "{{count}} tasks",
+      "done_one": "{{count}} completed",
+      "done_other": "{{count}} completed"
+    },
+    "status": {
+      "parsing": "Parsing {{file}}…",
+      "readFailed": "Could not read \"{{file}}\"",
+      "invalid_one": "\"{{file}}\" failed validation ({{count}} issue)",
+      "invalid_other": "\"{{file}}\" failed validation ({{count}} issues)",
+      "valid": "\"{{file}}\" passed validation: {{tasks}} · {{lists}} · {{events}}",
+      "exported": "Exported {{file}} ({{size}})",
+      "replaceDone": "Replace import complete",
+      "mergeDone": "Merge import complete",
+      "resetDone": "All data deleted"
+    },
+    "errors": {
+      "mustBeObject": "{{path}}: must be an object",
+      "mustBeString": "{{path}}: must be a string",
+      "mustNotBeEmpty": "{{path}}: must not be empty",
+      "mustBeBoolean": "{{path}}: must be a boolean",
+      "mustBeNumber": "{{path}}: must be a number",
+      "mustBeInstant": "{{path}}: must be an ISO-8601 date-time string",
+      "mustBeInstantOrNull": "{{path}}: must be an ISO-8601 date-time string or null",
+      "mustBeLocalDateOrNull": "{{path}}: must be a YYYY-MM-DD date string or null",
+      "mustBeNonEmptyStringOrNull": "{{path}}: must be a non-empty string or null",
+      "invalidRecurrence": "{{path}}: invalid recurrence rule (must include a valid frequency / interval)",
+      "invalidPeriod": "{{path}}: must be \"morning\", \"afternoon\", \"evening\" or null",
+      "mustBeOpenOrDone": "{{path}}: must be \"open\" or \"done\"",
+      "mustBeArray": "{{path}}: must be an array",
+      "jsonParse": "Could not parse JSON: {{detail}}",
+      "rootMustBeObject": "The root must be an object",
+      "formatMustBe": "format: must be \"{{format}}\"",
+      "versionMustBeInteger": "version: must be an integer",
+      "versionUnsupported": "version: unsupported backup version {{version}} (this app supports {{current}}); update the app before importing",
+      "versionInvalid": "version: invalid backup version {{version}}",
+      "exportedAtInvalid": "exportedAt: must be an ISO-8601 date-time string",
+      "dataMustBeObject": "data: must be an object containing tasks/lists/events",
+      "importFailed": "Import failed: {{detail}}",
+      "cannotRead": "Could not read this file"
+    }
+  },
+  "search": {
+    "dialogLabel": "Search tasks",
+    "inputLabel": "Search tasks",
+    "placeholder": "Search task titles or notes…",
+    "uncategorized": "Uncategorized",
+    "emptyMessage": "No matching tasks",
+    "emptyHintWithQuery": "No results for \"{{query}}\"",
+    "emptyHint": "Type a keyword to start searching",
+    "resultsLabel": "Search results",
+    "dueToday": "Today",
+    "dueTomorrow": "Tomorrow",
+    "dueDayAfterTomorrow": "In two days",
+    "dueYesterday": "Yesterday",
+    "checkboxComplete": "Complete {{title}}",
+    "checkboxUncomplete": "Mark {{title}} as not done",
+    "footerSelect": "to select",
+    "footerOpen": "to open",
+    "footerClose": "to close"
+  },
+  "reminders": {
+    "kind": {
+      "task": "Task",
+      "event": "Event"
+    },
+    "period": {
+      "morning": "Morning",
+      "afternoon": "Afternoon",
+      "evening": "Evening"
+    },
+    "time": {
+      "allDay": "All day",
+      "now": "now"
+    },
+    "notificationBody": "{{kind}}: {{title}} · {{time}}",
+    "complete": "Done",
+    "completeTitle": "Complete {{title}}",
+    "snooze": "Snooze",
+    "dismiss": "Dismiss reminder"
+  },
+  "undo": {
+    "action": "Undo"
+  }
+}

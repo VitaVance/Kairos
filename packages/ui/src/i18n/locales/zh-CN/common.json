@@ -1,0 +1,20 @@
+{
+  "buttons": {
+    "close": "关闭",
+    "cancel": "取消",
+    "delete": "删除",
+    "save": "保存",
+    "retry": "重试",
+    "reload": "重新加载"
+  },
+  "empty": {
+    "noTasks": "没有任务"
+  },
+  "a11y": {
+    "switch": "切换",
+    "switchView": "切换视图"
+  },
+  "language": {
+    "label": "语言"
+  }
+}

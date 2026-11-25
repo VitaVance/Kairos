@@ -117,6 +117,24 @@
   color: var(--tl-text-secondary);
 }
 
+/* Destructive section: separated from the neutral export/import sections by
+   a danger-tinted rule so it never reads as "one more import option". */
+.dt-section--danger {
+  margin-block-start: var(--tl-space-2);
+  padding: var(--tl-space-4);
+  border: 1px solid var(--tl-danger);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-danger-tint);
+}
+
+.dt-section--danger .dt-section__title {
+  color: var(--tl-danger);
+}
+
+.dt-section--danger .dt-section__hint {
+  color: var(--tl-text);
+}
+
 .dt-empty {
   margin: 0;
   padding: var(--tl-space-4);

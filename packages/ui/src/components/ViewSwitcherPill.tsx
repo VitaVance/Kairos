@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 export interface ViewSwitcherItem {
   value: string;
   label: string;
@@ -10,6 +12,8 @@ export interface ViewSwitcherPillProps {
   /** Optional accent CTA rendered at the right end (e.g. 立即升级). */
   cta?: { label: string; onClick: () => void };
   caption?: string;
+  /** Accessible name for the group; defaults to the translated "Switch view". */
+  ariaLabel?: string;
 }
 
 /**
@@ -22,10 +26,11 @@ export interface ViewSwitcherPillProps {
  * button does; `role="tab"` without those would promise keyboard behaviour this
  * control does not have.
  */
-export function ViewSwitcherPill({ items, value, onChange, cta, caption }: ViewSwitcherPillProps) {
+export function ViewSwitcherPill({ items, value, onChange, cta, caption, ariaLabel }: ViewSwitcherPillProps) {
+  const { t } = useTranslation('common');
   return (
     <div className="tl-pill-wrap">
-      <div className="tl-pill" role="group" aria-label="切换视图">
+      <div className="tl-pill" role="group" aria-label={ariaLabel ?? t('a11y.switchView')}>
         {items.map((item) => {
           const active = item.value === value;
           return (

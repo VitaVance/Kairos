@@ -1,0 +1,23 @@
+{
+  "date": {
+    "placeholder": "设置日期",
+    "prevMonth": "上个月",
+    "nextMonth": "下个月",
+    "prevYear": "上一年",
+    "nextYear": "下一年",
+    "selectMonth": "选择月份",
+    "today": "今天",
+    "tomorrow": "明天",
+    "nextMonday": "下周一",
+    "clear": "清除"
+  },
+  "time": {
+    "placeholder": "选择时间",
+    "inputAria": "输入时间",
+    "hourFormat": "24 小时制",
+    "hours": "小时",
+    "minutes": "分钟",
+    "reset": "重置",
+    "confirm": "确定"
+  }
+}

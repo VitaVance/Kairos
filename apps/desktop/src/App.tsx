@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CryptoIdGenerator, SystemClock, seedDemoData } from '@todolist/adapters';
+import { CryptoIdGenerator, SystemClock, resetAllData, seedDemoData } from '@todolist/adapters';
 import type { TaskList } from '@todolist/core';
 import { initTemporal } from '@todolist/core';
 import { AppServicesProvider } from '@todolist/features';
@@ -23,6 +23,12 @@ import type { StorageHandle } from './storage';
 interface Booted {
   readonly storage: StorageHandle;
   readonly lists: readonly TaskList[];
+  /**
+   * Wipes every task, list and event. Persists "onboarding dismissed" inside
+   * the same transaction boundary as the deletes, so the next boot stays
+   * empty instead of re-seeding.
+   */
+  readonly resetData: () => Promise<void>;
 }
 
 const clock = new SystemClock();
@@ -47,7 +53,11 @@ async function boot(): Promise<Booted> {
   const storage = await createStorage({ ids });
   await seedDemoData({ uow: storage.uow, clock, ids });
   const lists = await storage.uow.lists.list();
-  return { storage, lists };
+  return {
+    storage,
+    lists,
+    resetData: () => resetAllData({ uow: storage.uow, clock, ids }),
+  };
 }
 
 /**
@@ -80,7 +90,7 @@ export function App() {
   if (failure !== null) return <BootError message={failure} />;
   if (booted === null) return <BootSkeleton />;
 
-  const { storage, lists } = booted;
+  const { storage, lists, resetData } = booted;
   const deps = { uow: storage.uow, clock, ids, lists };
   const services = createServices(deps);
   const importApplier = createImportApplier(deps);
@@ -89,6 +99,7 @@ export function App() {
     <AppServicesProvider services={services}>
       <Shell
         onImport={importApplier}
+        onResetData={resetData}
         notifier={notifier}
         updateChecker={updateChecker}
         updateEndpoint={UPDATE_ENDPOINT}

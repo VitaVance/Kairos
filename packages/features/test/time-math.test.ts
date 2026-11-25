@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { Instant } from '@todolist/core';
+import { initI18n } from '@todolist/ui';
 import {
   MINUTES_PER_DAY,
   SNAP_MINUTES,
   entryTimeLabel,
+  formatFullDate,
   formatMinuteRange,
+  formatMonthDay,
+  formatMonthName,
+  formatMonthYear,
   formatMinutes,
   hourLabel,
   isDragDistance,
@@ -15,7 +20,49 @@ import {
   selectionRange,
   snapMinutes,
   snapMinuteWithin,
+  weekdayLabels,
 } from '../src/calendar/time-math.js';
+
+// `entryTimeLabel` and `hourLabel` read the calendar catalog; pin the runtime
+// to English so the assertions below are the translated values, not raw keys.
+initI18n('en');
+
+describe('locale date helpers', () => {
+  it('starts the weekday strip on Monday even for en, whose Intl data starts Sunday', () => {
+    // en-US narrow labels begin "S" if you trust Intl's week start; walking
+    // from a known Monday must put Mon first and Sun last.
+    expect(weekdayLabels('narrow', 'en')).toEqual(['M', 'T', 'W', 'T', 'F', 'S', 'S']);
+    expect(weekdayLabels('short', 'en')).toEqual([
+      'Mon',
+      'Tue',
+      'Wed',
+      'Thu',
+      'Fri',
+      'Sat',
+      'Sun',
+    ]);
+    expect(weekdayLabels('short', 'zh-CN')).toEqual([
+      '周一',
+      '周二',
+      '周三',
+      '周四',
+      '周五',
+      '周六',
+      '周日',
+    ]);
+  });
+
+  it('formats dates per locale instead of slicing ISO', () => {
+    expect(formatMonthDay('2026-11-25', 'en')).toBe('Nov 25');
+    expect(formatMonthDay('2026-11-25', 'zh-CN')).toBe('11月25日');
+    expect(formatFullDate('2026-11-25', 'en')).toBe('November 25, 2026');
+    expect(formatFullDate('2026-11-25', 'zh-CN')).toBe('2026年11月25日');
+    expect(formatMonthYear(2026, 11, 'en')).toBe('November 2026');
+    expect(formatMonthYear(2026, 11, 'zh-CN')).toBe('2026年11月');
+    expect(formatMonthName(11, 'en')).toBe('Nov');
+    expect(formatMonthName(11, 'zh-CN')).toBe('11月');
+  });
+});
 
 describe('layoutOverlapping', () => {
   it('keeps non-overlapping entries in a single column', () => {
@@ -155,8 +202,8 @@ describe('time helpers', () => {
     expect(formatMinutes(0)).toBe('00:00');
   });
 
-  it('labels noon as 正午', () => {
-    expect(hourLabel(12)).toBe('正午');
+  it('labels noon as Noon', () => {
+    expect(hourLabel(12)).toBe('Noon');
     expect(hourLabel(8)).toBe('08:00');
     expect(hourLabel(20)).toBe('20:00');
   });
@@ -251,14 +298,14 @@ describe('entryTimeLabel', () => {
     endAt: '2026-12-01T23:59:59.999Z' as Instant,
   };
 
-  it('labels a day-precision all-day entry 全天', () => {
-    expect(entryTimeLabel(day)).toBe('全天');
+  it('labels a day-precision all-day entry All day', () => {
+    expect(entryTimeLabel(day)).toBe('All day');
   });
 
   it('labels each half-day bucket', () => {
-    expect(entryTimeLabel({ ...day, period: 'morning' })).toBe('上午');
-    expect(entryTimeLabel({ ...day, period: 'afternoon' })).toBe('下午');
-    expect(entryTimeLabel({ ...day, period: 'evening' })).toBe('晚上');
+    expect(entryTimeLabel({ ...day, period: 'morning' })).toBe('Morning');
+    expect(entryTimeLabel({ ...day, period: 'afternoon' })).toBe('Afternoon');
+    expect(entryTimeLabel({ ...day, period: 'evening' })).toBe('Evening');
   });
 
   it('keeps the formatted range for a timed entry', () => {

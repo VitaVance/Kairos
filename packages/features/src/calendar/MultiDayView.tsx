@@ -2,18 +2,20 @@ import { useMemo, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, dayOfWeek } from '@todolist/core';
-import { Chip, SegmentedControl } from '@todolist/ui';
+import { Chip, SegmentedControl, useTranslation } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
 import {
   MINUTES_PER_DAY,
   SNAP_MINUTES,
   formatMinutes,
   formatMinuteRange,
+  formatMonthDay,
   entryTimeLabel,
   hourLabel,
   layoutOverlapping,
   localDateKey,
   minutesOfDay,
+  weekdayLabels,
 } from './time-math';
 import { useTimeRangeSelection } from './useTimeRangeSelection';
 import './calendar.css';
@@ -49,15 +51,8 @@ export interface MultiDayViewProps {
 
 const HOUR_PX = 58;
 const DRAG_THRESHOLD_PX = 3;
-const WEEKDAY = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
-const SPAN_OPTIONS = [
-  { value: '3', label: '3天' },
-  { value: '5', label: '5天' },
-  { value: '7', label: '7天' },
-] as const;
-
-type SpanValue = (typeof SPAN_OPTIONS)[number]['value'];
+type SpanValue = '3' | '5' | '7';
 
 function snap(minutes: number): number {
   return Math.round(minutes / SNAP_MINUTES) * SNAP_MINUTES;
@@ -84,6 +79,13 @@ export function MultiDayView({
   onOpenEntry,
   onOpenDay,
 }: MultiDayViewProps) {
+  const { t } = useTranslation('calendar');
+  // The span is both the value and the label count, so the options encode the
+  // number once and the label is interpolated — word order stays per-locale.
+  const spanOptions = (['3', '5', '7'] as const).map((value) => ({
+    value,
+    label: t('spanDays', { days: Number(value) }),
+  }));
   const [spanValue, setSpanValue] = useState<SpanValue>(String(span) as SpanValue);
   const dayCount = Number(spanValue) as MultiDaySpan;
 
@@ -157,14 +159,15 @@ export function MultiDayView({
     onSelect: (day, start, end) => onCreateRange?.(day, formatMinutes(start), formatMinutes(end)),
   });
 
-  const status = loading && !data ? '加载中…' : data && data.length === 0 ? '没有安排' : null;
+  const status = loading && !data ? t('loading') : data && data.length === 0 ? t('empty') : null;
+  const weekdays = weekdayLabels('short');
 
   return (
     <div className="mdv" data-days={dayCount}>
       <div className="mdv__toolbar">
         {error ? (
           <span className="cal-error" role="alert">
-            日程加载失败：{error.message}
+            {t('loadFailed', { message: error.message })}
           </span>
         ) : (
           <span className="mdv__status" role="status">
@@ -172,11 +175,11 @@ export function MultiDayView({
           </span>
         )}
         <SegmentedControl
-          options={SPAN_OPTIONS}
+          options={spanOptions}
           value={spanValue}
           onChange={setSpan}
           size="sm"
-          ariaLabel="显示天数"
+          ariaLabel={t('multiDay.spanLabel')}
         />
       </div>
 
@@ -188,7 +191,7 @@ export function MultiDayView({
               const content = (
                 <>
                   <span className="mdv__daynum">{Number(day.slice(8))}</span>
-                  <span className="mdv__dayname">{WEEKDAY[dayOfWeek(day)]}</span>
+                  <span className="mdv__dayname">{weekdays[dayOfWeek(day)]}</span>
                 </>
               );
               const className = `mdv__dayhead${day === today ? ' mdv__dayhead--today' : ''}`;
@@ -203,7 +206,7 @@ export function MultiDayView({
                   type="button"
                   className={`${className} wv__dayhead--button`}
                   key={day}
-                  aria-label={`打开 ${Number(day.slice(5, 7))}月${Number(day.slice(8))}日 的日视图`}
+                  aria-label={t('openDayAria', { date: formatMonthDay(day) })}
                   onClick={(event) => {
                     event.stopPropagation();
                     onOpenDay(day);
@@ -219,8 +222,8 @@ export function MultiDayView({
             })}
           </div>
 
-          <div className="mdv__allday" role="group" aria-label="全天">
-            <div className="mdv__gutter-head">全天</div>
+          <div className="mdv__allday" role="group" aria-label={t('allDay')}>
+            <div className="mdv__gutter-head">{t('allDay')}</div>
             {days.map((day) => {
               const items = allDayByDay.get(day) ?? [];
               return (

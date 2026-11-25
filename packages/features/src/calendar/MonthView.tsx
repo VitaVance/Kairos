@@ -2,9 +2,9 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { addDays, startOfWeek } from '@todolist/core';
-import { Chip, EmptyState } from '@todolist/ui';
+import { Chip, EmptyState, useTranslation } from '@todolist/ui';
 import { useRangeEntries } from '../data/useCalendarEntries';
-import { entryTimeLabel, localDateKey } from './time-math';
+import { entryTimeLabel, formatMonthYear, localDateKey, weekdayLabels } from './time-math';
 import './calendar.css';
 
 export interface MonthViewProps {
@@ -22,8 +22,6 @@ export interface MonthViewProps {
   onOpenEntry?: (entry: CalendarEntry) => void;
 }
 
-const WEEKDAYS = ['一', '二', '三', '四', '五', '六', '日'];
-
 function buildGrid(cursor: LocalDate): LocalDate[][] {
   const first = `${cursor.slice(0, 7)}-01` as LocalDate;
   const gridStart = startOfWeek(first);
@@ -37,6 +35,10 @@ function buildGrid(cursor: LocalDate): LocalDate[][] {
 }
 
 export function MonthView({ cursor, today, onDayClick, onOpenDay, onCreateAt, onOpenEntry }: MonthViewProps) {
+  const { t } = useTranslation('calendar');
+  // Narrow labels repeat across languages ("M", "T", "T" …), so the strip is
+  // keyed by index; recomputed per render so a live switch relabels it.
+  const weekdays = weekdayLabels('narrow');
   const grid = useMemo(() => buildGrid(cursor), [cursor]);
   const rangeFrom = grid[0]?.[0] ?? cursor;
   const rangeTo = grid[5]?.[6] ?? cursor;
@@ -101,13 +103,13 @@ export function MonthView({ cursor, today, onDayClick, onOpenDay, onCreateAt, on
   return (
     <div className="mv">
       <div className="mv__weekdays" aria-hidden="true">
-        {WEEKDAYS.map((d) => (
-          <span key={d} className="mv__weekday">
+        {weekdays.map((d, i) => (
+          <span key={i} className="mv__weekday">
             {d}
           </span>
         ))}
       </div>
-      <div className="mv__grid" role="grid" aria-label={`${cursor.slice(0, 4)}年${Number(cursor.slice(5, 7))}月`}>
+      <div className="mv__grid" role="grid" aria-label={formatMonthYear(Number(cursor.slice(0, 4)), Number(cursor.slice(5, 7)))}>
         {grid.map((week, wi) => (
           <div className="mv__week" role="row" key={wi}>
             {week.map((day) => {
@@ -144,10 +146,10 @@ export function MonthView({ cursor, today, onDayClick, onOpenDay, onCreateAt, on
       </div>
       {error ? (
         <p className="cal-error" role="alert">
-          日程加载失败：{error.message}
+          {t('loadFailed', { message: error.message })}
         </p>
       ) : loading && !data ? (
-        <EmptyState message="加载中…" compact />
+        <EmptyState message={t('loading')} compact />
       ) : null}
     </div>
   );

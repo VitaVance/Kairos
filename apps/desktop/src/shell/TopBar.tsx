@@ -3,6 +3,7 @@ import type { LocalDate } from '@todolist/core';
 import { addDays, addMonths } from '@todolist/core';
 import type { ViewKind } from '@todolist/features';
 import type { ReactNode } from 'react';
+import { useTranslation } from '@todolist/ui';
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from './icons';
 
 export interface TopBarProps {
@@ -34,6 +35,7 @@ export function TopBar({
   daysShown = 3,
   actions,
 }: TopBarProps) {
+  const { t } = useTranslation('shell');
   // True for every view that shows a date range; the quadrant matrix does not,
   // so its prev/next arrows would be decorative — hide them rather than let
   // them silently jump to today (which is all they could do).
@@ -61,19 +63,19 @@ export function TopBar({
       </h1>
 
       <div className="top-bar__actions">
-        <button type="button" className="top-bar__add" aria-label="新建日程" onClick={onCreateEvent}>
+        <button type="button" className="top-bar__add" aria-label={t('topBar.newEvent')} onClick={onCreateEvent}>
           <PlusIcon />
         </button>
 
         {temporal ? (
           <div className="top-bar__nav">
-            <button type="button" aria-label="上一个" onClick={() => step(-1)}>
+            <button type="button" aria-label={t('topBar.previous')} onClick={() => step(-1)}>
               <ChevronLeftIcon />
             </button>
             <button type="button" className="top-bar__today" onClick={() => onCursorChange(today)}>
-              今天
+              {t('topBar.today')}
             </button>
-            <button type="button" aria-label="下一个" onClick={() => step(1)}>
+            <button type="button" aria-label={t('topBar.next')} onClick={() => step(1)}>
               <ChevronRightIcon />
             </button>
           </div>

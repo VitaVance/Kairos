@@ -1,0 +1,83 @@
+{
+  "sidebar": {
+    "nav": "Lists navigation",
+    "quickFilters": "Quick filters",
+    "today": "Today",
+    "recent": "Last 7 days",
+    "all": "All",
+    "heading": "Lists",
+    "newList": "New list",
+    "missingPort": "Write access isn't connected, so lists can't be changed right now",
+    "noLists": "No lists yet",
+    "taskCount_one": "{{count}} task",
+    "taskCount_other": "{{count}} tasks",
+    "listActions": "List actions: {{name}}",
+    "menuLabel": "{{name}} actions",
+    "untitledList": "this list",
+    "colorGroup": "Change the color of “{{name}}”",
+    "colorSwatch": "Color {{index}}",
+    "deletionOpenOnly_one": "“{{name}}” still has {{count}} open task. Tasks aren't deleted with the list — handle it first (you can drag it to another list), then delete the list.",
+    "deletionOpenOnly_other": "“{{name}}” still has {{count}} open tasks. Tasks aren't deleted with the list — handle them first (you can drag them to another list), then delete the list.",
+    "deletionDoneOnly_one": "“{{name}}” still has {{count}} completed task. Tasks aren't deleted with the list — handle it first, then delete the list.",
+    "deletionDoneOnly_other": "“{{name}}” still has {{count}} completed tasks. Tasks aren't deleted with the list — handle them first, then delete the list.",
+    "deletionMixed_one": "“{{name}}” still has {{count}} task ({{open}} open). Tasks aren't deleted with the list — handle it first (you can drag it to another list), then delete the list.",
+    "deletionMixed_other": "“{{name}}” still has {{count}} tasks ({{open}} open). Tasks aren't deleted with the list — handle them first (you can drag them to another list), then delete the list."
+  },
+  "menu": {
+    "rename": "Rename",
+    "recolor": "Change color",
+    "delete": "Delete"
+  },
+  "deleteConfirm": {
+    "dialogLabel": "Delete list {{name}}",
+    "question": "Delete “{{name}}”?",
+    "blocked_one": "“{{name}}” still has {{count}} task ({{open}} open). Tasks aren't deleted with the list — handle them first, then delete the list.",
+    "blocked_other": "“{{name}}” still has {{count}} tasks ({{open}} open). Tasks aren't deleted with the list — handle them first, then delete the list.",
+    "confirm": "Delete list",
+    "blockedHint": "This list still has tasks"
+  },
+  "editor": {
+    "groupCreate": "New list",
+    "groupRename": "Edit list",
+    "placeholderCreate": "List name",
+    "placeholderRename": "New list name",
+    "labelCreate": "New list name",
+    "labelRename": "List name",
+    "colorGroup": "List color",
+    "create": "Create"
+  },
+  "undo": {
+    "createList": "Created list “{{name}}”",
+    "renameList": "Renamed “{{name}}”",
+    "recolorList": "Changed the list color",
+    "deleteList": "Deleted list “{{name}}”",
+    "moveTask": "Moved “{{task}}” to “{{list}}”"
+  },
+  "quadrant": {
+    "names": {
+      "urgentImportant": "Urgent & important",
+      "notUrgentImportant": "Important, not urgent",
+      "urgentNotImportant": "Urgent, not important",
+      "unimportant": "Neither"
+    },
+    "loading": "Loading…",
+    "loadErrorTitle": "Couldn't load tasks",
+    "loadErrorHint": "Please try again later",
+    "loadFailed": "Couldn't load tasks: {{detail}}",
+    "noList": "No list is available, so a task can't be created",
+    "addFailed": "Couldn't add the task. Please try again.",
+    "addPlaceholder": "Add a task, then press Enter",
+    "addLabel": "Add a task to “{{quadrant}}”",
+    "moveFailed": "Couldn't move the task. Please try again.",
+    "moved": "Moved to “{{quadrant}}”",
+    "untitledTask": "Task",
+    "completed": "Completed",
+    "inbox": "Inbox"
+  },
+  "row": {
+    "dragAria": "Drag “{{title}}” to another quadrant",
+    "dragHint": "Drag to another quadrant, or focus and use the arrow keys",
+    "markDone": "Mark “{{title}}” as done",
+    "markOpen": "Mark “{{title}}” as not done"
+  }
+}

@@ -1095,14 +1095,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Legend: the scale, spelled out. It reads as a definition list of five
-   samples rather than a decorative "少…多" gradient, so the dot counts mean
-   something the first time someone looks at them. */
+/* Legend: the ramp, spelled out. Five filled swatches, each labelled with the
+   entry count it stands for, so the colour has a meaning the first time
+   someone looks at it. Swatches draw from the same --tl-heat-* tokens as the
+   cells — one colour vocabulary, never a second. */
 .yrv__legend {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--tl-space-3);
+  gap: var(--tl-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -1114,9 +1115,27 @@
   gap: 4px;
 }
 
-.yrv__legend-dots {
-  display: inline-flex;
-  gap: 2px;
+.yrv__legend-swatch {
+  inline-size: 10px;
+  block-size: 10px;
+  border-radius: 2px;
+  box-shadow: inset 0 0 0 1px var(--tl-border-soft);
+}
+
+.yrv__legend-swatch--h0 {
+  background: var(--tl-heat-0);
+}
+.yrv__legend-swatch--h1 {
+  background: var(--tl-heat-1);
+}
+.yrv__legend-swatch--h2 {
+  background: var(--tl-heat-2);
+}
+.yrv__legend-swatch--h3 {
+  background: var(--tl-heat-3);
+}
+.yrv__legend-swatch--h4 {
+  background: var(--tl-heat-4);
 }
 
 .yrv__legend-label {
@@ -1280,27 +1299,62 @@
 }
 
 /* Out-of-month days recede rather than disappear outright: the numerals stay
-   faintly present as a rhythm cue, at disabled ink. */
+   faintly present as a rhythm cue, at disabled ink. Padding cells never carry
+   a heat fill (YearView only classifies in-month days), so the recessed look
+   survives regardless of what the neighbouring month has on that date. */
 .yrv__cell--out .yrv__daynum {
   color: var(--tl-text-disabled);
   font-weight: var(--tl-font-weight-regular);
 }
 
+/* Whole-cell heat fill. Step 0 is deliberately *not* painted with --tl-heat-0
+   on the cell itself: an empty day must read as the card surface, whereas a
+   quiet-but-nonzero day already has the step-1 tint. Painting step 0 with a
+   surface tint would make "empty" look like "a little busy". The legend's
+   step-0 swatch still shows --tl-heat-0 so the scale is complete. */
+.yrv__cell--h1 {
+  background: var(--tl-heat-1);
+}
+.yrv__cell--h2 {
+  background: var(--tl-heat-2);
+}
+.yrv__cell--h3 {
+  background: var(--tl-heat-3);
+}
+.yrv__cell--h4 {
+  background: var(--tl-heat-4);
+}
+
+/* Ink on a tinted tile. Full ink from step 1 up, not secondary ink: even the
+   lightest 15% tint drops secondary text below the 4.5:1 floor at this 10–11px
+   size, and the ramp must not trade legibility for a colour. Weight carries
+   the extra distinction: medium at steps 1–2, semibold at 3–4. (The top step
+   is capped at 60% accent in tokens.css so this ink still clears 4.5:1.) */
+.yrv__cell--h1 .yrv__daynum,
+.yrv__cell--h2 .yrv__daynum {
+  color: var(--tl-text);
+  font-weight: var(--tl-font-weight-medium);
+}
+.yrv__cell--h3 .yrv__daynum,
+.yrv__cell--h4 .yrv__daynum {
+  color: var(--tl-text);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+/* Today keeps its solid accent fill so it stays distinguishable from a
+   maximally busy (step 4) day: step 4 is a 60% tint, today is the full accent.
+   The heat step still shows through the *numeral treatment* — semibold + the
+   inset ring — but today's own contrast ink wins over per-step ink. This
+   selector outranks `.yrv__cell--hN .yrv__daynum` by specificity (3 classes),
+   so today's ink and weight hold regardless of the day's step. */
 .yrv__cell--today {
   background: var(--tl-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent-contrast) 35%, transparent);
 }
 
 .yrv__cell--today .yrv__daynum {
   color: var(--tl-accent-contrast);
   font-weight: var(--tl-font-weight-semibold);
-}
-
-.yrv__cell--today .yrv__dot {
-  background: color-mix(in oklab, var(--tl-accent-contrast) 55%, transparent);
-}
-
-.yrv__cell--today .yrv__dot--on {
-  background: var(--tl-accent-contrast);
 }
 
 .yrv__daynum {
@@ -1319,24 +1373,6 @@
   line-height: 1;
   color: var(--tl-text-secondary);
   font-variant-numeric: tabular-nums;
-}
-
-.yrv__heat {
-  display: inline-flex;
-  gap: 1px;
-  block-size: 4px;
-}
-
-.yrv__dot {
-  display: block;
-  inline-size: 3px;
-  block-size: 3px;
-  border-radius: var(--tl-radius-full);
-  background: var(--tl-border-strong);
-}
-
-.yrv__dot--on {
-  background: var(--tl-accent);
 }
 
 /* At four columns the cards are ~270–390px wide, so the mini calendar earns a

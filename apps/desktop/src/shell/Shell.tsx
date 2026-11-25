@@ -20,6 +20,9 @@ import {
   ViewSwitcher,
   WeekView,
   YearView,
+  formatMonthDay,
+  formatMonthName,
+  formatMonthYear,
   useAppServices,
   useBumpRevision,
   useLists,
@@ -38,12 +41,14 @@ import type {
   ViewKind,
 } from '@todolist/features';
 import type { ImportService } from '@todolist/core';
+import { i18n, useTranslation } from '@todolist/ui';
 import { SideRail } from './SideRail';
 import { UpdatePanel } from './UpdatePanel';
 import { TopBar } from './TopBar';
 import { ErrorBoundary, useGlobalErrorHandler } from './ErrorBoundary';
 import type { GlobalErrorEvent } from './ErrorBoundary';
 import { ThemeToggle } from './ThemeToggle';
+import { LanguageToggle } from './LanguageToggle';
 import { useReminders } from './useReminders';
 import { createListsApi } from '../composition';
 
@@ -51,6 +56,8 @@ export interface ShellProps {
   today?: LocalDate;
   /** Restores a backup file; supplied by the composition root. */
   onImport?: ImportService;
+  /** Deletes every task, list and event; supplied by the composition root. */
+  onResetData?: (() => Promise<void>) | null;
   /** Native OS toast channel; omitted means banner-only (tests, browsers). */
   notifier?: Notifier;
   /** Update check; omitted in browser dev. */
@@ -70,6 +77,7 @@ export interface ShellProps {
 export function Shell({
   today = todayLocal(),
   onImport,
+  onResetData,
   notifier,
   updateChecker,
   updateEndpoint = '',
@@ -80,6 +88,7 @@ export function Shell({
         <ShellBody
           today={today}
           onImport={onImport}
+          onResetData={onResetData}
           notifier={notifier}
           updateChecker={updateChecker}
           updateEndpoint={updateEndpoint}
@@ -99,19 +108,23 @@ function asyncErrorHandler(notify: (message: string) => void) {
   return (event: GlobalErrorEvent): void => {
     const detail = event.error instanceof Error ? event.error.message : String(event.error ?? '未知错误');
     console.error(`[shell] 未捕获的异步错误 (${event.source})`, event.error);
-    notify(`操作失败：${detail}`);
+    // `i18n.getFixedT` rather than the hook: this handler is created outside
+    // React's render tree and must read the language current at failure time.
+    notify(i18n.getFixedT(null, 'errors')('async.failed', { detail }));
   };
 }
 
 function ShellBody({
   today,
   onImport,
+  onResetData,
   notifier,
   updateChecker,
   updateEndpoint,
 }: {
   today: LocalDate;
   onImport?: ImportService;
+  onResetData?: (() => Promise<void>) | null;
   notifier?: Notifier;
   updateChecker?: UpdateChecker | null;
   updateEndpoint: string;
@@ -141,6 +154,7 @@ function ShellBody({
   const [daysShown, setDaysShown] = useState<3 | 5 | 7>(3);
 
   const services = useAppServices();
+  const { t } = useTranslation('shell');
   const lists = useLists();
   const bump = useBumpRevision();
   const { undo, redo } = useUndo();
@@ -174,7 +188,7 @@ function ShellBody({
         .then(bump)
         .catch((error: unknown) => {
           console.error('删除任务失败', error);
-          toast('删除任务失败，请重试');
+          toast(i18n.getFixedT(null, 'errors')('task.deleteFailed'));
         });
     },
     [bump, services, toast],
@@ -187,17 +201,27 @@ function ShellBody({
 
   const title = useMemo(() => {
     if (view === 'quadrant') {
-      if (filter.kind === 'today') return '今天';
-      if (filter.kind === 'recent') return '最近7天';
+      if (filter.kind === 'today') return t('filter.today');
+      if (filter.kind === 'recent') return t('filter.recent');
       if (filter.kind === 'list') {
-        return lists.find((l) => l.id === filter.listId)?.name ?? '清单';
+        return lists.find((l) => l.id === filter.listId)?.name ?? t('filter.list');
       }
-      return '四象限';
+      return t('filter.quadrant');
     }
 
     const thisYear = new Date().getFullYear();
     const yearSuffix = (y: string) => (y === String(thisYear) ? '' : ` ${y}`);
     const [y] = cursor.split('-');
+    /**
+     * Titles are built through `Intl` rather than by slicing the ISO string.
+     * `11月25日 – 11月27日` was assembled from `cursor.slice(5, 7)` etc., which
+     * only ever reads correctly in Chinese; in English the same expression
+     * produced a string no `Intl` formatter would have produced, and the year
+     * suffix logic assumed a space-delimited date.
+     */
+    const monthName = (date: string) => formatMonthName(Number(date.slice(5, 7)));
+    const monthYear = (date: string) => formatMonthYear(Number(date.slice(0, 4)), Number(date.slice(5, 7)));
+    const monthDay = (date: string) => formatMonthDay(date);
 
     if (view === 'year') return y ?? cursor.slice(0, 4);
 
@@ -209,8 +233,8 @@ function ShellBody({
       const last = addDays(first, weeksShown * 7 - 1);
       const a = first.slice(0, 7);
       const b = last.slice(0, 7);
-      if (a === b) return `${Number(first.slice(5, 7))}月${yearSuffix(first.slice(0, 4))}`;
-      return `${Number(a.slice(5, 7))}月 – ${Number(b.slice(5, 7))}月${yearSuffix(b.slice(0, 4))}`;
+      if (a === b) return `${monthYear(first)}${yearSuffix(first.slice(0, 4))}`;
+      return `${monthName(first)} – ${monthYear(last)}${yearSuffix(last.slice(0, 4))}`;
     }
 
     if (view === 'multi-day') {
@@ -218,10 +242,8 @@ function ShellBody({
       const last = addDays(cursor, daysShown - 1);
       const a = first.slice(0, 7);
       const b = last.slice(0, 7);
-      if (a !== b) {
-        return `${Number(a.slice(5, 7))}月${Number(first.slice(8))}日 – ${Number(b.slice(5, 7))}月${Number(last.slice(8))}日`;
-      }
-      return `${Number(a.slice(5, 7))}月${Number(first.slice(8))}日 – ${Number(last.slice(8))}日`;
+      if (a !== b) return `${monthDay(first)} – ${monthDay(last)}`;
+      return `${monthName(first)} ${Number(first.slice(8))} – ${Number(last.slice(8))}`;
     }
 
     // Week and agenda are both Monday-first 7-day spans. Name the actual day
@@ -232,22 +254,17 @@ function ShellBody({
       const last = addDays(first, 6);
       const a = first.slice(0, 7);
       const b = last.slice(0, 7);
-      const sameMonth = a === b;
-      const d1 = Number(first.slice(8));
-      const d2 = Number(last.slice(8));
-      if (sameMonth) {
-        return `${Number(first.slice(5, 7))}月${d1}日 – ${d2}日${yearSuffix(first.slice(0, 4))}`;
-      }
-      return `${Number(a.slice(5, 7))}月${d1}日 – ${Number(b.slice(5, 7))}月${d2}日${yearSuffix(b.slice(0, 4))}`;
+      if (a === b) return `${monthName(first)} ${Number(first.slice(8))} – ${Number(last.slice(8))}${yearSuffix(first.slice(0, 4))}`;
+      return `${monthDay(first)} – ${monthDay(last)}${yearSuffix(last.slice(0, 4))}`;
     }
 
     // Day view shows exactly one date; name that date, not merely its month.
     if (view === 'day') {
-      return `${Number(cursor.slice(5, 7))}月${Number(cursor.slice(8))}日${yearSuffix(cursor.slice(0, 4))}`;
+      return `${monthDay(cursor)}${yearSuffix(cursor.slice(0, 4))}`;
     }
 
-    return `${Number(cursor.slice(5, 7))}月${yearSuffix(y ?? cursor.slice(0, 4))}`;
-  }, [view, cursor, filter, lists, weeksShown, daysShown]);
+    return `${monthYear(cursor)}${yearSuffix(y ?? cursor.slice(0, 4))}`;
+  }, [view, cursor, filter, lists, weeksShown, daysShown, t]);
 
   const onSelectView = useCallback((next: ViewKind) => {
     setView(next);
@@ -349,7 +366,12 @@ function ShellBody({
           onCreateEvent={() => openCreateEvent(cursor)}
           weeksShown={weeksShown}
           daysShown={daysShown}
-          actions={<ThemeToggle />}
+          actions={
+            <div className="top-bar__prefs">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
+          }
         />
 
         {/*
@@ -479,7 +501,7 @@ function ShellBody({
           value={view}
           onChange={onSelectView}
           variant="pill"
-          cta={{ label: '新建日程', onClick: () => openCreateEvent(cursor) }}
+          cta={{ label: t('topBar.newEvent'), onClick: () => openCreateEvent(cursor) }}
         />
       </div>
 
@@ -523,6 +545,14 @@ function ShellBody({
           onImport
             ? async (data: BackupData, mode: MergeMode) => {
                 await onImport.apply({ tasks: data.tasks, lists: data.lists, events: data.events }, mode);
+                bump();
+              }
+            : null
+        }
+        onReset={
+          onResetData
+            ? async () => {
+                await onResetData();
                 bump();
               }
             : null

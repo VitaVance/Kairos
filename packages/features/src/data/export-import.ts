@@ -12,6 +12,16 @@ import type {
   TaskStatus,
 } from '@todolist/core';
 import { isValidRecurrence } from '@todolist/core';
+import { i18n } from '@todolist/ui';
+
+/**
+ * User-facing validation text. This module is pure (no React), so it reads the
+ * shared i18next instance directly instead of taking a hook. The catalog
+ * namespace is `misc`; the English catalog is the key source of truth.
+ */
+function t() {
+  return i18n.getFixedT(null, 'misc');
+}
 
 /**
  * Export / import — pure data transformation, no IO, no React, no DOM.
@@ -245,7 +255,7 @@ function isLocalDateValue(value: unknown): value is string {
 
 function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
   if (!isRecord(raw)) {
-    errors.push(`${at}: 必须是对象`);
+    errors.push(t()('data.errors.mustBeObject', { path: at }));
     return null;
   }
 
@@ -254,12 +264,12 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
   const text = (key: string, allowEmpty = true): string => {
     const value = raw[key];
     if (typeof value !== 'string') {
-      errors.push(`${at}.${key}: 必须是字符串`);
+      errors.push(t()('data.errors.mustBeString', { path: `${at}.${key}` }));
       ok = false;
       return '';
     }
     if (!allowEmpty && value.length === 0) {
-      errors.push(`${at}.${key}: 不能为空`);
+      errors.push(t()('data.errors.mustNotBeEmpty', { path: `${at}.${key}` }));
       ok = false;
     }
     return value;
@@ -268,7 +278,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
   const bool = (key: string): boolean => {
     const value = raw[key];
     if (typeof value !== 'boolean') {
-      errors.push(`${at}.${key}: 必须是布尔值`);
+      errors.push(t()('data.errors.mustBeBoolean', { path: `${at}.${key}` }));
       ok = false;
       return false;
     }
@@ -278,7 +288,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
   const instant = (key: string): Instant => {
     const value = raw[key];
     if (!isInstantValue(value)) {
-      errors.push(`${at}.${key}: 必须是 ISO-8601 时间字符串`);
+      errors.push(t()('data.errors.mustBeInstant', { path: `${at}.${key}` }));
       ok = false;
       return '' as Instant;
     }
@@ -289,7 +299,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
     const value = raw[key];
     if (value === null) return null;
     if (!isInstantValue(value)) {
-      errors.push(`${at}.${key}: 必须是 ISO-8601 时间字符串或 null`);
+      errors.push(t()('data.errors.mustBeInstantOrNull', { path: `${at}.${key}` }));
       ok = false;
       return null;
     }
@@ -300,7 +310,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
     const value = raw[key];
     if (value === null) return null;
     if (!isLocalDateValue(value)) {
-      errors.push(`${at}.${key}: 必须是 YYYY-MM-DD 日期字符串或 null`);
+      errors.push(t()('data.errors.mustBeLocalDateOrNull', { path: `${at}.${key}` }));
       ok = false;
       return null;
     }
@@ -316,7 +326,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
     const value = raw[key];
     if (value === undefined || value === null) return null;
     if (!isValidRecurrence(value)) {
-      errors.push(`${at}.${key}: 重复规则无效（需包含合法的 frequency / interval）`);
+      errors.push(t()('data.errors.invalidRecurrence', { path: `${at}.${key}` }));
       ok = false;
       return null;
     }
@@ -332,7 +342,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
     const value = raw[key];
     if (value === undefined || value === null) return null;
     if (value !== 'morning' && value !== 'afternoon' && value !== 'evening') {
-      errors.push(`${at}.${key}: 必须是 "morning"、"afternoon"、"evening" 或 null`);
+      errors.push(t()('data.errors.invalidPeriod', { path: `${at}.${key}` }));
       ok = false;
       return null;
     }
@@ -344,7 +354,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
   if (rawStatus === 'open' || rawStatus === 'done') {
     status = rawStatus;
   } else {
-    errors.push(`${at}.status: 必须是 "open" 或 "done"`);
+    errors.push(t()('data.errors.mustBeOpenOrDone', { path: `${at}.status` }));
     ok = false;
   }
 
@@ -371,7 +381,7 @@ function validateTask(raw: unknown, at: string, errors: string[]): Task | null {
 
 function validateList(raw: unknown, at: string, errors: string[]): TaskList | null {
   if (!isRecord(raw)) {
-    errors.push(`${at}: 必须是对象`);
+    errors.push(t()('data.errors.mustBeObject', { path: at }));
     return null;
   }
 
@@ -380,12 +390,12 @@ function validateList(raw: unknown, at: string, errors: string[]): TaskList | nu
   const text = (key: string, allowEmpty = true): string => {
     const value = raw[key];
     if (typeof value !== 'string') {
-      errors.push(`${at}.${key}: 必须是字符串`);
+      errors.push(t()('data.errors.mustBeString', { path: `${at}.${key}` }));
       ok = false;
       return '';
     }
     if (!allowEmpty && value.length === 0) {
-      errors.push(`${at}.${key}: 不能为空`);
+      errors.push(t()('data.errors.mustNotBeEmpty', { path: `${at}.${key}` }));
       ok = false;
     }
     return value;
@@ -394,7 +404,7 @@ function validateList(raw: unknown, at: string, errors: string[]): TaskList | nu
   const instant = (key: string): Instant => {
     const value = raw[key];
     if (!isInstantValue(value)) {
-      errors.push(`${at}.${key}: 必须是 ISO-8601 时间字符串`);
+      errors.push(t()('data.errors.mustBeInstant', { path: `${at}.${key}` }));
       ok = false;
       return '' as Instant;
     }
@@ -404,7 +414,7 @@ function validateList(raw: unknown, at: string, errors: string[]): TaskList | nu
   let order = 0;
   const rawOrder = raw['order'];
   if (typeof rawOrder !== 'number' || !Number.isFinite(rawOrder)) {
-    errors.push(`${at}.order: 必须是数字`);
+    errors.push(t()('data.errors.mustBeNumber', { path: `${at}.order` }));
     ok = false;
   } else {
     order = rawOrder;
@@ -413,7 +423,7 @@ function validateList(raw: unknown, at: string, errors: string[]): TaskList | nu
   let archived = false;
   const rawArchived = raw['archived'];
   if (typeof rawArchived !== 'boolean') {
-    errors.push(`${at}.archived: 必须是布尔值`);
+    errors.push(t()('data.errors.mustBeBoolean', { path: `${at}.archived` }));
     ok = false;
   } else {
     archived = rawArchived;
@@ -434,7 +444,7 @@ function validateList(raw: unknown, at: string, errors: string[]): TaskList | nu
 
 function validateEvent(raw: unknown, at: string, errors: string[]): CalendarEvent | null {
   if (!isRecord(raw)) {
-    errors.push(`${at}: 必须是对象`);
+    errors.push(t()('data.errors.mustBeObject', { path: at }));
     return null;
   }
 
@@ -443,12 +453,12 @@ function validateEvent(raw: unknown, at: string, errors: string[]): CalendarEven
   const text = (key: string, allowEmpty = true): string => {
     const value = raw[key];
     if (typeof value !== 'string') {
-      errors.push(`${at}.${key}: 必须是字符串`);
+      errors.push(t()('data.errors.mustBeString', { path: `${at}.${key}` }));
       ok = false;
       return '';
     }
     if (!allowEmpty && value.length === 0) {
-      errors.push(`${at}.${key}: 不能为空`);
+      errors.push(t()('data.errors.mustNotBeEmpty', { path: `${at}.${key}` }));
       ok = false;
     }
     return value;
@@ -457,7 +467,7 @@ function validateEvent(raw: unknown, at: string, errors: string[]): CalendarEven
   const instant = (key: string): Instant => {
     const value = raw[key];
     if (!isInstantValue(value)) {
-      errors.push(`${at}.${key}: 必须是 ISO-8601 时间字符串`);
+      errors.push(t()('data.errors.mustBeInstant', { path: `${at}.${key}` }));
       ok = false;
       return '' as Instant;
     }
@@ -468,7 +478,7 @@ function validateEvent(raw: unknown, at: string, errors: string[]): CalendarEven
     const value = raw[key];
     if (value === null) return null;
     if (typeof value !== 'string' || value.length === 0) {
-      errors.push(`${at}.${key}: 必须是非空字符串或 null`);
+      errors.push(t()('data.errors.mustBeNonEmptyStringOrNull', { path: `${at}.${key}` }));
       ok = false;
       return null;
     }
@@ -478,7 +488,7 @@ function validateEvent(raw: unknown, at: string, errors: string[]): CalendarEven
   let allDay = false;
   const rawAllDay = raw['allDay'];
   if (typeof rawAllDay !== 'boolean') {
-    errors.push(`${at}.allDay: 必须是布尔值`);
+    errors.push(t()('data.errors.mustBeBoolean', { path: `${at}.allDay` }));
     ok = false;
   } else {
     allDay = rawAllDay;
@@ -506,7 +516,7 @@ function parseCollection<T>(
   errors: string[],
 ): T[] {
   if (!Array.isArray(value)) {
-    errors.push(`${name}: 必须是数组`);
+    errors.push(t()('data.errors.mustBeArray', { path: name }));
     return [];
   }
   const out: T[] = [];
@@ -527,33 +537,33 @@ export function parseImport(json: string): ImportResult {
     raw = JSON.parse(json);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, errors: [`JSON 解析失败：${message}`] };
+    return { ok: false, errors: [t()('data.errors.jsonParse', { detail: message })] };
   }
 
   try {
     if (!isRecord(raw)) {
-      return { ok: false, errors: ['根节点必须是对象'] };
+      return { ok: false, errors: [t()('data.errors.rootMustBeObject')] };
     }
 
     const errors: string[] = [];
 
     if (raw['format'] !== BACKUP_FORMAT) {
-      errors.push(`format: 必须是 "${BACKUP_FORMAT}"`);
+      errors.push(t()('data.errors.formatMustBe', { format: BACKUP_FORMAT }));
     }
 
     const version = raw['version'];
     if (typeof version !== 'number' || !Number.isInteger(version)) {
-      errors.push('version: 必须是整数');
+      errors.push(t()('data.errors.versionMustBeInteger'));
     } else if (version > BACKUP_VERSION) {
       errors.push(
-        `version: 不支持的备份版本 ${version}（当前支持 ${BACKUP_VERSION}），请升级应用后再导入`,
+        t()('data.errors.versionUnsupported', { version, current: BACKUP_VERSION }),
       );
     } else if (version < 1) {
-      errors.push(`version: 无效的备份版本 ${version}`);
+      errors.push(t()('data.errors.versionInvalid', { version }));
     }
 
     if (!isInstantValue(raw['exportedAt'])) {
-      errors.push('exportedAt: 必须是 ISO-8601 时间字符串');
+      errors.push(t()('data.errors.exportedAtInvalid'));
     }
 
     let tasks: Task[] = [];
@@ -562,7 +572,7 @@ export function parseImport(json: string): ImportResult {
 
     const data = raw['data'];
     if (!isRecord(data)) {
-      errors.push('data: 必须是包含 tasks/lists/events 的对象');
+      errors.push(t()('data.errors.dataMustBeObject'));
     } else {
       tasks = parseCollection(data['tasks'], 'tasks', validateTask, errors);
       lists = parseCollection(data['lists'], 'lists', validateList, errors);
@@ -574,7 +584,7 @@ export function parseImport(json: string): ImportResult {
     return { ok: true, data: { tasks, lists, events } };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, errors: [`导入失败：${message}`] };
+    return { ok: false, errors: [t()('data.errors.importFailed', { detail: message })] };
   }
 }
 

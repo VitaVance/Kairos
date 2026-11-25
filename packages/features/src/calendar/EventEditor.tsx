@@ -9,7 +9,7 @@ import type {
   NewEvent,
 } from '@todolist/core';
 import { addDays, todayLocal } from '@todolist/core';
-import { Button, Checkbox, TextField } from '@todolist/ui';
+import { Button, Checkbox, TextField, useTranslation } from '@todolist/ui';
 import { useAppServices, useLists } from '../services';
 import { DatePicker } from '../pickers/DatePicker';
 import { TimePicker } from '../pickers/TimePicker';
@@ -128,6 +128,10 @@ export function EventEditor({
   onClose,
 }: EventEditorProps) {
   const { events: eventsService } = useAppServices();
+  const { t } = useTranslation('calendar');
+  // Shared buttons live in `common`; a namespace-scoped `t` cannot reach them
+  // through a `common:` prefix (that form is untyped), so bind it separately.
+  const { t: tCommon } = useTranslation('common');
   // Live lists: a list created after launch must be selectable here.
   const lists = useLists();
   const events: EventService | null = (eventsService as EventService | null | undefined) ?? null;
@@ -241,12 +245,14 @@ export function EventEditor({
     if (!dialog) return;
     if (open) {
       if (!dialog.open) dialog.showModal();
-      const focusTarget = dialog.querySelector<HTMLInputElement>('input[aria-label="标题"]');
+      const focusTarget = dialog.querySelector<HTMLInputElement>(
+        `input[aria-label="${t('event.fields.title')}"]`,
+      );
       focusTarget?.focus();
     } else if (dialog.open) {
       dialog.close();
     }
-  }, [open]);
+  }, [open, t]);
 
   const effectiveStart = allDay ? '00:00' : startTime;
   const effectiveEnd = allDay ? '00:00' : endTime;
@@ -255,7 +261,7 @@ export function EventEditor({
   const incomplete = startInstant === null || endInstant === null;
   const rangeInvalid =
     startInstant !== null && endInstant !== null && Date.parse(endInstant) <= Date.parse(startInstant);
-  const rangeError = rangeInvalid ? '结束时间必须晚于开始时间' : null;
+  const rangeError = rangeInvalid ? t('event.rangeError') : null;
   const saveDisabled = events === null || busy || !canEditEntry || incomplete || rangeInvalid;
 
   function toggleAllDay(next: boolean) {
@@ -272,15 +278,15 @@ export function EventEditor({
     if (events === null) return;
     const trimmed = title.trim();
     if (trimmed.length === 0) {
-      setError('请填写日程标题');
+      setError(t('event.titleRequired'));
       return;
     }
     if (startInstant === null || endInstant === null) {
-      setError('请填写完整的开始和结束日期时间');
+      setError(t('event.incomplete'));
       return;
     }
     if (Date.parse(endInstant) <= Date.parse(startInstant)) {
-      setError('结束时间必须晚于开始时间');
+      setError(t('event.rangeError'));
       return;
     }
 
@@ -354,30 +360,30 @@ export function EventEditor({
       <div className="cal-form">
         <div className="cal-form__head">
           <h2 className="cal-form__title" id={headingId}>
-            {isEditing ? '编辑日程' : '新建日程'}
+            {isEditing ? t('event.editTitle') : t('event.newTitle')}
           </h2>
-          <span className="cal-form__hint">Esc 关闭</span>
+          <span className="cal-form__hint">{t('event.escToClose')}</span>
         </div>
 
         {events === null ? (
           <p className="cal-note" role="status">
-            日程编辑需要接入写入端口
+            {t('event.noWriteService')}
           </p>
         ) : null}
 
         {!canEditEntry ? (
           <p className="cal-note" role="status">
-            任务类日程需在任务详情中修改
+            {t('event.taskEntryReadonly')}
           </p>
         ) : null}
 
         <div className="cal-field">
-          <span className="cal-field__label">标题</span>
+          <span className="cal-field__label">{t('event.fields.title')}</span>
           <TextField
             value={title}
             onChange={setTitle}
-            placeholder="日程标题"
-            label="标题"
+            placeholder={t('event.titlePlaceholder')}
+            label={t('event.fields.title')}
             disabled={events === null || !canEditEntry || busy}
             autoComplete="off"
           />
@@ -388,49 +394,51 @@ export function EventEditor({
             checked={allDay}
             disabled={events === null || !canEditEntry || busy}
             onChange={toggleAllDay}
-            aria-label="全天"
+            aria-label={t('event.allDay')}
           />
-          全天
+          {t('event.allDay')}
         </label>
 
         <div className="cal-field">
-          <span className="cal-field__label">开始</span>
+          <span className="cal-field__label">{t('event.fields.start')}</span>
           <div className="cal-field__row">
             <DatePicker
               value={startDate}
               onChange={setStartDate}
               disabled={events === null || !canEditEntry || busy}
-              label="开始日期"
+              label={t('event.fields.startDate')}
             />
             <TimePicker
               value={startTime}
               onChange={setStartTime}
               disabled={events === null || !canEditEntry || allDay || busy}
-              label="开始时间"
+              label={t('event.fields.startTime')}
             />
           </div>
         </div>
 
         <div className="cal-field">
-          <span className="cal-field__label">{allDay ? '结束日期（不包含）' : '结束'}</span>
+          <span className="cal-field__label">
+            {allDay ? t('event.fields.endDateExclusive') : t('event.fields.end')}
+          </span>
           <div className="cal-field__row">
             <DatePicker
               value={endDate}
               onChange={setEndDate}
               disabled={events === null || !canEditEntry || busy}
-              label="结束日期"
+              label={t('event.fields.endDate')}
             />
             <TimePicker
               value={endTime}
               onChange={setEndTime}
               disabled={events === null || !canEditEntry || allDay || busy}
-              label="结束时间"
+              label={t('event.fields.endTime')}
             />
           </div>
         </div>
 
         <label className="cal-field">
-          <span className="cal-field__label">清单</span>
+          <span className="cal-field__label">{t('event.fields.list')}</span>
           {/*
             Native <select> kept for semantics and keyboard support; a branded
             surface is layered on with `appearance: base-select` + `::picker(select)`
@@ -439,12 +447,12 @@ export function EventEditor({
           */}
           <select
             className="cal-input cal-select tl-select"
-            aria-label="清单"
+            aria-label={t('event.fields.list')}
             value={listId}
             disabled={events === null || !canEditEntry || isEditing || busy}
             onChange={(e) => setListId(e.target.value)}
           >
-            <option value="">无清单</option>
+            <option value="">{t('event.noList')}</option>
             {lists.map((list) => (
               <option key={list.id} value={list.id}>
                 {list.name}
@@ -454,12 +462,12 @@ export function EventEditor({
         </label>
 
         <label className="cal-field">
-          <span className="cal-field__label">备注</span>
+          <span className="cal-field__label">{t('event.fields.notes')}</span>
           <textarea
             className="cal-input cal-input--area"
-            aria-label="备注"
+            aria-label={t('event.fields.notes')}
             value={notes}
-            placeholder="备注（可选）"
+            placeholder={t('event.notesPlaceholder')}
             disabled={events === null || !canEditEntry || isEditing || busy}
             onChange={(e) => setNotes(e.target.value)}
           />
@@ -473,7 +481,7 @@ export function EventEditor({
 
         {touchedSubmit && incomplete ? (
           <p className="cal-error" role="alert">
-            请填写完整的开始和结束日期时间
+            {t('event.incomplete')}
           </p>
         ) : null}
 
@@ -487,25 +495,29 @@ export function EventEditor({
           <div
             className="cal-confirm"
             role="alertdialog"
-            aria-label={confirm === 'delete' ? '确认删除日程' : '放弃未保存的修改'}
+            aria-label={
+              confirm === 'delete'
+                ? t('event.confirmDeleteLabel')
+                : t('event.confirmDiscardLabel')
+            }
             aria-live="assertive"
           >
             <p className="cal-confirm__msg">
               {confirm === 'delete'
-                ? '删除后无法恢复，确定要删除这个日程吗？'
-                : '有未保存的修改，确定要放弃吗？'}
+                ? t('event.confirmDeleteMessage')
+                : t('event.confirmDiscardMessage')}
             </p>
             <div className="cal-confirm__actions">
               <Button variant="ghost" size="sm" onClick={() => setConfirm(null)} disabled={busy}>
-                返回
+                {t('event.back')}
               </Button>
               {confirm === 'delete' ? (
                 <Button variant="danger" size="sm" onClick={() => void remove()} disabled={busy}>
-                  删除
+                  {tCommon('buttons.delete')}
                 </Button>
               ) : (
                 <Button variant="danger" size="sm" onClick={onClose} disabled={busy}>
-                  放弃
+                  {t('event.discard')}
                 </Button>
               )}
             </div>
@@ -519,14 +531,14 @@ export function EventEditor({
                 onClick={() => setConfirm('delete')}
                 disabled={busy}
               >
-                删除
+                {tCommon('buttons.delete')}
               </Button>
             ) : null}
             <Button variant="ghost" onClick={requestClose} disabled={busy}>
-              取消
+              {tCommon('buttons.cancel')}
             </Button>
             <Button variant="primary" onClick={() => void save()} disabled={saveDisabled}>
-              {busy ? '保存中…' : '保存'}
+              {busy ? t('event.saving') : tCommon('buttons.save')}
             </Button>
           </div>
         )}

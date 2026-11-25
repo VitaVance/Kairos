@@ -1,0 +1,20 @@
+{
+  "buttons": {
+    "close": "Close",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "retry": "Retry",
+    "reload": "Reload"
+  },
+  "empty": {
+    "noTasks": "No tasks"
+  },
+  "a11y": {
+    "switch": "Switch",
+    "switchView": "Switch view"
+  },
+  "language": {
+    "label": "Language"
+  }
+}

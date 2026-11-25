@@ -1,177 +1,190 @@
 # Kairos
 
-**一个只属于你自己的待办清单与日历。**
+**A to-do list and calendar that belongs to you alone.**
 
-不注册、不登录、不联网、不同步。你写的每一条任务、每一个日程，都只保存在你自己电脑上的一个 SQLite 文件里。关掉网络，它照常工作。
+No sign-up. No sync. No telemetry. Every task and event lives in a single SQLite file on your own machine. Cut your network connection and it keeps working.
 
-> **Kairos**（希腊语 καιρός）——「关键时刻」。与按钟表计算的 *chronos* 相对。
-> 这个名字是态度：**不是每一件事都需要定到几点几分。**
+> **Kairos** (Greek καιρός) — the opportune moment, as opposed to *chronos*, the mere passage of time.
+> The name is a standpoint: **not every task needs a time of day.**
 
-Windows · 中文界面 · 免费开源（MIT）
+[![Latest release](https://img.shields.io/github/v/release/VitaVance/Kairos?label=download&style=flat-square)](https://github.com/VitaVance/Kairos/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
+[![Platform: Windows](https://img.shields.io/badge/platform-Windows-lightgrey?style=flat-square)](#download)
+
+English · [简体中文](README.zh-CN.md)
 
 ---
 
-## 为什么是它
+## Why it exists
 
-大多数待办应用假设你活在别人的日程表里：共享、协作、跨设备提醒、订阅日历。可如果你只是想知道「今天该干什么」，这些大多是负担。
+Most task managers assume you live inside someone else's schedule: shared calendars, cross-device reminders, an account you have to keep alive. If all you want is to know what to do today, those are overhead.
 
-Kairos 的取舍很明确：
+Kairos is built on a narrower bet:
 
-| | 大多数待办应用 | Kairos |
+| | Most to-do apps | Kairos |
 | --- | --- | --- |
-| 数据在哪 | 我的服务器 | **只在你的电脑上** |
-| 需要账号吗 | 需要 | **不需要** |
-| 断网能用吗 | 不能 | **完全能** |
-| 任务必须定时间吗 | 是的 | **不用，说「今天」就够了** |
-| 免费的代价 | 广告 / 样本数据 / 付费墙 | **没有代价，MIT 开源** |
+| Where your data lives | My servers | **Your computer** |
+| Do you need an account | Yes | **No** |
+| Works offline | No | **Entirely** |
+| Must a task have a time | Yes | **No — "today" is enough** |
+| What free costs you | Ads, analytics, upsells | **Nothing. MIT, source included.** |
 
 ---
 
-## 功能
+## Features
 
-### 四象限：先想清楚要不要做，再想什么时候做
+![Quadrant board](docs/screenshots/01-quadrant.png)
 
-任务只有两个属性——**重要**、**紧急**。四象限自动生成，不需要你手动归到某个格子里：
+### Quadrants: decide *whether* before *when*
+
+A task carries only two facts — **important** and **urgent**. The four quadrants are derived from those, so you never file anything into a box by hand:
 
 ```
 ┌─────────────────────┬─────────────────────┐
-│  重要 · 紧急        │  重要 · 不紧急      │
-│  立刻处理           │  安排时间           │
+│  Important · Urgent │ Important · Not now │
+│  Do it now          │ Schedule it         │
 ├─────────────────────┼─────────────────────┤
-│  紧急 · 不重要      │  不重要 · 不紧急    │
-│  委托或速办         │  可以不做           │
+│ Urgent · Unimportant│ Neither             │
+│ Delegate or do fast │ Let it go           │
 └─────────────────────┴─────────────────────┘
 ```
 
-拖动任何一张任务卡片到另一个象限，它的属性就跟着改了——不用打开详情、不用点两次菜单。
+Drag a card to another quadrant and its two flags follow — no detail panel, no two-step menu.
 
-### 任务不需要具体到几点
+### Not every task needs a time of day
 
-这是 Kairos 与别的待办应用最不一样的地方。
+This is where Kairos differs most from other task apps.
 
-写一件事的时候，你可以只说它属于**哪一天**，或者属于**哪半天**：
+When you write something down, you say how precisely it is scheduled — or that it isn't:
 
-- 「**今天**」：做完就行，不关心几点
-- 「**今天上午**」／「**下午**」／「**晚上**」：有个大致时段，但没有死线
-- 「**14:30**」：真有明确的时刻，比如会议、面试、航班
+- **Today** — get it done, the hour doesn't matter
+- **Morning / afternoon / evening** — roughly when, no deadline
+- **14:30** — a real moment: a meeting, an interview, a flight
 
-前三种会安静地躺在日历顶部的「全天」区域里，不会在你的时间网格上切出一块假的时间块。只有你明确指定了时刻的事件，才会占据具体的时段。
+The first three sit quietly in the calendar's all-day strip. They never carve a fake time block out of your grid. Only tasks you gave an exact moment occupy a slot.
 
-> 一个不肯承认「大多数任务没有确切时间」的日历，只会逼你编造时间。
+> A calendar that refuses to admit most tasks have no clock time is a calendar that makes you invent times you do not mean.
 
-### 六个视角看同一份数据
+![Task detail with the five-way precision control](docs/screenshots/04-task-detail.png)
 
-| 视图 | 什么时候用 |
+### Six ways to look at one body of data
+
+| Month | Week |
 | --- | --- |
-| **年** | 一眼看到全年哪天最忙，点任意月份直接进去 |
-| **月** | 常规规划。点日期进日视图，双击空白处直接建日程 |
-| **多周** | 看未来两三周的节奏；点周号进周视图 |
-| **周** | 一周的完整时间轴，可以按住拖拽选出时间块 |
-| **多日** | 3 / 5 / 7 天并排，适合排跨天的活 |
-| **日** | 单天聚焦，拖拽建日程精确到 15 分钟 |
+| ![Month grid](docs/screenshots/02-month.png) | ![Week time grid](docs/screenshots/03-week.png) |
+| **Year — density at a glance** | **Agenda** |
+| ![Year heatmap](docs/screenshots/05-year.png) | ![Agenda timeline](docs/screenshots/06-agenda.png) |
 
-六个视图互相可跳转：年 → 月 → 日，多周 → 周 → 日，全部双向可达。不会把你困在某一个层级里。
+| View | When you reach for it |
+| --- | --- |
+| **Year** | See which months were crowded at a glance; click any month to enter it |
+| **Month** | Routine planning. Click a date for the day; double-click empty space to create an event |
+| **Multi-week** | The rhythm of the next two or three weeks; click a week number to zoom in |
+| **Week** | The full week on a time axis; drag across the grid to select a time block |
+| **Multi-day** | 3 / 5 / 7 days side by side, for work that spans days |
+| **Day** | Single-day focus, with 15-minute precision when you drag |
 
-### 提醒是真的会响
+All six connect: year → month → day, multi-week → week → day, in both directions. You never get stuck at one zoom level.
 
-日程快开始时，会弹 **Windows 系统通知**，不是应用内的小红点。关掉窗口也没关系——应用会缩到系统托盘继续计时，到点照常提醒。
+### Reminders that actually arrive
 
-### 其余
+When an event is about to start you get a **Windows system notification**, not a badge inside the app. Close the window and it doesn't matter — the app lives in the system tray and keeps its clock running.
 
-- **快速捕获**：`明天 买菜`、`周报 @14:00` 这类简写直接解析
-- **重复任务**：每天 / 每周（可指定周几）/ 每月，完成后自动推进到下一次
-- **撤销**：误删、误改，`Ctrl+Z` 都能回来
-- **搜索**：`Ctrl+K` 全库检索任务和日程
-- **三套皮肤 × 浅色/深色**：清简 / 专注 / 纸墨，右上角随时切
-- **导入导出**：JSON 全量备份可往返；CSV 供导出到别的工具
+### The rest
+
+- **Quick capture** — `buy groceries tomorrow`, `report @14:00`
+- **Recurring tasks** — daily / weekly (pick the weekdays) / monthly; completing advances to the next occurrence
+- **Undo** — deleted or changed by mistake? `Ctrl+Z` brings it back
+- **Search** — `Ctrl+K` across every task and event
+- **Three palettes × light/dark** — switchable from the top-right corner
+- **Import / export** — full JSON backup round-trips; CSV for taking data elsewhere
 
 ---
 
-## 下载
+## Download
 
-从 [Releases](../../releases/latest) 下载：
+**[⬇ Latest release](https://github.com/VitaVance/Kairos/releases/latest)**
 
-| 文件 | 说明 |
+| File | Notes |
 | --- | --- |
-| `Kairos_x.y.z_x64-setup.exe` | **推荐**，安装器较小，支持自动更新 |
-| `Kairos_x.y.z_x64_zh-CN.msi` | MSI 安装包，适合企业批量部署 |
+| `Kairos_x.y.z_x64-setup.exe` | **Recommended.** Small installer, supports automatic updates |
+| `Kairos_x.y.z_x64_zh-CN.msi` | MSI package, suited to bulk deployment |
 
-安装后从开始菜单或桌面快捷方式打开即可。
+Install and launch from the Start menu.
 
-> **首次运行会看到「Windows 已保护你的电脑」**
-> 这是因为安装包还没有代码签名证书（一张证书每年数百美元）。点「**更多信息**」→「**仍要运行**」即可。程序的全部源代码都在这个仓库里，你可以自己审计或自己构建。
+> **First run shows "Windows protected your PC."**
+> The installers are not code-signed yet — a certificate costs a few hundred dollars a year, and the application is pending the free SignPath Foundation programme for open-source projects. Click **More info → Run anyway**. All source code is in this repository, so you can audit it or build it yourself.
 
-系统要求：Windows 10 1809+ / Windows 11。Windows 10 若缺少 WebView2 运行时，安装器会自动补装。
+**Requirements:** Windows 10 1809+ / Windows 11. The installer fetches the WebView2 runtime automatically if it is missing.
 
 ---
 
-## 你的数据在哪
+## Where your data lives
 
 ```
-C:\Users\<你的用户名>\AppData\Roaming\app.todolist.local\todolist.db
+C:\Users\<you>\AppData\Roaming\app.todolist.local\todolist.db
 ```
 
-一个 SQLite 文件。**复制它就是完整备份，删掉它就是彻底清空。**
+One SQLite file. **Copy it and you have a complete backup; delete it and you have wiped everything.** Moving to a new machine means putting that file in the same place — no login of any kind.
 
-换电脑时，把文件拷到新机器的同一位置即可——不需要登录任何东西。
+There is also a JSON export in the app's data panel: a versioned, round-trippable format.
 
-也可以通过应用内的「数据」面板导出 JSON 备份，那是带版本号、可校验的往返格式。
-
-Kairos **不包含**：账号系统、云同步、遥测、崩溃上报、使用统计、广告 SDK、第三方分析。它不发起任何业务网络请求，唯一的对外连接是检查更新（可关闭）。
+Kairos contains no account system, no cloud sync, no telemetry, no crash reporting, no usage statistics, no advertising SDK and no third-party analytics. It makes no business network requests at all; the only outbound connection is the update check, which you can turn off.
 
 ---
 
-## 使用场景
+## In practice
 
-**早上花两分钟列今天的清单**
+**Two minutes in the morning to lay out the day**
 
-不看时间，只列事情：「写季度总结」「回李工的邮件」「取快递」。有的加个「上午」，有的什么都不加。做完打勾，没做完明天继续。
+No times, just things: "write the quarterly summary", "reply to Li's email", "pick up the parcel". Some get "morning", most get nothing. Finished ones get ticked; the rest carry over tomorrow.
 
-**把会议和任务分开放**
+**Meetings and tasks kept apart**
 
-会议有确切时间，落进时间网格里堵住那一段。任务只是「今天要做」，浮在全天区不会假装自己占了两小时。
+A meeting has a real hour and blocks that stretch on the time grid. A task is just "do this today" and floats in the all-day strip without pretending to occupy two hours.
 
-**周五下午看下周**
+**Friday afternoon, scanning next week**
 
-切到多周视图扫一眼，看到下周三堆了三件事——提前把其中一件挪到周二。拖一下就完事。
+Switch to multi-week and see three things stacked on Wednesday — move one to Tuesday. One drag.
 
-**半年后回头看**
+**Half a year later**
 
-年视图里每个月的密度一眼可见。哪几个月被会议淹没，哪几个月有空做正经事。
+The year view shows each month's density at a glance. Which months were swallowed by meetings, which had room for real work.
 
 ---
 
-## 从源码构建
+## Building from source
 
-见 [CONTRIBUTING.md](CONTRIBUTING.md)。简版：
+See [CONTRIBUTING.md](CONTRIBUTING.md). The short version:
 
 ```bash
 corepack enable && pnpm install
-pnpm tauri build          # 产出 .exe / .msi
+pnpm tauri build          # produces .exe / .msi
 ```
 
-需要 Node.js ≥ 22、pnpm 11、Rust ≥ 1.77、MSVC 工具链。只想在浏览器里看界面的话 `pnpm dev` 即可，不需要 Rust。
+Requires Node.js ≥ 22, pnpm 11, Rust ≥ 1.77 and the MSVC toolchain. To look at the interface in a browser only, `pnpm dev` needs none of that.
 
 ---
 
-## 文档
+## Documentation
 
-**用户相关**
+**Using it**
 
-- [docs/PACKAGING.md](docs/PACKAGING.md) — 打包、签名、发布流程
+- [docs/PACKAGING.md](docs/PACKAGING.md) — packaging, signing, release process
 
-**开发者相关**
+**Working on it**
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — 四层结构、依赖方向、扩展方式
-- [docs/THEMING.md](docs/THEMING.md) — 设计令牌与新增皮肤
-- [CONTRIBUTING.md](CONTRIBUTING.md) — 开发流程与必须通过的门槛
-- [SECURITY.md](SECURITY.md) — 安全模型与漏洞报告
-- [ADR 0001](docs/adr/0001-targets-and-shell.md) / [0002](docs/adr/0002-layered-architecture.md) / [0003](docs/adr/0003-local-first-persistence.md) — 关键决策记录
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — the four layers, dependency direction, how to extend
+- [docs/THEMING.md](docs/THEMING.md) — design tokens and adding a palette
+- [docs/RELEASING.md](docs/RELEASING.md) — how a release is cut
+- [CONTRIBUTING.md](CONTRIBUTING.md) — workflow and the gates a change must pass
+- [SECURITY.md](SECURITY.md) — security model and how to report a vulnerability
+- [ADR 0001](docs/adr/0001-targets-and-shell.md) / [0002](docs/adr/0002-layered-architecture.md) / [0003](docs/adr/0003-local-first-persistence.md) — decision records
 
 ---
 
-## 许可证
+## License
 
 [MIT](LICENSE) © 2026 Kairos contributors
 
-随意使用、修改、分发。如果你把它改成自己喜欢的样子，欢迎提 PR 回来。
+Use it, change it, redistribute it. If you make it better, a pull request is welcome.

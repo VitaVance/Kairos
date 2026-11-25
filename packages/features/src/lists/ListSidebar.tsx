@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ListId, LocalDate, NewList, Task, TaskId, TaskList } from '@todolist/core';
 import { daysFromToday, todayLocal } from '@todolist/core';
-import { IconButton, MoreIcon, PlusIcon } from '@todolist/ui';
+import { IconButton, MoreIcon, PlusIcon, useTranslation } from '@todolist/ui';
 import { DEFAULT_LIST_COLOR, LIST_HUE_HEX, ListEditor } from './ListEditor';
 import type { ListEditorValue } from './ListEditor';
 import type { UndoCommand } from '../undo/undo-stack';
 import { useUndoOptional } from '../undo/UndoProvider';
 import './lists.css';
+
+/** The `lists` namespace translator, derived from the shared hook's return type. */
+type ListsT = ReturnType<typeof useTranslation<'lists'>>['t'];
 
 /**
  * Write port for lists.
@@ -70,7 +73,6 @@ export interface ListSidebarProps {
 }
 
 const MISSING_PORT_HINT_ID = 'list-sidebar-write-port-hint';
-const MISSING_PORT_TEXT = '写入端口未接入，清单暂时无法修改';
 
 /**
  * True when dropping `taskId` on `listId` would actually move it. Dropping a
@@ -92,20 +94,24 @@ export function isRealListMove(
  * refuses while *any* task remains (open or done), so the copy must report the
  * total and tell the user what to do — the service error alone says only
  * "清单仍有 N 个任务".
+ *
+ * Copy comes from the `lists` catalog; the translator is passed in so this
+ * stays a pure, unit-testable function (it is exercised with the `en` locale).
  */
 export function describeListDeletionBlock(
+  t: ListsT,
   listName: string,
   openCount: number,
   totalCount: number,
 ): string | null {
   if (totalCount <= 0) return null;
-  const what =
-    openCount === totalCount
-      ? `${totalCount} 个未完成任务`
-      : openCount === 0
-        ? `${totalCount} 个已完成任务`
-        : `${totalCount} 个任务（其中 ${openCount} 个未完成）`;
-  return `「${listName}」下还有 ${what}。任务不会被一并删除；请先处理这些任务（可拖到其他清单），再删除清单。`;
+  if (openCount === totalCount) {
+    return t('sidebar.deletionOpenOnly', { name: listName, count: totalCount });
+  }
+  if (openCount === 0) {
+    return t('sidebar.deletionDoneOnly', { name: listName, count: totalCount });
+  }
+  return t('sidebar.deletionMixed', { name: listName, count: totalCount, open: openCount });
 }
 
 /** Open tasks with a due date in [today, today+6]. */
@@ -131,6 +137,9 @@ export function ListSidebar({
   onUndoable,
   moveTask,
 }: ListSidebarProps) {
+  const { t } = useTranslation('lists');
+  const { t: tCommon } = useTranslation('common');
+  const missingPortText = t('sidebar.missingPort');
   const [creating, setCreating] = useState(false);
   const [menuId, setMenuId] = useState<ListId | null>(null);
   const [renamingId, setRenamingId] = useState<ListId | null>(null);
@@ -221,7 +230,7 @@ export function ListSidebar({
     (value: ListEditorValue) => {
       let created: TaskList | undefined;
       const command: UndoCommand = {
-        label: `已新建清单「${value.name}」`,
+        label: t('undo.createList', { name: value.name }),
         undo: async () => {
           if (created) await api?.remove(created.id);
           await onChanged?.();
@@ -236,7 +245,7 @@ export function ListSidebar({
         created = await target.create({ name: value.name, color: value.color });
       }, command);
     },
-    [api, onChanged, runWrite],
+    [api, onChanged, runWrite, t],
   );
 
   const handleRename = useCallback(
@@ -246,7 +255,7 @@ export function ListSidebar({
       const command: UndoCommand | undefined =
         current && (before.name !== value.name || before.color !== value.color)
           ? {
-              label: `已重命名「${before.name}」`,
+              label: t('undo.renameList', { name: before.name }),
               undo: async () => {
                 if (before.name === undefined || before.color === undefined) return;
                 await api?.rename(id, before.name);
@@ -266,7 +275,7 @@ export function ListSidebar({
         await target.recolor(id, value.color);
       }, command);
     },
-    [api, lists, onChanged, runWrite],
+    [api, lists, onChanged, runWrite, t],
   );
 
   const handleRecolor = useCallback(
@@ -275,7 +284,7 @@ export function ListSidebar({
       const command: UndoCommand | undefined =
         before !== undefined && before !== color
           ? {
-              label: '已更换清单颜色',
+              label: t('undo.recolorList'),
               undo: async () => {
                 await api?.recolor(id, before);
                 await onChanged?.();
@@ -288,7 +297,7 @@ export function ListSidebar({
           : undefined;
       return runWrite((target) => target.recolor(id, color), command);
     },
-    [api, lists, onChanged, runWrite],
+    [api, lists, onChanged, runWrite, t],
   );
 
   const handleRemove = useCallback(
@@ -302,7 +311,12 @@ export function ListSidebar({
       const open = counts.byList.get(id) ?? 0;
       const total = counts.totalByList.get(id) ?? 0;
       void (async () => {
-        const block = describeListDeletionBlock(list?.name ?? '该清单', open, total);
+        const block = describeListDeletionBlock(
+          t,
+          list?.name ?? t('sidebar.untitledList'),
+          open,
+          total,
+        );
         if (block !== null) {
           setActionError(block);
           setDeletingId(null);
@@ -319,7 +333,7 @@ export function ListSidebar({
           },
           list
             ? {
-                label: `已删除清单「${list.name}」`,
+                label: t('undo.deleteList', { name: list.name }),
                 undo: async () => {
                   if (!api) return;
                   const recreated = await api.create({
@@ -342,18 +356,18 @@ export function ListSidebar({
         if (wasSelected) onSelect({ kind: 'all' });
       })();
     },
-    [api, counts, lists, onChanged, onSelect, runWrite, selectedListId],
+    [api, counts, lists, onChanged, onSelect, runWrite, selectedListId, t],
   );
 
   const quickFilters: { filter: SidebarFilter; key: 'today' | 'recent' | 'all'; label: string; count: number }[] = [
-    { filter: { kind: 'today' }, key: 'today', label: '今天', count: counts.dueToday },
-    { filter: { kind: 'recent' }, key: 'recent', label: '最近7天', count: counts.recent },
-    { filter: { kind: 'all' }, key: 'all', label: '全部', count: counts.openTotal },
+    { filter: { kind: 'today' }, key: 'today', label: t('sidebar.today'), count: counts.dueToday },
+    { filter: { kind: 'recent' }, key: 'recent', label: t('sidebar.recent'), count: counts.recent },
+    { filter: { kind: 'all' }, key: 'all', label: t('sidebar.all'), count: counts.openTotal },
   ];
 
   return (
-    <aside className="list-sidebar" aria-label="清单导航" ref={sidebarRef}>
-      <nav className="list-sidebar__quick" aria-label="快捷筛选">
+    <aside className="list-sidebar" aria-label={t('sidebar.nav')} ref={sidebarRef}>
+      <nav className="list-sidebar__quick" aria-label={t('sidebar.quickFilters')}>
         {quickFilters.map(({ filter, key, label, count }) => {
           const active = quick === key;
           return (
@@ -377,12 +391,12 @@ export function ListSidebar({
       </nav>
 
       <div className="list-sidebar__head">
-        <span className="list-sidebar__heading">清单</span>
+        <span className="list-sidebar__heading">{t('sidebar.heading')}</span>
         <IconButton
-          label="新建清单"
+          label={t('sidebar.newList')}
           variant="quiet"
           disabled={readOnly}
-          title={readOnly ? MISSING_PORT_TEXT : '新建清单'}
+          title={readOnly ? missingPortText : t('sidebar.newList')}
           aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
           onClick={() => {
             closeEditors();
@@ -412,7 +426,7 @@ export function ListSidebar({
       ) : null}
 
       {lists.length === 0 ? (
-        <p className="list-sidebar__empty">还没有清单</p>
+        <p className="list-sidebar__empty">{t('sidebar.noLists')}</p>
       ) : (
         <ul className="list-sidebar__lists">
           {lists.map((list) => {
@@ -461,7 +475,7 @@ export function ListSidebar({
                     // Only record once the move actually landed.
                     if (moveTask) {
                       recordUndoable?.({
-                        label: `已将「${source.title}」移到「${targetList.name}」`,
+                        label: t('undo.moveTask', { task: source.title, list: targetList.name }),
                         undo: async () => {
                           await moveTask(source.id, source.listId);
                           await onChanged?.();
@@ -491,14 +505,14 @@ export function ListSidebar({
                       aria-hidden="true"
                     />
                     <span className="list-sidebar__name">{list.name}</span>
-                    <span className="list-sidebar__count" aria-label={`${count} 个任务`}>
+                    <span className="list-sidebar__count" aria-label={t('sidebar.taskCount', { count })}>
                       {count}
                     </span>
                   </button>
 
                   <div className="list-sidebar__menu-wrap">
                     <IconButton
-                      label={`清单操作：${list.name}`}
+                      label={t('sidebar.listActions', { name: list.name })}
                       variant="quiet"
                       className="list-sidebar__more"
                       aria-haspopup="menu"
@@ -515,48 +529,48 @@ export function ListSidebar({
                     </IconButton>
 
                     {isMenuOpen ? (
-                      <div className="list-sidebar__menu" role="menu" aria-label={`${list.name} 操作`}>
+                      <div className="list-sidebar__menu" role="menu" aria-label={t('sidebar.menuLabel', { name: list.name })}>
                         <button
                           type="button"
                           role="menuitem"
                           className="list-sidebar__menu-item"
                           disabled={readOnly || isRenaming}
-                          title={readOnly ? MISSING_PORT_TEXT : undefined}
+                          title={readOnly ? missingPortText : undefined}
                           aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
                           onClick={() => {
                             setMenuId(null);
                             setRenamingId(list.id);
                           }}
                         >
-                          重命名
+                          {t('menu.rename')}
                         </button>
                         <button
                           type="button"
                           role="menuitem"
                           className="list-sidebar__menu-item"
                           disabled={readOnly || isRecoloring}
-                          title={readOnly ? MISSING_PORT_TEXT : undefined}
+                          title={readOnly ? missingPortText : undefined}
                           aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
                           onClick={() => {
                             setMenuId(null);
                             setRecoloringId(list.id);
                           }}
                         >
-                          更换颜色
+                          {t('menu.recolor')}
                         </button>
                         <button
                           type="button"
                           role="menuitem"
                           className="list-sidebar__menu-item list-sidebar__menu-item--danger"
                           disabled={readOnly}
-                          title={readOnly ? MISSING_PORT_TEXT : undefined}
+                          title={readOnly ? missingPortText : undefined}
                           aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
                           onClick={() => {
                             setMenuId(null);
                             setDeletingId(list.id);
                           }}
                         >
-                          删除
+                          {t('menu.delete')}
                         </button>
                       </div>
                     ) : null}
@@ -577,17 +591,17 @@ export function ListSidebar({
                 ) : null}
 
                 {isRecoloring ? (
-                  <div className="list-sidebar__recolor" role="group" aria-label={`更换「${list.name}」的颜色`}>
+                  <div className="list-sidebar__recolor" role="group" aria-label={t('sidebar.colorGroup', { name: list.name })}>
                     {LIST_HUE_HEX.map((hue, i) => (
                       <button
                         key={hue}
                         type="button"
                         className={`list-sidebar__swatch${list.color === hue ? ' list-sidebar__swatch--selected' : ''}`}
                         style={{ background: hue }}
-                        aria-label={`颜色 ${i + 1}`}
+                        aria-label={t('sidebar.colorSwatch', { index: i + 1 })}
                         aria-pressed={list.color === hue}
                         disabled={readOnly}
-                        title={readOnly ? MISSING_PORT_TEXT : `颜色 ${i + 1}`}
+                        title={readOnly ? missingPortText : t('sidebar.colorSwatch', { index: i + 1 })}
                         aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
                         onClick={() => handleRecolor(list.id, hue)}
                       />
@@ -597,17 +611,17 @@ export function ListSidebar({
                       className="list-sidebar__cancel"
                       onClick={() => setRecoloringId(null)}
                     >
-                      取消
+                      {tCommon('buttons.cancel')}
                     </button>
                   </div>
                 ) : null}
 
                 {isDeleting ? (
-                  <div className="list-sidebar__confirm" role="alertdialog" aria-label={`删除清单 ${list.name}`}>
+                  <div className="list-sidebar__confirm" role="alertdialog" aria-label={t('deleteConfirm.dialogLabel', { name: list.name })}>
                     <p className="list-sidebar__confirm-text">
                       {blocked
-                        ? `「${list.name}」下还有 ${totalCount} 个任务（其中 ${count} 个未完成）。任务不会被一并删除；请先处理这些任务，再删除清单。`
-                        : `确定删除「${list.name}」？`}
+                        ? t('deleteConfirm.blocked', { name: list.name, count: totalCount, open: count })
+                        : t('deleteConfirm.question', { name: list.name })}
                     </p>
                     <div className="list-sidebar__confirm-actions">
                       <button
@@ -615,17 +629,17 @@ export function ListSidebar({
                         className="list-sidebar__cancel"
                         onClick={() => setDeletingId(null)}
                       >
-                        取消
+                        {tCommon('buttons.cancel')}
                       </button>
                       <button
                         type="button"
                         className="list-sidebar__danger"
                         disabled={readOnly || blocked}
-                        title={readOnly ? MISSING_PORT_TEXT : blocked ? '清单中还有任务' : undefined}
+                        title={readOnly ? missingPortText : blocked ? t('deleteConfirm.blockedHint') : undefined}
                         aria-describedby={readOnly ? MISSING_PORT_HINT_ID : undefined}
                         onClick={() => handleRemove(list.id)}
                       >
-                        确认删除
+                        {t('deleteConfirm.confirm')}
                       </button>
                     </div>
                   </div>
@@ -637,7 +651,7 @@ export function ListSidebar({
       )}
 
       <p id={MISSING_PORT_HINT_ID} className="tl-visually-hidden">
-        {MISSING_PORT_TEXT}
+        {missingPortText}
       </p>
     </aside>
   );

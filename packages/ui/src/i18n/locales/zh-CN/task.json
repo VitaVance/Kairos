@@ -1,0 +1,125 @@
+{
+  "detail": {
+    "ariaLabel": "任务详情",
+    "completeAria": "完成 {{title}}",
+    "uncompleteAria": "取消完成 {{title}}",
+    "editTitle": "编辑任务标题",
+    "closeAria": "关闭任务详情",
+    "sectionDate": "日期",
+    "sectionRepeat": "重复",
+    "sectionQuadrant": "象限",
+    "sectionList": "清单",
+    "sectionNotes": "备注",
+    "dateLabel": "截止日期",
+    "precisionLabel": "时间精度",
+    "precisionAria": "时间精度",
+    "timeLabel": "具体时间",
+    "hint": {
+      "noDate": "无日期",
+      "day": "{{date}} · 全天",
+      "period": "{{date}} · {{period}} · 无固定时间",
+      "time": "{{date}} {{clock}}"
+    },
+    "precision": {
+      "day": "全天",
+      "morning": "上午",
+      "afternoon": "下午",
+      "evening": "晚上",
+      "time": "具体时间"
+    },
+    "repeatIntervalLabel": "间隔",
+    "repeatIntervalAria": "重复间隔",
+    "repeatWeekdaysAria": "重复的星期",
+    "repeatMonthDayLabel": "每月",
+    "repeatMonthDayAria": "每月的哪一天",
+    "repeatMonthDayUnit": "日",
+    "repeatUntilLabel": "直到",
+    "repeatUntilPlaceholder": "不结束",
+    "repeatUntilAria": "重复结束日期",
+    "repeatAutoAdvance": "勾选完成时会自动推进到下一次。",
+    "quadrantAria": "移动到象限",
+    "listAria": "任务所属清单",
+    "notesAria": "备注",
+    "notesPlaceholder": "添加备注…",
+    "confirmDelete": "确认删除",
+    "deleting": "删除中…",
+    "errors": {
+      "rename": "重命名失败，请重试",
+      "moveQuadrant": "移动象限失败，请重试",
+      "saveTime": "保存时间失败，请重试",
+      "clearDate": "清除日期失败，请重试",
+      "saveRecurrence": "保存重复规则失败，请重试",
+      "delete": "删除失败，请重试",
+      "moveList": "移动到清单失败，请重试",
+      "saveNotes": "保存备注失败，请重试"
+    }
+  },
+  "period": {
+    "morning": "上午",
+    "afternoon": "下午",
+    "evening": "晚上"
+  },
+  "due": {
+    "withPeriod": "{{date}} · {{period}}"
+  },
+  "quadrant": {
+    "urgentImportant": "重要且紧急",
+    "notUrgentImportant": "重要不紧急",
+    "urgentNotImportant": "不重要但紧急",
+    "unimportant": "不重要不紧急"
+  },
+  "repeat": {
+    "frequency": {
+      "none": "不重复",
+      "daily": "每天",
+      "weekly": "每周",
+      "monthly": "每月"
+    },
+    "frequencyAria": "重复频率",
+    "unit": {
+      "daily_one": "天",
+      "daily_other": "天",
+      "weekly_one": "周",
+      "weekly_other": "周",
+      "monthly_one": "个月",
+      "monthly_other": "个月"
+    },
+    "daySeparator": "、",
+    "every": {
+      "day": "每天",
+      "week": "每周 {{days}}",
+      "month": "每月 {{day}} 日",
+      "everyNDays_one": "每 {{count}} 天",
+      "everyNDays_other": "每 {{count}} 天",
+      "everyNWeeks_one": "每 {{count}} 周 {{days}}",
+      "everyNWeeks_other": "每 {{count}} 周 {{days}}",
+      "everyNMonths_one": "每 {{count}} 个月的 {{day}} 日",
+      "everyNMonths_other": "每 {{count}} 个月的 {{day}} 日"
+    },
+    "until": "{{rule}}，直到 {{date}}"
+  },
+  "list": {
+    "groups": {
+      "overdue": "已逾期",
+      "today": "今天",
+      "tomorrow": "明天",
+      "thisWeek": "本周内",
+      "later": "之后",
+      "undated": "无日期"
+    },
+    "empty": "没有任务"
+  },
+  "row": {
+    "completeAria": "完成 {{title}}",
+    "uncompleteAria": "取消完成 {{title}}",
+    "deleteAria": "删除 {{title}}",
+    "confirmDeleteAria": "确认删除 {{title}}",
+    "confirm": "确认"
+  },
+  "quickAdd": {
+    "placeholder": "添加任务，回车确认（/重要 /紧急 @14:00）",
+    "label": "快速添加任务",
+    "noList": "没有可用的清单，无法创建任务",
+    "failed": "添加任务失败，请重试"
+  }
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './reminders.css';
+import { useTranslation, currentLanguage } from '@todolist/ui';
 import type { ReminderItem } from './ReminderScheduler';
 import { reminderKey } from './ReminderScheduler';
 
@@ -24,17 +25,24 @@ export interface ReminderBannerProps {
 /** Snooze length in milliseconds. */
 export const SNOOZE_MS = 10 * 60_000;
 
-function minutesLabel(minutesUntil: number): string {
-  if (minutesUntil <= 0) return '现在';
-  if (minutesUntil === 1) return '1 分钟后';
-  return `${minutesUntil} 分钟后`;
-}
-
-function kindLabel(kind: ReminderItem['kind']): string {
-  return kind === 'task' ? '任务' : '日程';
+/**
+ * Clock wording shared with the native notification body: an all-day task is
+ * "all day" (or its half-day bucket); an exact-time task counts down in whole
+ * minutes, where zero/negative means "now".
+ */
+function minutesLabel(
+  t: ReturnType<typeof useTranslation<'misc'>>['t'],
+  minutesUntil: number,
+): string {
+  if (minutesUntil <= 0) return t('reminders.time.now');
+  return new Intl.RelativeTimeFormat(currentLanguage(), { numeric: 'always', style: 'long' }).format(
+    minutesUntil,
+    'minute',
+  );
 }
 
 export function ReminderBanner({ items, onComplete, onSnooze, onDismiss }: ReminderBannerProps) {
+  const { t } = useTranslation('misc');
   const [snoozedUntil, setSnoozedUntil] = useState<Record<string, number>>({});
   const [dismissed, setDismissed] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -89,26 +97,32 @@ export function ReminderBanner({ items, onComplete, onSnooze, onDismiss }: Remin
       <div className="reminder-banner__list">
         {visible.map((item) => (
           <div key={reminderKey(item)} className="reminder-banner__item">
-            <span className="reminder-banner__kind">{kindLabel(item.kind)}</span>
+            <span className="reminder-banner__kind">
+              {item.kind === 'task' ? t('reminders.kind.task') : t('reminders.kind.event')}
+            </span>
             <span className="reminder-banner__title" title={item.title}>
               {item.title}
             </span>
             <span className="reminder-banner__time">
-              {item.allDay ? '全天' : minutesLabel(item.minutesUntil)}
+              {item.allDay
+                ? item.period === null
+                  ? t('reminders.time.allDay')
+                  : t(`reminders.period.${item.period}` as const)
+                : minutesLabel(t, item.minutesUntil)}
             </span>
             <div className="reminder-banner__actions">
               {item.kind === 'task' ? (
                 <button
                   type="button"
                   className="reminder-banner__btn reminder-banner__btn--primary"
-                  aria-label={`完成 ${item.title}`}
+                  aria-label={t('reminders.completeTitle', { title: item.title })}
                   onClick={() => onComplete(item)}
                 >
-                  完成
+                  {t('reminders.complete')}
                 </button>
               ) : null}
               <button type="button" className="reminder-banner__btn" onClick={() => snooze(item)}>
-                稍后
+                {t('reminders.snooze')}
               </button>
             </div>
           </div>
@@ -117,7 +131,7 @@ export function ReminderBanner({ items, onComplete, onSnooze, onDismiss }: Remin
       <button
         type="button"
         className="reminder-banner__dismiss"
-        aria-label="关闭提醒"
+        aria-label={t('reminders.dismiss')}
         onClick={dismiss}
       >
         <span aria-hidden="true">✕</span>

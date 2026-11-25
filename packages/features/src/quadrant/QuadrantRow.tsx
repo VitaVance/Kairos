@@ -1,7 +1,7 @@
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { Task, TaskList } from '@todolist/core';
 import { quadrantOf } from '@todolist/core';
-import { Checkbox } from '@todolist/ui';
+import { Checkbox, useTranslation } from '@todolist/ui';
 import type { QuadrantKey } from '@todolist/ui';
 import type { LocalDate, TaskId } from '@todolist/core';
 import { formatDue } from '../task/due-label';
@@ -59,9 +59,9 @@ export interface QuadrantRowProps {
  * wording comes from `formatDue` — the same helper the flat rows use — so the
  * two surfaces can never drift (this file used to keep its own copy).
  */
-function metaLabel(task: Task, listName: string | undefined, today: LocalDate): string {
+function metaLabel(task: Task, listName: string | undefined, today: LocalDate, inbox: string): string {
   const due = formatDue(task, today);
-  return due.length > 0 ? due : (listName ?? '收集箱');
+  return due.length > 0 ? due : (listName ?? inbox);
 }
 
 export function QuadrantRow({
@@ -77,8 +77,9 @@ export function QuadrantRow({
   fresh = false,
   leaving = false,
 }: QuadrantRowProps) {
+  const { t } = useTranslation('lists');
   const list = lists.find((l) => l.id === task.listId);
-  const meta = metaLabel(task, list?.name, today);
+  const meta = metaLabel(task, list?.name, today, t('quadrant.inbox'));
   const done = task.status === 'done';
   const quadrant = taskQuadrant(task);
 
@@ -103,9 +104,9 @@ export function QuadrantRow({
         type="button"
         className="qz-row__handle"
         draggable
-        aria-label={`拖动「${task.title}」到其他象限`}
+        aria-label={t('row.dragAria', { title: task.title })}
         aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight"
-        title="拖动到其他象限，或聚焦后用方向键移动"
+        title={t('row.dragHint')}
         onDragStart={(e) => {
           e.dataTransfer.setData(QUADRANT_DRAG_MIME, task.id);
           e.dataTransfer.setData('text/plain', task.id);
@@ -131,7 +132,7 @@ export function QuadrantRow({
       <Checkbox
         checked={done}
         onChange={() => onToggle(task.id)}
-        aria-label={done ? `取消完成 ${task.title}` : `完成 ${task.title}`}
+        aria-label={done ? t('row.markOpen', { title: task.title }) : t('row.markDone', { title: task.title })}
       />
       {onOpen ? (
         <button type="button" className="qz-row__title qz-row__title--btn" onClick={() => onOpen(task.id)}>

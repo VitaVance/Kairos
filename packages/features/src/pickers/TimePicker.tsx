@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, ClockIcon, Popover } from '@todolist/ui';
+import { Button, ClockIcon, Popover, useTranslation } from '@todolist/ui';
 import { trapTabKey } from './picker-nav';
 import { formatClock, parseTimeInput, splitClock } from './picker-math';
 import './pickers.css';
@@ -36,9 +36,11 @@ export function TimePicker({
   onChange,
   disabled = false,
   label,
-  placeholder = '选择时间',
+  placeholder,
   className = '',
 }: TimePickerProps) {
+  const { t } = useTranslation('pickers');
+  const displayPlaceholder = placeholder ?? t('time.placeholder');
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const hourListRef = useRef<HTMLDivElement | null>(null);
   const minuteListRef = useRef<HTMLDivElement | null>(null);
@@ -123,7 +125,7 @@ export function TimePicker({
     buttons[next]?.focus();
   };
 
-  const triggerText = value ?? placeholder;
+  const triggerText = value ?? displayPlaceholder;
 
   return (
     <>
@@ -149,7 +151,7 @@ export function TimePicker({
               inputMode="numeric"
               autoComplete="off"
               spellCheck={false}
-              aria-label="输入时间"
+              aria-label={t('time.inputAria')}
               aria-invalid={invalid}
               placeholder="HH:MM"
               className="tk-time__field"
@@ -167,7 +169,7 @@ export function TimePicker({
                 }
               }}
             />
-            <span className="tk-time__suffix">24 小时制</span>
+            <span className="tk-time__suffix">{t('time.hourFormat')}</span>
           </div>
 
           <div className="tk-time__cols">
@@ -175,7 +177,7 @@ export function TimePicker({
               ref={hourListRef}
               className="tk-time__col tl-scroll tl-scroll--y"
               role="group"
-              aria-label="小时"
+              aria-label={t('time.hours')}
               onKeyDown={columnKeyDown}
             >
               {HOURS.map((hour) => (
@@ -194,7 +196,7 @@ export function TimePicker({
               ref={minuteListRef}
               className="tk-time__col tl-scroll tl-scroll--y"
               role="group"
-              aria-label="分钟"
+              aria-label={t('time.minutes')}
               onKeyDown={columnKeyDown}
             >
               {MINUTES.map((minute) => (
@@ -213,10 +215,10 @@ export function TimePicker({
 
           <div className="tk-time__foot">
             <Button variant="ghost" size="sm" onClick={() => commit('09:00')}>
-              重置
+              {t('time.reset')}
             </Button>
             <Button variant="primary" size="sm" onClick={commitDraft}>
-              确定
+              {t('time.confirm')}
             </Button>
           </div>
         </div>

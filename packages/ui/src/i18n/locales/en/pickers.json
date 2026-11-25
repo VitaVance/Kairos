@@ -1,0 +1,23 @@
+{
+  "date": {
+    "placeholder": "Set date",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "prevYear": "Previous year",
+    "nextYear": "Next year",
+    "selectMonth": "Select month",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "nextMonday": "Next Monday",
+    "clear": "Clear"
+  },
+  "time": {
+    "placeholder": "Select time",
+    "inputAria": "Enter time",
+    "hourFormat": "24-hour",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "reset": "Reset",
+    "confirm": "OK"
+  }
+}

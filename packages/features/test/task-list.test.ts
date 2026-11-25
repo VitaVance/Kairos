@@ -1,6 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import type { Instant, LocalDate, Task, TaskId } from '@todolist/core';
+import { initI18n } from '@todolist/ui';
 import { dueGroupOf, groupTasksByDue } from '../src/task/TaskListScreen';
+
+const EN = 'en';
+
+beforeAll(() => {
+  initI18n(EN);
+});
 
 const NOW = '2026-09-09T08:00:00.000Z' as Instant;
 
@@ -68,7 +75,16 @@ describe('groupTasksByDue', () => {
       'later',
       'undated',
     ]);
-    expect(groups.map((g) => g.label)).toEqual(['已逾期', '今天', '明天', '本周内', '之后', '无日期']);
+    // `groupTasksByDue` is pure: with no formatter it emits the catalog keys.
+    // The screen passes a `t`-backed formatter (covered by the UI).
+    expect(groups.map((g) => g.label)).toEqual([
+      'list.groups.overdue',
+      'list.groups.today',
+      'list.groups.tomorrow',
+      'list.groups.thisWeek',
+      'list.groups.later',
+      'list.groups.undated',
+    ]);
     expect(groups.map((g) => g.tasks.map((t) => t.id))).toEqual([
       ['overdue'],
       ['today'],
