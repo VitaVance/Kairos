@@ -66,6 +66,12 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      # Cheap, and it catches the failure where a release tag says 0.1.2 while
+      # the shipped binary still claims 0.1.1 — which the updater then treats
+      # as "already current" and refuses to install.
+      - name: Version consistency
+        run: pnpm version:check
+
       - name: Architecture boundaries
         run: pnpm deps:check
 

@@ -73,6 +73,24 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # A tag that disagrees with the manifest publishes a build whose
+      # `latest.json` advertises one version while the binary inside reports
+      # another. Existing installs then either never see the update or see it
+      # forever. Fail here, before anything is built.
+      - name: Tag matches the manifest version
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag='${{ github.event.inputs.tag || github.ref_name }}'
+          want="${tag#v}"
+          have="$(node -p "require('./package.json').version")"
+          if [ "$want" != "$have" ]; then
+            echo "::error::tag ${tag} implies version ${want}, but package.json says ${have}."
+            echo "Bump first: node scripts/version.mjs --bump patch"
+            exit 1
+          fi
+          echo "tag ${tag} matches package.json ${have}"
+
   publish:
     needs: verify
     runs-on: windows-latest

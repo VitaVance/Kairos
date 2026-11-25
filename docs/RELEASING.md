@@ -57,22 +57,32 @@ gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD -R VitaVance/Kairos --body ""
 
 ## 2. 发布一版
 
-推送一个 tag 就够了：
+版本号**只有一个来源**：根 `package.json`。其余清单由脚本同步，不要手改。
 
 ```bash
+# 1. 升版本（改根 package.json 并同步其余清单）
+pnpm version:bump patch        # 或 minor / major
+
+# 2. 提交
 git add -A
-git commit -m "release: v0.1.1"
+git commit -m "chore: release v0.1.2"
 git push origin main
 
-git tag v0.1.1
-git push origin v0.1.1
+# 3. 打 tag —— 必须和 package.json 一致
+git tag v0.1.2
+git push origin v0.1.2
 ```
+
+> **为什么不能手改版本号**：一共有 8 处会声明版本。手改必然漏掉一处，
+> 而漏掉的后果是静默的——`latest.json` 报一个新版本，二进制里却是旧版本，
+> 更新器会永远认为「已是最新」而拒绝安装。`pnpm version:check` 在 CI 里拦这个，
+> tag 与清单不一致时 release 工作流在构建前就会失败。
 
 然后去 https://github.com/VitaVance/Kairos/actions 看 `release` 这个 workflow。
 
 它会依次做：
 
-1. **verify** — 架构边界 / 类型检查 / 全量测试。任一失败就停，不会发布半成品。
+1. **verify** — 架构边界 / 类型检查 / 全量测试 / **tag 与版本一致性**。任一失败就停。
 2. **publish** — 构建 `.exe` 和 `.msi`，生成签名后的 `latest.json`，创建 **draft release**。
 3. 你去 Releases 页面检查一遍，点 **Publish release**。
 

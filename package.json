@@ -23,7 +23,9 @@
     "desktop:build:msi": "pnpm --filter @todolist/desktop tauri build --bundles msi",
     "desktop:build:nsis": "pnpm --filter @todolist/desktop tauri build --bundles nsis",
     "desktop:preflight": "node scripts/check-toolchain.mjs",
-    "desktop:signing-check": "node scripts/check-signing.mjs"
+    "desktop:signing-check": "node scripts/check-signing.mjs",
+    "version:check": "node scripts/version.mjs",
+    "version:bump": "node scripts/version.mjs --bump"
   },
   "devDependencies": {
     "dependency-cruiser": "^17.4.3",
