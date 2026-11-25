@@ -81,7 +81,13 @@ jobs:
       # it must not try to rebuild. It publishes what is already on disk.
       TAURI_BUNDLE_DIR: apps/desktop/src-tauri/target/release/bundle
     steps:
+      # Full history and tags: the release notes step below diffs the previous
+      # tag against this one. A default depth-1 clone has neither the tags nor
+      # the commits, so `git describe --tags` returns nothing and the changelog
+      # would silently come out empty — a failure that looks like success.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v6
 
