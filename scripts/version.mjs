@@ -36,6 +36,16 @@ const DERIVED = [
   'packages/ui/package.json',
 ];
 
+/**
+ * Cargo gets its own treatment: it declares its version in TOML, not JSON, and
+ * that value is what ends up in the Windows resource table (FileVersion /
+ * ProductVersion) via `CARGO_PKG_VERSION`. Leaving it behind was how a build
+ * shipped as 0.1.1 in the installer filename while the executable inside still
+ * reported 0.1.0 — `tauri.conf.json`'s pointer to package.json only governs the
+ * bundle, not the compiler's metadata.
+ */
+const CARGO_MANIFEST = 'apps/desktop/src-tauri/Cargo.toml';
+
 const args = process.argv.slice(2);
 const wantWrite = args.includes('--write');
 const bumpIndex = args.indexOf('--bump');
@@ -45,6 +55,24 @@ const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
 
 function readVersion(path) {
   return JSON.parse(readFileSync(resolve(ROOT, path), 'utf8')).version;
+}
+
+/** Cargo.toml's `[package]` version — the only `version =` at column zero. */
+function readCargoVersion() {
+  const raw = readFileSync(resolve(ROOT, CARGO_MANIFEST), 'utf8');
+  const m = /^version = "([^"]+)"/m.exec(raw);
+  if (!m) throw new Error(`no package version in ${CARGO_MANIFEST}`);
+  return m[1];
+}
+
+function writeCargoVersion(version) {
+  const abs = resolve(ROOT, CARGO_MANIFEST);
+  const raw = readFileSync(abs, 'utf8');
+  // Anchored at column zero so a dependency's inline `version = "2"` is never
+  // touched — those are always nested under a table and indented or prefixed.
+  const next = raw.replace(/^version = "[^"]*"/m, `version = "${version}"`);
+  if (next === raw) throw new Error(`no package version rewritten in ${CARGO_MANIFEST}`);
+  writeFileSync(abs, next);
 }
 
 /** Rewrite only the version string, preserving the file's existing layout. */
@@ -92,6 +120,11 @@ if (wantWrite || bumpKind) {
     console.log(`  wrote ${path}`);
     changed++;
   }
+  if (readCargoVersion() !== source) {
+    writeCargoVersion(source);
+    console.log(`  wrote ${CARGO_MANIFEST}`);
+    changed++;
+  }
   console.log(changed === 0 ? `all manifests already at ${source}` : `synced ${changed} manifest(s) to ${source}`);
   process.exit(0);
 }
@@ -110,9 +143,12 @@ if (tauriVersion !== '../package.json') {
   process.exit(1);
 }
 
-if (drifted.length > 0) {
+if (drifted.length > 0 || readCargoVersion() !== source) {
   console.error(`✗ version drift — root is ${source}, these disagree:`);
   for (const path of drifted) console.error(`    ${path}: ${readVersion(path)}`);
+  if (readCargoVersion() !== source) {
+    console.error(`    ${CARGO_MANIFEST}: ${readCargoVersion()}`);
+  }
   console.error('  Fix with: node scripts/version.mjs --write');
   process.exit(1);
 }

@@ -73,10 +73,16 @@ git tag v0.1.2
 git push origin v0.1.2
 ```
 
-> **为什么不能手改版本号**：一共有 8 处会声明版本。手改必然漏掉一处，
-> 而漏掉的后果是静默的——`latest.json` 报一个新版本，二进制里却是旧版本，
-> 更新器会永远认为「已是最新」而拒绝安装。`pnpm version:check` 在 CI 里拦这个，
-> tag 与清单不一致时 release 工作流在构建前就会失败。
+> **为什么不能手改版本号**：一共有 8 处会声明版本，其中包括 `src-tauri/Cargo.toml`。
+> 手改必然漏掉一处，而漏掉的后果是静默的：
+>
+> - 漏掉 `Cargo.toml` → 安装包文件名是新版本，但 exe 属性里仍是旧版本
+>   （Windows 资源版本来自 `CARGO_PKG_VERSION`，不是 `tauri.conf.json`）
+> - 漏掉 `package.json` → `latest.json` 报新版本、二进制却是旧版本，
+>   更新器永远认为「已是最新」而拒绝安装
+>
+> `pnpm version:check` 在 CI 里拦这个；tag 与清单不一致时，
+> release 工作流会在构建开始前就失败。
 
 然后去 https://github.com/VitaVance/Kairos/actions 看 `release` 这个 workflow。
 
