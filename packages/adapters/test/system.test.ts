@@ -48,57 +48,23 @@ describe('CryptoIdGenerator', () => {
 });
 
 describe('seedDemoData', () => {
-  it('seeds four lists and a dozen entries', async () => {
+  // Content coverage (four precisions, four quadrants, recurrence, reset)
+  // lives in seed-demo.test.ts. This file keeps the smoke checks only.
+  it('seeds the four lists and puts an event on today', async () => {
     const uow = new MemoryUnitOfWork();
-    const clock = new SystemClock();
-    const ids = new CryptoIdGenerator();
-
-    await seedDemoData({ uow, clock, ids });
+    await seedDemoData({ uow, clock: new SystemClock(), ids: new CryptoIdGenerator() });
 
     const lists = await uow.lists.list();
     expect(lists.map((l) => l.name)).toEqual(['收集箱', '工作', '学习', '生活']);
     expect(lists.map((l) => l.color)).toEqual(['#dd7366', '#5b8def', '#8b79c9', '#d99a3d']);
 
-    const tasks = await uow.tasks.list();
-    const events = await uow.events.list();
-    expect(tasks.length + events.length).toBeGreaterThanOrEqual(12);
-
-    const titles = new Set([...tasks, ...events].map((e) => e.title));
-    for (const expected of [
-      '晨跑',
-      '制定营销策略',
-      '产品评审',
-      '拿快递',
-      '部门培训',
-      '线上会议',
-      '瑜伽课',
-      '阅读名人传记',
-      '和妈妈逛街',
-      '整理音乐播放列表',
-    ]) {
-      expect(titles.has(expected)).toBe(true);
-    }
-
-    // Demo dates are laid out relative to *today*, in the host's local zone
-    // (which is how seedDemoData places wall-clock times). Assert the shape and
-    // the offsets rather than a hardcoded calendar day.
     const localDate = (instant: string): string => {
       const d = new Date(instant);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
     const today = localDate(new Date().toISOString());
-    const marketing = events.find((e) => e.title === '制定营销策略')!;
-    expect(localDate(marketing.startAt)).toBe(today);
-    expect(new Date(marketing.startAt).getHours()).toBe(9);
-
-    // 和妈妈逛街 is seeded one day before today.
-    const shopping = events.find((e) => e.title === '和妈妈逛街')!;
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    expect(localDate(shopping.startAt)).toBe(localDate(yesterday.toISOString()));
+    const events = await uow.events.list();
+    expect(events.some((e) => localDate(e.startAt) === today)).toBe(true);
   });
 
   it('is idempotent (StrictMode double-invoke does not duplicate)', async () => {
@@ -114,13 +80,5 @@ describe('seedDemoData', () => {
     expect((await uow.lists.list()).length).toBe(listCount);
     expect((await uow.tasks.list()).length).toBe(taskCount);
     expect((await uow.events.list()).length).toBe(eventCount);
-  });
-
-  it('also seeds a completed task so the "done" UI has content', async () => {
-    const uow = new MemoryUnitOfWork();
-    await seedDemoData({ uow, clock: new SystemClock(), ids: new CryptoIdGenerator() });
-    const done = await uow.tasks.list({ status: 'done' });
-    expect(done.length).toBeGreaterThan(0);
-    expect(done[0]!.completedAt).not.toBeNull();
   });
 });

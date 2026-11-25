@@ -1,5 +1,6 @@
 import type {
   CalendarEvent,
+  Clock,
   EventId,
   EventRepository,
   Instant,
@@ -328,5 +329,38 @@ export class SqliteEventRepository implements EventRepository {
 
   async remove(id: EventId): Promise<void> {
     await this.driver.execute('DELETE FROM events WHERE id = ?', [id]);
+  }
+}
+
+/**
+ * A key/value store, deliberately tiny: it exists so an app-level decision
+ * ("onboarding dismissed") can live in the same file as the data it is about.
+ *
+ * Not part of `UnitOfWork`: the domain has no use for arbitrary settings, and
+ * widening that port would make every fake implement it. Callers that need it
+ * (the seed/reset helpers) narrow `UnitOfWork` instead.
+ */
+export class SqliteSettingsRepository {
+  constructor(
+    private readonly driver: SqlDriver,
+    private readonly clock: Clock,
+  ) {}
+
+  async get(key: string): Promise<string | null> {
+    const rows = await this.driver.query<{ value: unknown }>(
+      'SELECT value FROM settings WHERE key = ? LIMIT 1',
+      [key],
+    );
+    const value = rows[0]?.value;
+    return typeof value === 'string' ? value : null;
+  }
+
+  /** Insert or overwrite in one statement; `ON CONFLICT` needs no read first. */
+  async set(key: string, value: string): Promise<void> {
+    await this.driver.execute(
+      `INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+      [key, value, this.clock.now()],
+    );
   }
 }

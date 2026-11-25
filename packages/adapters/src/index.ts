@@ -20,6 +20,7 @@ export { SqliteUnitOfWork } from './sqlite/SqliteUnitOfWork.js';
 export {
   SqliteEventRepository,
   SqliteListRepository,
+  SqliteSettingsRepository,
   SqliteTaskRepository,
 } from './sqlite/repositories.js';
 export { migrate, migrations } from './sqlite/schema.js';
@@ -52,5 +53,9 @@ export { CryptoIdGenerator } from './system/CryptoIdGenerator.js';
 
 export { RecordingSqlDriver } from './testing/sql-test-driver.js';
 export type { RecordedStatement } from './testing/sql-test-driver.js';
-export { seedDemoData } from './testing/seed-demo.js';
+export {
+  ONBOARDING_DISMISSED_KEY,
+  resetAllData,
+  seedDemoData,
+} from './testing/seed-demo.js';
 export type { SeedDeps } from './testing/seed-demo.js';

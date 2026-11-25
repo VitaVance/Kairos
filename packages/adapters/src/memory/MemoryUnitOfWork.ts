@@ -41,6 +41,7 @@ export class MemoryUnitOfWork implements UnitOfWork {
   private readonly listRows: TaskList[] = [];
   private readonly taskRows: Task[] = [];
   private readonly eventRows: CalendarEvent[] = [];
+  private readonly settingRows = new Map<string, string>();
   private readonly ids: IdGenerator;
 
   readonly tasks = {
@@ -100,7 +101,9 @@ export class MemoryUnitOfWork implements UnitOfWork {
   };
 
   readonly lists = {
-    list: async (): Promise<readonly TaskList[]> => this.listRows,
+    // A copy, not the live array: callers iterate this while deleting, and
+    // handing out internal mutable state makes that skip rows.
+    list: async (): Promise<readonly TaskList[]> => [...this.listRows],
 
     get: async (id: ListId): Promise<TaskList | null> =>
       this.listRows.find((list) => list.id === id) ?? null,
@@ -191,6 +194,18 @@ export class MemoryUnitOfWork implements UnitOfWork {
     remove: async (id: EventId): Promise<void> => {
       const index = this.eventRows.findIndex((event) => event.id === id);
       if (index >= 0) this.eventRows.splice(index, 1);
+    },
+  };
+
+  /**
+   * App-level key/value store, mirroring the SQLite `settings` table. Not part
+   * of `UnitOfWork`; `seedDemoData` / `resetAllData` narrow for it. In-memory
+   * mode keeps it for the session, which is all that mode promises.
+   */
+  readonly settings = {
+    get: async (key: string): Promise<string | null> => this.settingRows.get(key) ?? null,
+    set: async (key: string, value: string): Promise<void> => {
+      this.settingRows.set(key, value);
     },
   };
 

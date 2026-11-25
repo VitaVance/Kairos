@@ -95,6 +95,20 @@ export const migrations: readonly Migration[] = [
         CHECK (due_period IS NULL OR due_period IN ('morning', 'afternoon', 'evening'))`,
     ],
   },
+  {
+    version: 4,
+    statements: [
+      // Small key/value store for app-level decisions that must live with the
+      // data (today: "onboarding dismissed", so a cleared demo never re-seeds).
+      // A row per key, not a column on an existing table: nothing here is a
+      // property of a task or a list. `IF NOT EXISTS` keeps it replay-safe.
+      `CREATE TABLE IF NOT EXISTS settings (
+        key         TEXT PRIMARY KEY NOT NULL,
+        value       TEXT NOT NULL,
+        updated_at  TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 /**

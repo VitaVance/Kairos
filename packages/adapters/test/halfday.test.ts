@@ -144,7 +144,7 @@ describe('migration v2 → v3', () => {
     expect(timed?.recurrence).toEqual({ frequency: 'daily', interval: 1, until: null });
   });
 
-  it('records version 3 and is idempotent', async () => {
+  it('records every applied version and is idempotent', async () => {
     const driver = await v2Driver();
     await migrate(driver);
     await expect(migrate(driver)).resolves.toBeUndefined();
@@ -152,7 +152,7 @@ describe('migration v2 → v3', () => {
     const versions = await driver.query<{ version: number }>(
       'SELECT version FROM schema_version ORDER BY version',
     );
-    expect(versions.map((r) => r.version)).toEqual([1, 2, 3]);
+    expect(versions.map((r) => r.version)).toEqual([1, 2, 3, 4]);
 
     const columns = await driver.query<{ name: string }>('PRAGMA table_info(tasks)');
     expect(columns.filter((c) => c.name === 'due_period')).toHaveLength(1);

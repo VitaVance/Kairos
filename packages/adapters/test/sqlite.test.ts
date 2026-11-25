@@ -105,7 +105,7 @@ describe('migrate', () => {
     expect(alters[1]).not.toMatch(/DEFAULT/i);
 
     const inserts = driver.find('INSERT INTO schema_version');
-    expect(inserts.map((s) => s.params)).toEqual([[2], [3]]);
+    expect(inserts.map((s) => s.params)).toEqual([[2], [3], [4]]);
   });
 });
 
