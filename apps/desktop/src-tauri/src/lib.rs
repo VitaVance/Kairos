@@ -7,6 +7,7 @@
 mod update;
 
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem};
@@ -17,6 +18,43 @@ use tauri::{AppHandle, Manager, WindowEvent};
 /// handler below would `prevent_close()` the shutdown Tauri performs for us and
 /// 「退出」 would only hide the window — the classic "app won't die" trap.
 struct Exiting(AtomicBool);
+
+/// Language tag the tray menu should render in, e.g. `"en"` or `"zh-CN"`.
+///
+/// The tray lives in Rust and has no access to the webview's i18next instance,
+/// so the frontend pushes its current language here and we rebuild the menu.
+/// Defaults to `"en"` to match the app's `fallbackLng`.
+struct TrayLanguage(Mutex<String>);
+
+/// Tray menu copy. Deliberately tiny — two items and a tooltip — so it stays
+/// honest rather than turning into a second translation surface that drifts.
+fn tray_labels(language: &str) -> (&'static str, &'static str) {
+    if language.starts_with("zh") {
+        ("显示 Kairos", "退出")
+    } else {
+        ("Show Kairos", "Quit")
+    }
+}
+
+/// Rebuild the tray menu in `language`.
+fn apply_tray_language(app: &AppHandle, language: &str) -> tauri::Result<()> {
+    let (show_label, quit_label) = tray_labels(language);
+    let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
+    let quit_item = MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+    if let Some(tray) = app.tray_by_id("main-tray") {
+        tray.set_menu(Some(menu))?;
+    }
+    Ok(())
+}
+
+/// Called by the frontend whenever the user changes language, so the tray menu
+/// and the UI never disagree about which language the app is in.
+#[tauri::command]
+fn set_tray_language(app: AppHandle, language: String) -> Result<(), String> {
+    *app.state::<TrayLanguage>().0.lock().unwrap() = language.clone();
+    apply_tray_language(&app, &language).map_err(|e| e.to_string())
+}
 
 fn show_main_window(app: &AppHandle) {
     if let Some(window) = app.get_webview_window("main") {
@@ -47,12 +85,17 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .manage(Exiting(AtomicBool::new(false)))
-        .invoke_handler(tauri::generate_handler![update::read_update_manifest])
+        .manage(TrayLanguage(Mutex::new("en".to_string())))
+        .invoke_handler(tauri::generate_handler![
+            update::read_update_manifest,
+            set_tray_language
+        ])
         .setup(|app| {
             // Closes hide the window: reminders are scheduled from the webview,
             // so exiting here would silently drop every pending reminder.
-            let show_item = MenuItem::with_id(app, "show", "显示 Kairos", true, None::<&str>)?;
-            let quit_item = MenuItem::with_id(app, "quit", "退出", true, None::<&str>)?;
+            let (show_label, quit_label) = tray_labels("en");
+            let show_item = MenuItem::with_id(app, "show", show_label, true, None::<&str>)?;
+            let quit_item = MenuItem::with_id(app, "quit", quit_label, true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
 
             TrayIconBuilder::with_id("main-tray")
