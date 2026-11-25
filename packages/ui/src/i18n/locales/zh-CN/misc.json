@@ -142,5 +142,29 @@
   },
   "undo": {
     "action": "撤销"
+  },
+  "views": {
+    "quadrant": "四象限",
+    "month": "月视图",
+    "week": "周视图",
+    "day": "日视图",
+    "agenda": "日程视图",
+    "multi-day": "多日视图",
+    "multi-week": "多周视图",
+    "year": "年视图",
+    "switcherLabel": "视图"
+  },
+  "shortcuts": {
+    "title": "键盘快捷键",
+    "search": "搜索",
+    "help": "快捷键帮助",
+    "undo": "撤销",
+    "redo": "重做",
+    "quadrant": "四象限",
+    "month": "月视图",
+    "week": "周视图",
+    "day": "日视图",
+    "agenda": "日程视图",
+    "close": "关闭对话框"
   }
 }

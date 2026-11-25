@@ -448,6 +448,15 @@
     padding: 2px;
     border-radius: var(--tl-radius-md);
     background: var(--tl-surface-sunken);
+    /*
+     * The item height is fixed (22px / 26px), so a label that wraps overflows
+     * its own pill. English labels are far longer than the Chinese they
+     * replaced — "Urgent & important" against 「重要且紧急」 — and the quadrant
+     * control broke into three ragged lines. Let the *row* wrap instead; each
+     * label then stays on one line and the segments keep a common height.
+     */
+    flex-wrap: wrap;
+    max-inline-size: 100%;
   }
   .tl-seg__item {
     border: 0;
@@ -458,6 +467,7 @@
     font-size: var(--tl-font-size-sm);
     color: var(--tl-text-secondary);
     cursor: pointer;
+    white-space: nowrap;
     transition:
       background var(--tl-duration-fast) var(--tl-ease-standard),
       color var(--tl-duration-fast) var(--tl-ease-standard);

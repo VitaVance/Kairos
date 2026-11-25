@@ -142,5 +142,29 @@
   },
   "undo": {
     "action": "Undo"
+  },
+  "views": {
+    "quadrant": "Quadrants",
+    "month": "Month",
+    "week": "Week",
+    "day": "Day",
+    "agenda": "Agenda",
+    "multi-day": "Multi-day",
+    "multi-week": "Multi-week",
+    "year": "Year",
+    "switcherLabel": "View"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "search": "Search",
+    "help": "Shortcut help",
+    "undo": "Undo",
+    "redo": "Redo",
+    "quadrant": "Quadrants",
+    "month": "Month view",
+    "week": "Week view",
+    "day": "Day view",
+    "agenda": "Agenda view",
+    "close": "Close dialog"
   }
 }

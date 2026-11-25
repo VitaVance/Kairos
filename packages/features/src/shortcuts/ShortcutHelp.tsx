@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
+import { useTranslation } from '@todolist/ui';
 import { formatBinding, isEditableTarget } from './useShortcuts';
 import './shortcuts.css';
 
@@ -19,18 +20,45 @@ export interface ShortcutHelpProps {
   items?: readonly ShortcutHelpItem[];
 }
 
-export const DEFAULT_SHORTCUT_ITEMS: readonly ShortcutHelpItem[] = [
-  { binding: 'mod+k', label: '搜索' },
-  { binding: '?', label: '快捷键帮助' },
-  { binding: 'mod+z', label: '撤销' },
-  { binding: 'mod+shift+z', label: '重做' },
-  { binding: 'g q', label: '四象限' },
-  { binding: 'g m', label: '月视图' },
-  { binding: 'g w', label: '周视图' },
-  { binding: 'g d', label: '日视图' },
-  { binding: 'g a', label: '日程视图' },
-  { binding: 'escape', label: '关闭对话框' },
+/**
+ * The bindings are fixed; only their descriptions change with the language.
+ * Kept as a binding list here and resolved through the catalog in the
+ * component so the sheet follows a language switch made while it is open.
+ */
+/**
+ * The bindings are fixed; only their descriptions change with the language.
+ *
+ * Full catalog paths rather than a bare suffix: the typed `t()` accepts only
+ * literal keys, so `t('shortcuts.' + b.key)` would fail to type-check — which
+ * is the point. Spelling each path out means a renamed catalog key breaks the
+ * build instead of rendering the raw key to the user.
+ */
+export const DEFAULT_SHORTCUT_BINDINGS: readonly {
+  binding: string;
+  labelKey:
+    | 'shortcuts.search'
+    | 'shortcuts.help'
+    | 'shortcuts.undo'
+    | 'shortcuts.redo'
+    | 'shortcuts.quadrant'
+    | 'shortcuts.month'
+    | 'shortcuts.week'
+    | 'shortcuts.day'
+    | 'shortcuts.agenda'
+    | 'shortcuts.close';
+}[] = [
+  { binding: 'mod+k', labelKey: 'shortcuts.search' },
+  { binding: '?', labelKey: 'shortcuts.help' },
+  { binding: 'mod+z', labelKey: 'shortcuts.undo' },
+  { binding: 'mod+shift+z', labelKey: 'shortcuts.redo' },
+  { binding: 'g q', labelKey: 'shortcuts.quadrant' },
+  { binding: 'g m', labelKey: 'shortcuts.month' },
+  { binding: 'g w', labelKey: 'shortcuts.week' },
+  { binding: 'g d', labelKey: 'shortcuts.day' },
+  { binding: 'g a', labelKey: 'shortcuts.agenda' },
+  { binding: 'escape', labelKey: 'shortcuts.close' },
 ];
+
 
 /**
  * Modal cheat-sheet built on the native `<dialog>`, so focus trapping,
@@ -39,7 +67,19 @@ export const DEFAULT_SHORTCUT_ITEMS: readonly ShortcutHelpItem[] = [
  * Uncontrolled by default: render it once anywhere in the tree and it opens on
  * `?`. Pass `open` + `onClose` to drive it from outside instead.
  */
-export function ShortcutHelp({ open: controlledOpen, onClose, items = DEFAULT_SHORTCUT_ITEMS }: ShortcutHelpProps) {
+export function ShortcutHelp({ open: controlledOpen, onClose, items }: ShortcutHelpProps) {
+  const { t } = useTranslation('misc');
+  // Resolve the default cheat-sheet in the active language. Building it at
+  // module scope would freeze whichever language was active at import time.
+  const resolvedItems = useMemo<readonly ShortcutHelpItem[]>(
+    () =>
+      items ??
+      DEFAULT_SHORTCUT_BINDINGS.map((b) => ({
+        binding: b.binding,
+        label: t(b.labelKey),
+      })),
+    [items, t],
+  );
   const controlled = controlledOpen !== undefined;
   const [internalOpen, setInternalOpen] = useState(false);
   const open = controlled ? controlledOpen : internalOpen;
@@ -101,14 +141,14 @@ export function ShortcutHelp({ open: controlledOpen, onClose, items = DEFAULT_SH
       <div className="sc-help__panel">
         <header className="sc-help__head">
           <h2 className="sc-help__title" id={titleId}>
-            键盘快捷键
+            {t('shortcuts.title')}
           </h2>
           <span className="sc-help__hint" aria-hidden="true">
-            按 Esc 关闭
+            {t('shortcuts.close')}
           </span>
         </header>
         <ul className="sc-help__list">
-          {items.map((item) => (
+          {resolvedItems.map((item) => (
             <li className="sc-help__item" key={`${item.binding}:${item.label}`}>
               <span className="sc-help__label">{item.label}</span>
               <kbd className="sc-help__kbd">{formatBinding(item.binding)}</kbd>
