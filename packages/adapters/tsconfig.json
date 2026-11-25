@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "lib": ["ES2022", "DOM"],
+    "types": ["vitest/globals"]
+  },
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts",
+    // `@todolist/core` re-exports its date helpers, whose signatures reference
+    // the ambient `Temporal` namespace declared in the core package. Ambient
+    // declarations are not pulled in through the import graph, so include it
+    // explicitly. Read-only reference; the core package is not modified.
+    "../core/src/types/**/*.d.ts"
+  ]
+}
