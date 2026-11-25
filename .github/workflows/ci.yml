@@ -11,9 +11,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No `with: version` here on purpose. The action reads
+      # `packageManager` from package.json (pnpm@11.21.0) and errors out with
+      # "Multiple versions of pnpm specified" if this also names one. Pinning
+      # it in one place means CI and a local shell can never disagree.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
 
       - uses: actions/setup-node@v4
         with:
@@ -43,8 +45,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
-        with:
-          version: 11
       - uses: actions/setup-node@v4
         with:
           node-version: 22
