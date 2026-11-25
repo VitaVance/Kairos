@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION B — "PRO TOOL"
+  Positioning: a Linear/Notion-density workbench for power users who live in the app eight hours
+  a day — an instrument, not a diary. Neutral paper, one indigo accent, keyboard-first details.
+
+  What makes it distinct:
+  1. Density is the feature — 28px task rows, 12.5px UI, hairline tables, a 220px expanded
+     sidebar, and 36 open tasks plus a detail inspector on one 1440×900 screen.
+  2. Color is a signal, not decoration — warm-neutral surfaces, a single #5b5bd6 accent for
+     interactive/today states; lists are 6px dots and chips are near-white with a 2px left rule,
+     never pastel fills.
+  3. Built like a tool — persistent search + filter chips + segmented view switcher, a task
+     detail rail with metadata/subtasks/notes, keyboard hints (⌘K / K), and a status bar
+     that reports state instead of decorating.
+
+  Static design mockup · hardcoded data · no dependencies · today = 2026-09-06 (周三)
+  Views: 四象限 / 月视图 / 周视图 · Frame: 1440 × 900
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pro Tool · 待办与日历 — 设计方向 B</title>
+<style>
+/* ============================================================================
+   DESIGN TOKENS — Direction B / Pro Tool
+   The seed of the product design system. Everything below resolves to these.
+   ========================================================================== */
+:root {
+  /* ---- Canvas & surfaces ------------------------------------------------ */
+  --bg-page:        #f2f0ec;   /* presentation backdrop                     */
+  --bg-app:         #fbfbfa;   /* app canvas, warm near-white               */
+  --bg-surface:     #ffffff;   /* cards, panels, detail rail                */
+  --bg-sidebar:     #f6f5f2;   /* expanded sidebar                          */
+  --bg-subtle:      #f2f1ee;   /* search field, segmented track             */
+  --bg-hover:       #f4f3f0;   /* neutral hover                             */
+  --bg-active:      #eeeefb;   /* accent-tinted active nav                  */
+  --bg-out:         #f7f6f3;   /* out-of-month cells                        */
+  --bg-weekend:     #fdfdfb;   /* weekend cells                             */
+
+  /* ---- Hairlines -------------------------------------------------------- */
+  --line:           #e6e5e3;   /* the standard 1px border                   */
+  --line-soft:      #efeeeb;   /* inner grid lines                          */
+  --line-strong:    #d8d5d0;   /* frame edge                                */
+
+  /* ---- Ink -------------------------------------------------------------- */
+  --ink-1:          #1f1e1d;   /* primary text                              */
+  --ink-2:          #787774;   /* secondary text                            */
+  --ink-3:          #9b9893;   /* tertiary metadata                         */
+  --ink-4:          #c3c0ba;   /* disabled / struck-through                 */
+  --ink-inverse:    #ffffff;
+
+  /* ---- One accent ------------------------------------------------------- */
+  --accent:         #5b5bd6;   /* interactive, active, today                */
+  --accent-hover:   #4b4bc6;
+  --accent-soft:    #eeeefb;
+  --accent-line:    #d4d4f4;
+
+  /* ---- Eisenhower semantics (dots + rules only, never fills) ------------ */
+  --q1:             #cf4b4b;   /* 重要且紧急                                */
+  --q2:             #cf8a2e;   /* 重要不紧急                                */
+  --q3:             #3f79bf;   /* 不重要但紧急                              */
+  --q4:             #3f8f68;   /* 不重要不紧急                              */
+
+  /* ---- List identity dots ----------------------------------------------- */
+  --l-work:         #55688a;
+  --l-personal:     #bd7a2d;
+  --l-study:        #3f8f68;
+  --l-fitness:      #b34f5b;
+  --l-shopping:     #8a6bb8;
+
+  /* ---- Status ----------------------------------------------------------- */
+  --danger:         #c64141;
+
+  /* ---- Type ------------------------------------------------------------- */
+  --font-ui:        "Segoe UI Variable Text", "Segoe UI", "Microsoft YaHei UI",
+                    "PingFang SC", "Noto Sans SC", sans-serif;
+  --font-dis:       "Bahnschrift", "DIN Alternate", "Segoe UI Variable Display",
+                    "Segoe UI", sans-serif;
+  --font-mono:      "Cascadia Mono", "Cascadia Code", "SF Mono", Consolas,
+                    ui-monospace, monospace;
+  --fs-9:           9px;       /* micro labels, calendar chip time          */
+  --fs-10:          10px;      /* section labels, counts                    */
+  --fs-11:          11px;      /* meta, chips, captions                     */
+  --fs-12:          12.5px;    /* UI body                                   */
+  --fs-14:          13.5px;    /* detail values                             */
+  --fs-15:          15px;      /* toolbar title, detail title               */
+  --fs-17:          17px;      /* inspector title                           */
+  --fs-19:          19px;      /* week day numerals                         */
+
+  /* ---- Spacing rhythm (4px base, halves allowed for density) ----------- */
+  --s-1: 2px;  --s-2: 4px;  --s-3: 6px;  --s-4: 8px;
+  --s-5: 10px; --s-6: 12px; --s-7: 14px; --s-8: 16px;
+  --s-10: 20px; --s-12: 24px; --s-16: 32px;
+
+  /* ---- Radii ------------------------------------------------------------ */
+  --r-frame: 12px;
+  --r-card: 8px;
+  --r-ctl: 6px;
+  --r-chip: 4px;
+  --r-xs: 3px;
+
+  /* ---- Shadows (almost none: depth is earned) -------------------------- */
+  --shadow-frame: 0 1px 2px rgba(31,30,29,.04), 0 18px 48px -20px rgba(31,30,29,.18);
+  --shadow-pop:   0 1px 2px rgba(31,30,29,.05), 0 8px 24px -8px rgba(31,30,29,.12);
+  --shadow-seg:   0 1px 2px rgba(31,30,29,.10), 0 0 0 1px rgba(31,30,29,.03);
+
+  /* ---- Layout ----------------------------------------------------------- */
+  --frame-w: 1440px;
+  --frame-h: 900px;
+  --sidebar-w: 220px;
+  --topbar-h: 48px;
+  --status-h: 28px;
+  --detail-w: 300px;
+  --hour-h: 61px;              /* week grid: 08:00 → 20:00 = 12 × 62px      */
+
+  /* ---- Scrollbar -------------------------------------------------------- */
+  --sb-thumb: #d5d2cc;
+  --sb-track: transparent;
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  width: var(--page-w, 1520px);
+  margin-inline: auto;
+  background: var(--bg-page);
+  color: var(--ink-1);
+  font: var(--fs-12)/1.5 var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+button, input { font: inherit; color: inherit; }
+button { background: none; border: 0; padding: 0; cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+h1, h2, h3, p, dl, dd, ul { margin: 0; }
+ul { padding: 0; list-style: none; }
+svg { display: block; }
+::selection { background: #dedef8; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--line);
+  border-bottom-color: #d7d4ce;
+  border-radius: var(--r-xs);
+  background: var(--bg-surface);
+  color: var(--ink-3);
+  font: var(--fs-9)/1 var(--font-mono);
+  box-shadow: 0 1px 0 rgba(31,30,29,.04);
+}
+
+/* Standard scrollbars, with the WebKit fallback used only where needed. */
+.scroller {
+  scrollbar-color: var(--sb-thumb) var(--sb-track);
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  overscroll-behavior: contain;
+}
+@supports not (scrollbar-color: auto) {
+  .scroller { scrollbar-width: auto; }
+  .scroller::-webkit-scrollbar { width: 9px; height: 9px; }
+  .scroller::-webkit-scrollbar-thumb {
+    background: var(--sb-thumb);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background-clip: padding-box;
+  }
+  .scroller::-webkit-scrollbar-track { background: var(--sb-track); }
+}
+
+/* ============================================================================
+   PRESENTATION SHELL (outside the product)
+   ========================================================================== */
+.page { padding: 40px 40px 64px; }
+.masthead {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 48px;
+  align-items: end;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line-strong);
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font: 600 9.5px/1 var(--font-mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.eyebrow .mark {
+  width: 18px; height: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--bg-surface);
+}
+.eyebrow .mark i { border-radius: 1px; background: var(--ink-2); }
+.eyebrow .mark i:nth-child(1) { background: var(--q1); }
+.eyebrow .mark i:nth-child(4) { background: var(--accent); }
+.masthead h1 {
+  margin: 14px 0 10px;
+  font-size: 30px;
+  line-height: 1.18;
+  font-weight: 600;
+  letter-spacing: -.025em;
+}
+.lede {
+  max-width: 720px;
+  font-size: var(--fs-12);
+  line-height: 1.75;
+  color: var(--ink-2);
+}
+.traits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 26px;
+  margin-top: 18px;
+}
+.traits li {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.traits b {
+  font: 500 9.5px var(--font-mono);
+  color: var(--accent);
+  letter-spacing: .04em;
+}
+.mast-meta {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 7px 12px;
+  padding-left: 20px;
+  border-left: 1px solid var(--line);
+  font-size: 10.5px;
+}
+.mast-meta dt {
+  color: var(--ink-3);
+  letter-spacing: .08em;
+  font-size: 9.5px;
+  line-height: 1.7;
+}
+.mast-meta dd {
+  color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.55;
+}
+.mast-meta dd .mono { font-family: var(--font-mono); font-size: 10px; }
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 22px;
+  margin-top: 18px;
+  padding: 11px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: rgba(255,255,255,.55);
+}
+.palette-label {
+  font: 600 9px/1 var(--font-mono);
+  letter-spacing: .16em;
+  color: var(--ink-3);
+  margin-right: 4px;
+}
+.sw { display: flex; align-items: center; gap: 6px; }
+.sw i {
+  width: 13px; height: 13px;
+  border-radius: var(--r-xs);
+  border: 1px solid rgba(31,30,29,.08);
+  flex: none;
+}
+.sw span { font: 9.5px/1 var(--font-mono); color: var(--ink-2); letter-spacing: .02em; }
+
+.showcase { margin-top: 34px; }
+.section-cap {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 2px;
+  margin-bottom: 10px;
+}
+.cap-index {
+  font: 500 9.5px var(--font-mono);
+  letter-spacing: .08em;
+  color: var(--accent);
+}
+.section-cap h2 {
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.cap-note { font-size: 11px; color: var(--ink-3); }
+.cap-meta {
+  margin-left: auto;
+  font: 9px var(--font-mono);
+  letter-spacing: .09em;
+  color: var(--ink-4);
+}
+
+/* ---- Device frame ------------------------------------------------------- */
+.device {
+  position: relative;
+  width: var(--frame-w);
+  height: var(--frame-h);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-frame);
+  background: var(--bg-surface);
+  overflow: hidden;
+  box-shadow: var(--shadow-frame);
+}
+.app {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  height: 100%;
+  background: var(--bg-app);
+}
+.main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg-app);
+}
+.content { flex: 1; min-height: 0; display: flex; }
+
+/* ============================================================================
+   SIDEBAR — expanded, 220px
+   ========================================================================== */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 8px;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--line);
+}
+.ws {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 8px 6px;
+  padding: 0 4px;
+}
+.ws-avatar {
+  width: 22px; height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #e7e7f8;
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 700;
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.ws-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-12);
+  font-weight: 600;
+  letter-spacing: -.005em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ws-chev { color: var(--ink-3); flex: none; }
+.ws-add {
+  width: 22px; height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--ink-3);
+}
+.ws-add:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+.quick-add {
+  height: 28px;
+  flex: none;
+  margin: 0 8px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--bg-surface);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  box-shadow: 0 1px 0 rgba(31,30,29,.02);
+}
+.quick-add:hover { border-color: var(--line-strong); color: var(--ink-1); }
+.quick-add svg { color: var(--accent); }
+.quick-add kbd { margin-left: auto; }
+
+.nav-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 15px 10px 4px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+}
+.nav-label .en {
+  margin-left: auto;
+  font: 500 8.5px var(--font-mono);
+  letter-spacing: .12em;
+  color: var(--ink-4);
+}
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 16px);
+  height: 28px;
+  margin: 0 8px;
+  padding: 0 8px;
+  border-radius: 5px;
+  color: var(--ink-2);
+  font-size: var(--fs-12);
+  text-align: left;
+  white-space: nowrap;
+}
+.nav-item svg { flex: none; color: var(--ink-3); }
+.nav-item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-item.is-active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.nav-item.is-active svg { color: var(--accent); }
+.nav-count {
+  margin-left: auto;
+  font: 9.5px var(--font-mono);
+  color: var(--ink-3);
+  letter-spacing: 0;
+}
+.nav-item.is-active .nav-count { color: var(--accent); }
+.nav-item.nav-add { color: var(--ink-3); }
+.nav-item.nav-add svg { color: var(--ink-4); }
+.dot {
+  width: 6px; height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--c, var(--ink-3));
+  margin: 0 1px;
+}
+.hash {
+  width: 14px; flex: none;
+  font: 500 11px var(--font-mono);
+  color: var(--ink-4);
+  text-align: center;
+}
+.sb-spacer { flex: 1; }
+
+.sb-stats {
+  flex: none;
+  margin: 0 8px 8px;
+  padding: 9px 9px 8px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--bg-surface);
+}
+.wp-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+.wp-head b { font: 600 11px var(--font-mono); color: var(--ink-1); }
+.wp-head b span { font-weight: 400; color: var(--ink-3); }
+.wp-track {
+  height: 3px;
+  margin: 7px 0 8px;
+  border-radius: 2px;
+  background: #eceae6;
+  overflow: hidden;
+}
+.wp-track i { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 18px;
+  margin-bottom: 7px;
+}
+.spark i { flex: 1; height: var(--h, 6px); border-radius: 1px 1px 0 0; background: #ddd9d2; }
+.spark i.is-now { background: var(--accent); }
+.wp-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--ink-3);
+}
+.wp-foot .warn { color: var(--danger); }
+
+.sb-foot {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 12px;
+  border-top: 1px solid var(--line);
+}
+.avatar-sm {
+  width: 21px; height: 21px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #e9e2d4;
+  color: #6f6046;
+  font-size: 9.5px;
+  font-weight: 600;
+}
+.sb-user {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 11px;
+  font-weight: 500;
+}
+.sb-user .pro {
+  padding: 1px 4px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: 600 8px var(--font-mono);
+  letter-spacing: .04em;
+}
+.sb-foot .icon-btn { margin-left: auto; }
+
+/* ============================================================================
+   TOPBAR
+   ========================================================================== */
+.topbar {
+  height: var(--topbar-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 16px;
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--line);
+}
+.tb-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+  min-width: 0;
+}
+.tb-title {
+  font-size: var(--fs-15);
+  font-weight: 600;
+  letter-spacing: -.018em;
+  white-space: nowrap;
+}
+.tb-badge {
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+  background: var(--bg-surface);
+  font: 9.5px var(--font-mono);
+  color: var(--ink-3);
+}
+.tb-div { width: 1px; height: 14px; background: var(--line); }
+.tb-date {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tb-tools {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 222px;
+  height: 28px;
+  padding: 0 5px 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--r-ctl);
+  background: var(--bg-subtle);
+  color: var(--ink-3);
+}
+.search:focus-within {
+  background: var(--bg-surface);
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 2px rgba(91,91,214,.10);
+}
+.search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink-1);
+  font-size: 11.5px;
+}
+.search input::placeholder { color: var(--ink-3); }
+.search kbd { flex: none; }
+
+.fchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--ink-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.fchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.fchip.is-on {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 500;
+}
+.fchip .cnt { font: 9px var(--font-mono); color: var(--ink-3); }
+.fchip.is-on .cnt { color: var(--accent); }
+
+.seg {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid #e9e8e4;
+  border-radius: var(--r-ctl);
+  background: #efeeea;
+}
+.seg button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+.seg button:hover { color: var(--ink-1); }
+.seg button[aria-selected="true"] {
+  background: var(--bg-surface);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-seg);
+}
+.seg .seg-matrix { padding: 0 7px; }
+
+.navgrp {
+  display: flex;
+  align-items: stretch;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.navgrp button {
+  display: flex;
+  align-items: center;
+  padding: 0 7px;
+  color: var(--ink-3);
+  font-size: 10.5px;
+}
+.navgrp button:hover { background: var(--bg-hover); color: var(--ink-1); }
+.navgrp button + button { border-left: 1px solid var(--line); }
+.navgrp .nav-today { padding: 0 8px; color: var(--ink-1); font-weight: 500; }
+
+.icon-btn {
+  width: 26px; height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--ink-3);
+  flex: none;
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 9px 0 8px;
+  border-radius: var(--r-ctl);
+  background: var(--accent);
+  color: var(--ink-inverse);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(43,43,120,.22);
+}
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary kbd {
+  border-color: rgba(255,255,255,.28);
+  background: rgba(255,255,255,.12);
+  color: rgba(255,255,255,.8);
+  box-shadow: none;
+  height: 14px;
+  min-width: 14px;
+}
+
+/* ============================================================================
+   STATUS BAR
+   ========================================================================== */
+.statusbar {
+  height: var(--status-h);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border-top: 1px solid var(--line);
+  background: var(--bg-app);
+  color: var(--ink-3);
+  font-size: 9.5px;
+  white-space: nowrap;
+}
+.status-group { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.status-group.right { margin-left: auto; }
+.status .live,
+.live {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--q4);
+  box-shadow: 0 0 0 2px rgba(63,143,104,.14);
+  flex: none;
+}
+.statusbar b { font-weight: 500; color: var(--ink-2); }
+.statusbar .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.statusbar .zon { color: var(--accent); font-family: var(--font-mono); }
+.status-sep { width: 1px; height: 9px; background: var(--line); flex: none; }
+
+/* ============================================================================
+   QUADRANT VIEW
+   ========================================================================== */
+.quad-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--detail-w);
+}
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  min-height: 0;
+}
+.q-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--q);
+  border-radius: var(--r-card);
+  background: var(--bg-surface);
+  box-shadow: 0 1px 0 rgba(31,30,29,.015);
+  overflow: hidden;
+}
+.q1 { --q: var(--q1); }
+.q2 { --q: var(--q2); }
+.q3 { --q: var(--q3); }
+.q4 { --q: var(--q4); }
+
+.q-head {
+  height: 35px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 6px 0 10px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.q-dot {
+  width: 6px; height: 6px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--q);
+}
+.q-name {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+.q-en {
+  margin-left: 2px;
+  font: 600 8px var(--font-mono);
+  letter-spacing: .12em;
+  color: var(--ink-4);
+  white-space: nowrap;
+}
+.q-count {
+  margin-left: auto;
+  padding: 1px 4px;
+  border-radius: var(--r-xs);
+  background: var(--bg-subtle);
+  font: 9px var(--font-mono);
+  color: var(--ink-3);
+}
+.q-plus {
+  width: 22px; height: 22px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  color: var(--ink-3);
+}
+.q-plus:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+.q-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+.task {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  flex: none;
+  padding: 0 8px 0 10px;
+  border-bottom: 1px solid #f4f3f0;
+  cursor: pointer;
+  user-select: none;
+}
+.task:last-child { border-bottom-color: transparent; }
+.task:hover { background: #f8f7f4; }
+.task.is-sel {
+  background: #f5f5fd;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.task.is-sel:hover { background: #f1f1fc; }
+.task.is-sel .t-meta { color: var(--accent); }
+.task input {
+  position: absolute;
+  width: 1px; height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.box {
+  position: relative;
+  width: 13px; height: 13px;
+  flex: none;
+  border: 1px solid #cbc8c2;
+  border-radius: 3.5px;
+  background: var(--bg-surface);
+  transition: border-color .12s ease, background .12s ease;
+}
+.task:hover .box { border-color: #aaa7a1; }
+.task input:checked + .box { border-color: var(--accent); background: var(--accent); }
+.task input:checked + .box::after {
+  content: "";
+  position: absolute;
+  left: 3.5px;
+  top: 1px;
+  width: 4px; height: 7px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(42deg);
+}
+.task:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: -2px; }
+.t-title {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--fs-12);
+  letter-spacing: -.003em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.t-meta {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 96px;
+  color: var(--ink-3);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.t-meta.is-mono { font-family: var(--font-mono); font-size: 9.5px; }
+.t-meta .dot { width: 5px; height: 5px; margin: 0; }
+
+.q-add {
+  margin-top: auto;
+  height: 28px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-top: 1px solid #f4f3f0;
+  color: var(--ink-4);
+  font-size: 10.5px;
+}
+.q-add:hover { background: #f8f7f4; color: var(--ink-1); }
+.q-add kbd { margin-left: auto; height: 14px; min-width: 14px; color: var(--ink-4); }
+
+.done-group { flex: none; border-top: 1px solid var(--line-soft); }
+.done-group summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  color: var(--ink-3);
+  font-size: 10.5px;
+  cursor: pointer;
+  list-style: none;
+}
+.done-group summary::-webkit-details-marker { display: none; }
+.done-group summary:hover { background: #f8f7f4; }
+.done-group summary svg { color: var(--ink-4); transition: transform .15s ease; }
+.done-group[open] summary svg { transform: rotate(90deg); }
+.done-count {
+  padding: 1px 4px;
+  border-radius: var(--r-xs);
+  background: var(--bg-subtle);
+  font: 9px var(--font-mono);
+  color: var(--ink-3);
+}
+.done-group .task { height: 26px; }
+.done-group .t-title { color: var(--ink-4); text-decoration: line-through; }
+.done-group .t-meta { color: var(--ink-4); }
+.done-group .task input:checked + .box { border-color: #dcd9d3; background: #e9e7e2; }
+.done-group .task input:checked + .box::after { border-color: var(--ink-3); }
+.done-group .q-add { border-top: 0; }
+
+/* ---- Detail inspector --------------------------------------------------- */
+.detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-surface);
+  border-left: 1px solid var(--line);
+}
+.detail-head {
+  height: 38px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px 0 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+.detail-head h2 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--ink-2);
+}
+.detail-head .path {
+  margin-left: auto;
+  font-size: 9.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.detail-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 14px 2px;
+}
+.d-crumb {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9.5px;
+  color: var(--ink-3);
+}
+.d-crumb .dot { width: 5px; height: 5px; margin: 0; }
+.d-crumb .sep { color: var(--ink-4); }
+.d-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.d-title-row .box { margin-top: 3px; width: 15px; height: 15px; }
+.d-title-row .box::after { left: 4px !important; top: 1.5px !important; }
+.d-title {
+  font-size: var(--fs-17);
+  line-height: 1.32;
+  font-weight: 600;
+  letter-spacing: -.018em;
+}
+.d-sub {
+  margin-left: 23px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+.d-meta {
+  display: grid;
+  grid-template-columns: 55px minmax(0, 1fr);
+  gap: 6px 6px;
+  margin: 9px 0 0;
+  padding: 7px 0;
+  border-top: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+}
+.d-meta dt {
+  font-size: 10px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+.d-meta dd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-1);
+  line-height: 1.6;
+}
+.d-meta dd .mono { font-family: var(--font-mono); font-size: 9.5px; color: var(--ink-2); }
+.p-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--bg-app);
+  font-size: 10px;
+  color: var(--ink-1);
+}
+.p-tag .dot { width: 5px; height: 5px; margin: 0; }
+.today-tag {
+  padding: 1px 4px;
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.d-sec { margin-top: 11px; }
+.d-sec-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.d-sec-head .mono { font: 9px var(--font-mono); color: var(--ink-3); letter-spacing: 0; }
+.d-sec-head .mini-track {
+  flex: 1;
+  height: 2px;
+  margin-left: 2px;
+  border-radius: 1px;
+  background: #eceae6;
+  overflow: hidden;
+}
+.d-sec-head .mini-track i { display: block; height: 100%; background: var(--accent); }
+.subtask {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 25px;
+  margin: 0 -4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+}
+.subtask:hover { background: var(--bg-hover); }
+.subtask .box { width: 12px; height: 12px; }
+.subtask input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.subtask input:checked + .box { border-color: var(--accent); background: var(--accent); }
+.subtask input:checked + .box::after {
+  content: "";
+  position: absolute;
+  left: 3px; top: .5px;
+  width: 4px; height: 6.5px;
+  border: solid #fff;
+  border-width: 0 1.5px 1.5px 0;
+  transform: rotate(42deg);
+}
+.subtask.is-done span:last-child { color: var(--ink-4); text-decoration: line-through; }
+.subtask .due { margin-left: auto; font: 9px var(--font-mono); color: var(--ink-3); }
+
+.d-note {
+  padding: 7px 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: 5px;
+  background: #faf9f7;
+  font-size: 10.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.d-note:hover { border-color: var(--line); }
+.d-attach {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 25px;
+  margin: 0 -4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  font-size: 10.5px;
+  color: var(--ink-1);
+}
+.d-attach:hover { background: var(--bg-hover); }
+.d-attach svg { color: var(--ink-3); flex: none; }
+.d-attach .size { margin-left: auto; font: 9px var(--font-mono); color: var(--ink-3); }
+
+.d-act {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 2px 0;
+  font-size: 9.5px;
+  color: var(--ink-3);
+  line-height: 1.6;
+}
+.d-act .who { color: var(--ink-2); }
+.d-act .t { margin-left: auto; font: 8.5px var(--font-mono); color: var(--ink-4); flex: none; }
+.d-act-dot {
+  width: 5px; height: 5px;
+  margin-top: 5px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+.d-create {
+  margin: 8px 0 2px;
+  padding-top: 7px;
+  border-top: 1px dashed var(--line);
+  font-size: 9px;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.d-keys {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px 10px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line-soft);
+  background: #fcfcfa;
+}
+.d-keys span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  color: var(--ink-3);
+}
+.detail-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 12px;
+  border-top: 1px solid var(--line);
+}
+.ghost-btn {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 5px;
+  color: var(--ink-3);
+  font-size: 10.5px;
+}
+.ghost-btn:hover { background: var(--bg-hover); color: var(--danger); }
+.detail-foot .save-hint {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  color: var(--ink-3);
+}
+.btn-complete {
+  height: 26px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 5px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.btn-complete:hover { background: var(--accent-hover); }
+
+/* ============================================================================
+   MONTH VIEW
+   ========================================================================== */
+.month {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-app);
+}
+.month-head {
+  height: 30px;
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--line);
+}
+.month-head span {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-left: 1px solid var(--line-soft);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: .14em;
+  color: var(--ink-3);
+}
+.month-head span:first-child { border-left: 0; }
+.month-head span.is-weekend { color: var(--ink-4); }
+.month-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+.day {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
+  padding: 4px 5px 3px;
+  border-left: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--bg-surface);
+}
+.day:nth-child(7n+1) { border-left: 0; }
+.day:nth-child(n+29) { border-bottom: 0; }
+.day.is-out { background: var(--bg-out); }
+.day.is-weekend:not(.is-out) { background: var(--bg-weekend); }
+.day.is-today {
+  background: #fbfbfe;
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+.d-head {
+  height: 20px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.d-num {
+  padding: 3px 4px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-size: 10.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.is-out .d-num { color: var(--ink-4); }
+.day.is-today .d-num {
+  min-width: 19px;
+  padding: 3px 5px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+}
+.d-lunar {
+  margin-left: auto;
+  font-size: 8.5px;
+  color: var(--ink-4);
+  letter-spacing: .02em;
+}
+.d-more {
+  margin-left: auto;
+  font: 8.5px var(--font-mono);
+  color: var(--ink-3);
+}
+.evs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  overflow: hidden;
+}
+.ev {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 18px;
+  padding: 0 5px 0 6px;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--c, var(--ink-3));
+  border-radius: var(--r-xs);
+  background: #fdfdfc;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--ink-1);
+  cursor: pointer;
+}
+.ev:hover { background: var(--bg-hover); border-color: var(--line); }
+.ev-t {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ev-time {
+  flex: none;
+  font: 8.5px var(--font-mono);
+  color: var(--ink-3);
+  letter-spacing: -.01em;
+}
+.is-out .ev { opacity: .4; }
+.day.is-today .ev { background: #fff; }
+
+/* ============================================================================
+   WEEK VIEW
+   ========================================================================== */
+.week {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.week-head {
+  height: 46px;
+  flex: none;
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  background: var(--bg-app);
+  border-bottom: 1px solid var(--line);
+}
+.wk-gutter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 8px 9px 0;
+  font: 8.5px var(--font-mono);
+  letter-spacing: .05em;
+  color: var(--ink-4);
+}
+.wk-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-left: 1px solid var(--line-soft);
+}
+.wk-day .wd {
+  font-size: 9.5px;
+  letter-spacing: .1em;
+  color: var(--ink-3);
+}
+.wk-day .wn {
+  font: 500 var(--fs-19)/1 var(--font-dis);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.wk-day.is-today { background: linear-gradient(to bottom, transparent 55%, rgba(91,91,214,.04)); }
+.wk-day.is-today .wd { color: var(--accent); font-weight: 600; }
+.wk-day.is-today .wn {
+  display: grid;
+  place-items: center;
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.allday {
+  height: 30px;
+  flex: none;
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  grid-template-rows: 30px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--line);
+}
+.ad-lbl {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 8.5px;
+  letter-spacing: .1em;
+  color: var(--ink-3);
+}
+.ad-cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 3px;
+  border-left: 1px solid var(--line-soft);
+}
+.ad-bar {
+  grid-column: 2 / 5;
+  grid-row: 1;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  height: 16px;
+  margin: 0 3px;
+  padding: 0 6px;
+  border-left: 2px solid var(--c);
+  border-radius: 2px;
+  background: #fbfbf9;
+  font-size: 9px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ad-ev {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  height: 16px;
+  padding: 0 4px 0 5px;
+  border-left: 2px solid var(--c, var(--ink-3));
+  border-radius: 2px;
+  background: #fbfbf9;
+  font-size: 9px;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.week-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  overflow: hidden;
+}
+.week-gutter {
+  position: relative;
+  height: calc(var(--hour-h) * 12);
+  border-right: 1px solid var(--line-soft);
+}
+.hour-lbl {
+  position: absolute;
+  right: 8px;
+  transform: translateY(-50%);
+  font: 9px var(--font-mono);
+  color: var(--ink-3);
+  letter-spacing: .01em;
+  font-variant-numeric: tabular-nums;
+}
+.hour-lbl.is-first { transform: none; }
+.hour-lbl.is-end { transform: translateY(-100%); }
+.hour-lbl.is-noon {
+  font-family: var(--font-ui);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .1em;
+  color: var(--ink-2);
+}
+.week-canvas {
+  position: relative;
+  height: calc(var(--hour-h) * 12);
+  min-width: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--line-soft) 0,
+    var(--line-soft) 1px,
+    transparent 1px,
+    transparent var(--hour-h)
+  );
+}
+.week-canvas::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--hour-h) * 4) 0 auto;
+  height: 1px;
+  background: var(--line);
+  z-index: 1;
+}
+.week-cols {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.week-col {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--line-soft);
+}
+.week-col:first-child { border-left: 0; }
+.week-col.is-today { background: rgba(91,91,214,.022); }
+.event {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  z-index: 2;
+  overflow: hidden;
+  padding: 4px 5px;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--c, var(--ink-3));
+  border-radius: var(--r-chip);
+  background: var(--bg-surface);
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(31,30,29,.02);
+}
+.event:hover { background: #fbfaf8; border-color: var(--line); }
+.event.is-sel {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 1px var(--accent-line), 0 1px 2px rgba(91,91,214,.10);
+}
+.event-title {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-time {
+  margin-top: 1px;
+  font: 8.5px var(--font-mono);
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.event.is-short {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 5px;
+}
+.event.is-short .event-title { flex: 1; min-width: 0; font-size: 10px; line-height: 1.2; }
+.event.is-short .event-time { flex: none; margin: 0 0 0 auto; font-size: 8px; }
+.now-line {
+  position: absolute;
+  left: 0; right: 0;
+  top: 145px;
+  height: 1px;
+  background: var(--accent);
+  z-index: 4;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.now-gutter {
+  position: absolute;
+  right: 4px;
+  transform: translateY(-50%);
+  padding: 1px 3px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  font: 600 8.5px var(--font-mono);
+  letter-spacing: .02em;
+}
+.now-flag {
+  position: absolute;
+  right: 6px;
+  top: 145px;
+  z-index: 4;
+  transform: translateY(-50%);
+  padding: 0 2px;
+  background: var(--bg-app);
+  font: 8.5px var(--font-mono);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ============================================================================
+   PRESENTATION FOOTER
+   ========================================================================== */
+.page-foot {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-top: 36px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-strong);
+  font-size: 9.5px;
+  color: var(--ink-3);
+}
+.page-foot .right { margin-left: auto; font-family: var(--font-mono); color: var(--ink-4); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Presentation masthead -->
+  <header class="masthead">
+    <div>
+      <div class="eyebrow">
+        <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        Direction B · Pro Tool
+      </div>
+      <h1>把一整天，放进一台仪器里。</h1>
+      <p class="lede">给长期在应用里工作的人：更紧的行高、更少的颜色、更快的切换。待办、日历与任务详情收进同一个工作面，所有装饰让位于秩序。</p>
+      <ul class="traits">
+        <li><b>01</b>密度优先 — 28px 任务行 / 12.5px UI，单屏 36 项待办 · 28px 行</li>
+        <li><b>02</b>一个强调色 — 中性纸面 + <span class="mono" style="font-family:var(--font-mono);font-size:10px">#5b5bd6</span>，清单只靠色点与左轨</li>
+        <li><b>03</b>像工具一样 — ⌘K 搜索、K 完成、详情检查器与状态栏</li>
+      </ul>
+    </div>
+    <dl class="mast-meta">
+      <dt>方向</dt><dd>Pro Tool · B</dd>
+      <dt>画布</dt><dd><span class="mono">1440 × 900</span> × 3 帧</dd>
+      <dt>数据</dt><dd>2026 年 9 月 · 今日 <span class="mono">9/6 周三</span></dd>
+      <dt>视图</dt><dd>四象限 / 月视图 / 周视图</dd>
+      <dt>字符</dt><dd>12.5px UI · 28px 行 · 1px 发丝线</dd>
+    </dl>
+  </header>
+
+  <div class="palette" aria-label="核心色板">
+    <span class="palette-label">TOKENS</span>
+    <span class="sw"><i style="background:#5b5bd6"></i><span>#5b5bd6 ACCENT</span></span>
+    <span class="sw"><i style="background:#1f1e1d"></i><span>#1f1e1d INK</span></span>
+    <span class="sw"><i style="background:#787774"></i><span>#787774 INK-2</span></span>
+    <span class="sw"><i style="background:#e6e5e3"></i><span>#e6e5e3 LINE</span></span>
+    <span class="sw"><i style="background:#fbfbfa"></i><span>#fbfbfa CANVAS</span></span>
+    <span class="sw"><i style="background:#cf4b4b"></i><span>#cf4b4b Q1</span></span>
+    <span class="sw"><i style="background:#cf8a2e"></i><span>#cf8a2e Q2</span></span>
+    <span class="sw"><i style="background:#3f79bf"></i><span>#3f79bf Q3</span></span>
+    <span class="sw"><i style="background:#3f8f68"></i><span>#3f8f68 Q4</span></span>
+  </div>
+
+  <!-- ======================================================================
+       FRAME 01 — 四象限
+       ==================================================================== -->
+  <section class="showcase" id="view-quad" aria-label="四象限视图">
+    <div class="section-cap">
+      <span class="cap-index">01</span>
+      <h2>四象限</h2>
+      <span class="cap-note">2×2 矩阵 · 右侧任务检查器 · 36 项未完成</span>
+      <span class="cap-meta">MATRIX · 1440×900</span>
+    </div>
+
+    <div class="device">
+      <div class="app">
+        <aside class="sidebar" aria-label="主导航">
+          <div class="ws">
+            <span class="ws-avatar">陈</span>
+            <span class="ws-name">陈远的工作台</span>
+            <svg class="ws-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 4.4 6 7.8l3.4-3.4"/></svg>
+            <button class="ws-add" type="button" aria-label="工作台设置">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            </button>
+          </div>
+
+          <button class="quick-add" type="button">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            新建任务
+            <kbd>N</kbd>
+          </button>
+
+          <div class="nav-label">工作台<span class="en">WORKSPACE</span></div>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1"/></svg>
+            今天
+            <span class="nav-count">7</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.5"/></svg>
+            最近 7 天
+            <span class="nav-count">24</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.2 4.4h11.6v8.4H2.2z"/><path d="M2.2 8h3.1l1.1 1.6h3.2L10.7 8h3.1"/></svg>
+            收集箱
+            <span class="nav-count">3</span>
+          </button>
+
+          <div class="nav-label">清单<span class="en">LISTS</span></div>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-work)"></i>工作<span class="nav-count">14</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-personal)"></i>个人<span class="nav-count">9</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-study)"></i>学习<span class="nav-count">5</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-fitness)"></i>健身<span class="nav-count">3</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-shopping)"></i>购物<span class="nav-count">2</span></button>
+          <button class="nav-item nav-add" type="button">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            新建清单
+          </button>
+
+          <div class="nav-label">标签<span class="en">TAGS</span></div>
+          <button class="nav-item" type="button"><span class="hash">#</span>等待回复<span class="nav-count">2</span></button>
+          <button class="nav-item" type="button"><span class="hash">#</span>会议<span class="nav-count">4</span></button>
+          <button class="nav-item" type="button"><span class="hash">#</span>本周<span class="nav-count">7</span></button>
+
+          <div class="nav-label">视图<span class="en">VIEWS</span></div>
+          <button class="nav-item is-active" type="button" aria-current="page">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="2.2" y="2.2" width="4.8" height="4.8" rx="1"/><rect x="9" y="2.2" width="4.8" height="4.8" rx="1"/><rect x="2.2" y="9" width="4.8" height="4.8" rx="1"/><rect x="9" y="9" width="4.8" height="4.8" rx="1"/></svg>
+            四象限
+            <span class="nav-count">36</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="2"/><path d="M2.4 6.6h11.2M5.4 2.2v2.4M10.6 2.2v2.4"/></svg>
+            日历
+            <span class="nav-count">63</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.3l3.2 3.2L13 4.7"/></svg>
+            已完成
+            <span class="nav-count">5</span>
+          </button>
+
+          <div class="sb-spacer"></div>
+
+          <div class="sb-stats" aria-label="本周统计">
+            <div class="wp-head"><span>本周完成</span><b>18<span>/26</span></b></div>
+            <div class="wp-track"><i style="width:69%"></i></div>
+            <div class="spark" aria-hidden="true">
+              <i style="--h:7px"></i><i style="--h:11px"></i><i style="--h:5px"></i>
+              <i style="--h:14px"></i><i style="--h:9px"></i><i style="--h:16px"></i>
+              <i class="is-now" style="--h:6px"></i>
+            </div>
+            <div class="wp-foot"><span>逾期 <span class="warn">2</span></span><span>较上周 +4</span></div>
+          </div>
+
+          <div class="sb-foot">
+            <span class="avatar-sm">陈</span>
+            <span class="sb-user">陈远<span class="pro">PRO</span></span>
+            <button class="icon-btn" type="button" aria-label="设置">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.1"/><path d="M8 1.9v1.4M8 12.7v1.4M1.9 8h1.4M12.7 8h1.4M3.7 3.7l1 1M11.3 11.3l1 1M12.3 3.7l-1 1M4.7 11.3l-1 1"/></svg>
+            </button>
+          </div>
+        </aside>
+
+        <main class="main">
+          <header class="topbar">
+            <div class="tb-head">
+              <h1 class="tb-title">四象限</h1>
+              <span class="tb-badge">36 项</span>
+              <span class="tb-div"></span>
+              <span class="tb-date">今天 9月6日 周三</span>
+            </div>
+            <div class="tb-tools">
+              <label class="search">
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3l3 3"/></svg>
+                <input type="text" placeholder="搜索任务、清单…" aria-label="搜索任务">
+                <kbd>⌘K</kbd>
+              </label>
+              <button class="fchip is-on" type="button">全部 <span class="cnt">36</span></button>
+              <button class="fchip" type="button">今天 <span class="cnt">8</span></button>
+              <button class="fchip" type="button">P1–P2 <span class="cnt">12</span></button>
+              <div class="seg" role="tablist" aria-label="视图切换">
+                <button class="seg-matrix" type="button" role="tab" aria-selected="true">矩阵</button>
+                <button type="button" role="tab" aria-selected="false">月</button>
+                <button type="button" role="tab" aria-selected="false">周</button>
+                <button type="button" role="tab" aria-selected="false">日</button>
+              </div>
+              <button class="icon-btn" type="button" aria-label="筛选">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2.6 4h10.8M4.6 8h6.8M6.6 12h2.8"/></svg>
+              </button>
+              <button class="btn-primary" type="button">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                新建
+                <kbd>N</kbd>
+              </button>
+            </div>
+          </header>
+
+          <div class="content">
+            <div class="quad-layout">
+              <div class="matrix">
+
+                <!-- Q1 -->
+                <section class="q-card q1" aria-label="重要且紧急">
+                  <header class="q-head">
+                    <span class="q-dot"></span>
+                    <h2 class="q-name">重要且紧急</h2>
+                    <span class="q-en">DO NOW</span>
+                    <span class="q-count">11</span>
+                    <button class="q-plus" type="button" aria-label="在重要且紧急中添加任务">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    </button>
+                  </header>
+                  <div class="q-list scroller">
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">同步设计评审稿</span><span class="t-meta is-mono">09:00</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">制定营销策略</span><span class="t-meta is-mono">09:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">确认投放预算</span><span class="t-meta is-mono">10:30</span></label>
+                    <label class="task is-sel"><input type="checkbox"><span class="box"></span><span class="t-title">产品评审</span><span class="t-meta is-mono">11:00</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">修复登录超时</span><span class="t-meta is-mono">14:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">回复客户报价</span><span class="t-meta is-mono">15:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">线上会议</span><span class="t-meta is-mono">16:00</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">提交报销单</span><span class="t-meta is-mono">18:00</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">处理线上告警</span><span class="t-meta is-mono">18:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">审批上线申请</span><span class="t-meta is-mono">19:00</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">法务合同确认</span><span class="t-meta">明早</span></label>
+                  </div>
+                  <button class="q-add" type="button">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    添加任务
+                    <kbd>N</kbd>
+                  </button>
+                </section>
+
+                <!-- Q2 -->
+                <section class="q-card q2" aria-label="重要不紧急">
+                  <header class="q-head">
+                    <span class="q-dot"></span>
+                    <h2 class="q-name">重要不紧急</h2>
+                    <span class="q-en">SCHEDULE</span>
+                    <span class="q-count">11</span>
+                    <button class="q-plus" type="button" aria-label="在重要不紧急中添加任务">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    </button>
+                  </header>
+                  <div class="q-list scroller">
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">部门培训</span><span class="t-meta">周四 <span class="mono">14:00</span></span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">阅读名人传记</span><span class="t-meta is-mono">20:00</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">晨跑</span><span class="t-meta">明天 <span class="mono">07:30</span></span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">瑜伽课</span><span class="t-meta">周六 <span class="mono">10:00</span></span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">撰写 Q4 路线图</span><span class="t-meta"><i class="dot" style="--c:var(--l-work)"></i>工作</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">更新团队周报</span><span class="t-meta">周五</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">学习 TS 泛型</span><span class="t-meta"><i class="dot" style="--c:var(--l-study)"></i>学习</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">整理用户访谈</span><span class="t-meta"><i class="dot" style="--c:var(--l-work)"></i>工作</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">规划十月迭代</span><span class="t-meta">下周</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">准备季度复盘</span><span class="t-meta">9/18</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">写设计系统文档</span><span class="t-meta"><i class="dot" style="--c:var(--l-work)"></i>工作</span></label>
+                  </div>
+                  <button class="q-add" type="button">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    添加任务
+                    <kbd>N</kbd>
+                  </button>
+                </section>
+
+                <!-- Q3 -->
+                <section class="q-card q3" aria-label="不重要但紧急">
+                  <header class="q-head">
+                    <span class="q-dot"></span>
+                    <h2 class="q-name">不重要但紧急</h2>
+                    <span class="q-en">DELEGATE</span>
+                    <span class="q-count">10</span>
+                    <button class="q-plus" type="button" aria-label="在不重要但紧急中添加任务">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    </button>
+                  </header>
+                  <div class="q-list scroller">
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">回复客户群</span><span class="t-meta is-mono">10:15</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">打印合同</span><span class="t-meta is-mono">11:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">确认会议室</span><span class="t-meta is-mono">13:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">拿快递</span><span class="t-meta is-mono">17:30</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">预约牙医</span><span class="t-meta">明天</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">交水电费</span><span class="t-meta">周五</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">和妈妈逛街</span><span class="t-meta">周六</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">更新发票抬头</span><span class="t-meta"><i class="dot" style="--c:var(--l-work)"></i>工作</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">回访客户电话</span><span class="t-meta is-mono">19:15</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">续费企业邮箱</span><span class="t-meta">9/12</span></label>
+                  </div>
+                  <button class="q-add" type="button">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    添加任务
+                    <kbd>N</kbd>
+                  </button>
+                </section>
+
+                <!-- Q4 -->
+                <section class="q-card q4" aria-label="不重要不紧急">
+                  <header class="q-head">
+                    <span class="q-dot"></span>
+                    <h2 class="q-name">不重要不紧急</h2>
+                    <span class="q-en">DROP</span>
+                    <span class="q-count">4</span>
+                    <button class="q-plus" type="button" aria-label="在不重要不紧急中添加任务">
+                      <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    </button>
+                  </header>
+                  <div class="q-list scroller">
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">整理音乐播放列表</span><span class="t-meta"><i class="dot" style="--c:var(--l-personal)"></i>个人</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">比价机械键盘</span><span class="t-meta"><i class="dot" style="--c:var(--l-shopping)"></i>购物</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">整理下载文件夹</span><span class="t-meta"><i class="dot" style="--c:var(--l-personal)"></i>个人</span></label>
+                    <label class="task"><input type="checkbox"><span class="box"></span><span class="t-title">试听新专辑</span><span class="t-meta"><i class="dot" style="--c:var(--l-personal)"></i>个人</span></label>
+                  </div>
+                  <details class="done-group" open>
+                    <summary>
+                      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.4 2 6.2 5 3.4 8"/></svg>
+                      已完成
+                      <span class="done-count">5</span>
+                    </summary>
+                    <div class="q-list">
+                      <label class="task"><input type="checkbox" checked><span class="box"></span><span class="t-title">晨跑</span><span class="t-meta is-mono">08:15</span></label>
+                      <label class="task"><input type="checkbox" checked><span class="box"></span><span class="t-title">拿快递</span><span class="t-meta is-mono">15:30</span></label>
+                      <label class="task"><input type="checkbox" checked><span class="box"></span><span class="t-title">瑜伽课</span><span class="t-meta">昨天</span></label>
+                      <label class="task"><input type="checkbox" checked><span class="box"></span><span class="t-title">整理音乐播放列表</span><span class="t-meta">昨天</span></label>
+                      <label class="task"><input type="checkbox" checked><span class="box"></span><span class="t-title">和妈妈逛街</span><span class="t-meta">周日</span></label>
+                    </div>
+                  </details>
+                  <button class="q-add" type="button">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                    添加任务
+                    <kbd>N</kbd>
+                  </button>
+                </section>
+              </div>
+
+              <aside class="detail" aria-label="任务详情：产品评审">
+                <header class="detail-head">
+                  <h2>任务详情</h2>
+                  <span class="path">工作 / 四象限</span>
+                  <button class="icon-btn" type="button" aria-label="关闭详情">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M2.8 2.8l6.4 6.4M9.2 2.8 2.8 9.2"/></svg>
+                  </button>
+                </header>
+
+                <div class="detail-body scroller">
+                  <div class="d-crumb">
+                    <i class="dot" style="--c:var(--l-work)"></i>
+                    工作
+                    <span class="sep">/</span>
+                    重要且紧急
+                    <span class="sep">/</span>
+                    今天
+                  </div>
+
+                  <div class="d-title-row">
+                    <label class="subtask" style="margin:0;padding:0">
+                      <input type="checkbox" aria-label="完成产品评审">
+                      <span class="box"></span>
+                    </label>
+                    <h3 class="d-title">产品评审</h3>
+                  </div>
+                  <div class="d-sub">创建于 9月1日 · 陈远</div>
+
+                  <dl class="d-meta">
+                    <dt>截止</dt>
+                    <dd>今天 9月6日 <span class="mono">11:00</span> <span class="today-tag">剩 1 小时</span></dd>
+                    <dt>优先级</dt>
+                    <dd><span class="p-tag"><i class="dot" style="--c:var(--q1)"></i>P1 · 重要且紧急</span></dd>
+                    <dt>清单</dt>
+                    <dd><i class="dot" style="--c:var(--l-work)"></i>工作</dd>
+                    <dt>提醒</dt>
+                    <dd>提前 15 分钟 <span class="mono">10:45</span></dd>
+                    <dt>重复</dt>
+                    <dd>每周三</dd>
+                  </dl>
+
+                  <section class="d-sec">
+                    <div class="d-sec-head">
+                      子任务
+                      <span class="mono">2 / 4</span>
+                      <span class="mini-track"><i style="width:50%"></i></span>
+                    </div>
+                    <label class="subtask is-done"><input type="checkbox" checked><span class="box"></span><span>对齐评审议程</span><span class="due">9/4</span></label>
+                    <label class="subtask is-done"><input type="checkbox" checked><span class="box"></span><span>整理竞品截图</span><span class="due">9/5</span></label>
+                    <label class="subtask"><input type="checkbox"><span class="box"></span><span>输出决议纪要</span><span class="due">今天</span></label>
+                    <label class="subtask"><input type="checkbox"><span class="box"></span><span>同步给设计组</span><span class="due"></span></label>
+                    <button class="q-add" type="button" style="border-top:0;height:24px;padding-left:22px">
+                      <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>
+                      添加子任务
+                    </button>
+                  </section>
+
+                  <section class="d-sec">
+                    <div class="d-sec-head">备注</div>
+                    <div class="d-note">
+                      评审 Q3 搜索结果排序改版。重点确认埋点方案与灰度节奏，结论需同步到设计组；关联文档见附件。
+                    </div>
+                  </section>
+
+                  <section class="d-sec">
+                    <div class="d-sec-head">附件 <span class="mono">2</span></div>
+                    <button class="d-attach" type="button">
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M9.2 4.4 5 8.6a2.3 2.3 0 0 0 3.2 3.2l4.6-4.6a3.6 3.6 0 0 0-5-5L3.2 6.8a4.6 4.6 0 0 0 6.5 6.5l2.1-2.1"/></svg>
+                      排序改版-评审稿.pdf
+                      <span class="size">2.4 MB</span>
+                    </button>
+                    <button class="d-attach" type="button">
+                      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M9.2 4.4 5 8.6a2.3 2.3 0 0 0 3.2 3.2l4.6-4.6a3.6 3.6 0 0 0-5-5L3.2 6.8a4.6 4.6 0 0 0 6.5 6.5l2.1-2.1"/></svg>
+                      用户反馈摘要.md <span class="size" style="margin-left:4px">18 KB</span>
+                    </button>
+                  </section>
+
+                  <section class="d-sec">
+                    <div class="d-sec-head">动态</div>
+                    <div class="d-act"><span class="d-act-dot"></span><span><span class="who">陈远</span> 移动至「重要且紧急」</span><span class="t">10:12</span></div>
+                    <div class="d-act"><span class="d-act-dot"></span><span><span class="who">林岚</span> 添加了子任务「输出决议纪要」</span><span class="t">昨天</span></div>
+                    <div class="d-act"><span class="d-act-dot"></span><span><span class="who">陈远</span> 创建了任务</span><span class="t">9/1</span></div>
+                  </section>
+
+                  <div class="d-create">ID T-2041 · 最后编辑 3 分钟前</div>
+                </div>
+
+                <div class="d-keys">
+                  <span><kbd>K</kbd>完成</span>
+                  <span><kbd>⌘⇧D</kbd>延期</span>
+                  <span><kbd>M</kbd>移动</span>
+                  <span><kbd>⌘⌫</kbd>删除</span>
+                </div>
+
+                <footer class="detail-foot">
+                  <button class="ghost-btn" type="button">删除</button>
+                  <span class="save-hint"><span class="live"></span>已保存</span>
+                  <button class="btn-complete" type="button">
+                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.4 6.3 4.8 8.7 9.6 3.4"/></svg>
+                    完成
+                  </button>
+                </footer>
+              </aside>
+            </div>
+          </div>
+
+          <footer class="statusbar">
+            <div class="status-group">
+              <span class="live"></span>
+              <span>已同步 · <span class="num">2</span> 分钟前</span>
+              <span class="status-sep"></span>
+              <span><b>36</b> 项未完成</span>
+              <span>今日 <b>8</b> 项</span>
+              <span>逾期 <b style="color:var(--danger)">2</b></span>
+            </div>
+            <div class="status-group right">
+              <span>⌘K 命令面板</span>
+              <span>⌘/ 快捷键</span>
+              <span class="status-sep"></span>
+              <span class="num">v2.4.1</span>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       FRAME 02 — 月视图
+       ==================================================================== -->
+  <section class="showcase" id="view-month" aria-label="月视图">
+    <div class="section-cap">
+      <span class="cap-index">02</span>
+      <h2>月视图</h2>
+      <span class="cap-note">2026 年 9 月 · 5 行 × 7 列 · 事件芯片带 2px 清单色左轨</span>
+      <span class="cap-meta">MONTH · 1440×900</span>
+    </div>
+
+    <div class="device">
+      <div class="app">
+        <aside class="sidebar" aria-label="主导航">
+          <div class="ws">
+            <span class="ws-avatar">陈</span>
+            <span class="ws-name">陈远的工作台</span>
+            <svg class="ws-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 4.4 6 7.8l3.4-3.4"/></svg>
+            <button class="ws-add" type="button" aria-label="工作台设置">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            </button>
+          </div>
+
+          <button class="quick-add" type="button">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            新建任务
+            <kbd>N</kbd>
+          </button>
+
+          <div class="nav-label">工作台<span class="en">WORKSPACE</span></div>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1"/></svg>
+            今天
+            <span class="nav-count">7</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.5"/></svg>
+            最近 7 天
+            <span class="nav-count">24</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.2 4.4h11.6v8.4H2.2z"/><path d="M2.2 8h3.1l1.1 1.6h3.2L10.7 8h3.1"/></svg>
+            收集箱
+            <span class="nav-count">3</span>
+          </button>
+
+          <div class="nav-label">清单<span class="en">LISTS</span></div>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-work)"></i>工作<span class="nav-count">14</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-personal)"></i>个人<span class="nav-count">9</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-study)"></i>学习<span class="nav-count">5</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-fitness)"></i>健身<span class="nav-count">3</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-shopping)"></i>购物<span class="nav-count">2</span></button>
+          <button class="nav-item nav-add" type="button">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            新建清单
+          </button>
+
+          <div class="nav-label">标签<span class="en">TAGS</span></div>
+          <button class="nav-item" type="button"><span class="hash">#</span>等待回复<span class="nav-count">2</span></button>
+          <button class="nav-item" type="button"><span class="hash">#</span>会议<span class="nav-count">4</span></button>
+          <button class="nav-item" type="button"><span class="hash">#</span>本周<span class="nav-count">7</span></button>
+
+          <div class="nav-label">视图<span class="en">VIEWS</span></div>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="2.2" y="2.2" width="4.8" height="4.8" rx="1"/><rect x="9" y="2.2" width="4.8" height="4.8" rx="1"/><rect x="2.2" y="9" width="4.8" height="4.8" rx="1"/><rect x="9" y="9" width="4.8" height="4.8" rx="1"/></svg>
+            四象限
+            <span class="nav-count">36</span>
+          </button>
+          <button class="nav-item is-active" type="button" aria-current="page">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="2"/><path d="M2.4 6.6h11.2M5.4 2.2v2.4M10.6 2.2v2.4"/></svg>
+            日历
+            <span class="nav-count">63</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.3l3.2 3.2L13 4.7"/></svg>
+            已完成
+            <span class="nav-count">5</span>
+          </button>
+
+          <div class="sb-spacer"></div>
+
+          <div class="sb-stats" aria-label="本周统计">
+            <div class="wp-head"><span>本周完成</span><b>18<span>/26</span></b></div>
+            <div class="wp-track"><i style="width:69%"></i></div>
+            <div class="spark" aria-hidden="true">
+              <i style="--h:7px"></i><i style="--h:11px"></i><i style="--h:5px"></i>
+              <i style="--h:14px"></i><i style="--h:9px"></i><i style="--h:16px"></i>
+              <i class="is-now" style="--h:6px"></i>
+            </div>
+            <div class="wp-foot"><span>逾期 <span class="warn">2</span></span><span>较上周 +4</span></div>
+          </div>
+
+          <div class="sb-foot">
+            <span class="avatar-sm">陈</span>
+            <span class="sb-user">陈远<span class="pro">PRO</span></span>
+            <button class="icon-btn" type="button" aria-label="设置">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.1"/><path d="M8 1.9v1.4M8 12.7v1.4M1.9 8h1.4M12.7 8h1.4M3.7 3.7l1 1M11.3 11.3l1 1M12.3 3.7l-1 1M4.7 11.3l-1 1"/></svg>
+            </button>
+          </div>
+        </aside>
+
+        <main class="main">
+          <header class="topbar">
+            <div class="tb-head">
+              <h1 class="tb-title">2026年9月</h1>
+              <span class="tb-badge">30 天</span>
+              <span class="tb-div"></span>
+              <span class="tb-date">今天 9月6日 周三</span>
+            </div>
+            <div class="tb-tools">
+              <label class="search"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3l3 3"/></svg><input type="text" placeholder="搜索任务…" aria-label="搜索任务"><kbd>⌘K</kbd></label>
+              <button class="fchip is-on" type="button">全部 <span class="cnt">63</span></button>
+              <button class="fchip" type="button">工作 <span class="cnt">21</span></button>
+              <button class="fchip" type="button">个人 <span class="cnt">14</span></button>
+              <div class="seg" role="tablist" aria-label="视图切换">
+                <button aria-selected="false" type="button" role="tab">矩阵</button>
+                <button aria-selected="true" type="button" role="tab">月</button>
+                <button aria-selected="false" type="button" role="tab">周</button>
+                <button aria-selected="false" type="button" role="tab">日</button>
+              </div>
+              <div class="navgrp" role="group" aria-label="日期导航">
+                <button type="button" aria-label="上一页"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 2 3.4 5l2.8 3"/></svg></button>
+                <button class="nav-today" type="button">今天</button>
+                <button type="button" aria-label="下一页"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.8 2 6.6 5 3.8 8"/></svg></button>
+              </div>
+              <button class="icon-btn" type="button" aria-label="更多"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.2" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.8" cy="8" r="1.1"/></svg></button>
+              <button class="btn-primary" type="button"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>新建</button>
+            </div>
+          </header>
+
+          <div class="content">
+            <div class="month">
+              <div class="month-head" aria-hidden="true">
+                <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span class="is-weekend">周六</span><span class="is-weekend">周日</span>
+              </div>
+
+              <div class="month-grid">
+                <div class="day is-out">
+                  <div class="d-head"><span class="d-num">28</span></div>
+                  <div class="evs"></div>
+                </div>
+                <div class="day is-out">
+                  <div class="d-head"><span class="d-num">29</span></div>
+                  <div class="evs"></div>
+                </div>
+                <div class="day is-out">
+                  <div class="d-head"><span class="d-num">30</span></div>
+                  <div class="evs"></div>
+                </div>
+                <div class="day is-out">
+                  <div class="d-head"><span class="d-num">31</span></div>
+                  <div class="evs"></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">1</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">10:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">15:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">2</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">19:30</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">3</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">11:00</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">16:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">4</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">19:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">5</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">15:30</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">18:30</span></div></div>
+                </div>
+                <div class="day is-today">
+                  <div class="d-head"><span class="d-num">6</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:15</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">09:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">11:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">16:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">17:30</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">7</span><span class="d-lunar">白露</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">13:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">16:30</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">8</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">13:00</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">15:00</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">19:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">9</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">整理音乐播放列表</span><span class="ev-time">16:00</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">18:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">10</span><span class="d-lunar">教师节</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">15:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">整理音乐播放列表</span><span class="ev-time">18:30</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">11</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">11:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">15:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">18:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">12</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">10:30</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">15:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">13</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">16:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">14</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">13:30</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">19:30</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">15</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">18:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">16</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">11:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">16:00</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">19:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">17</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">13:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">15:30</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">18</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">14:30</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">整理音乐播放列表</span><span class="ev-time">19:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">19</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">11:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">15:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">20</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:30</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">16:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">整理音乐播放列表</span><span class="ev-time">20:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">21</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">13:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">17:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">22</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">11:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">15:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">23</span><span class="d-lunar">秋分</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">10:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">19:00</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">24</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">13:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">16:00</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">20:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">25</span><span class="d-lunar">中秋</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">11:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">15:00</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">18:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">26</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">和妈妈逛街</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-shopping)"><span class="ev-t">拿快递</span><span class="ev-time">14:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">27</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">09:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">11:00</span></div><div class="ev" style="--c:var(--l-study)"><span class="ev-t">阅读名人传记</span><span class="ev-time">19:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">28</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">产品评审</span><span class="ev-time">10:00</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">线上会议</span><span class="ev-time">14:00</span></div><div class="ev" style="--c:var(--l-personal)"><span class="ev-t">整理音乐播放列表</span><span class="ev-time">20:00</span></div></div>
+                </div>
+                <div class="day">
+                  <div class="d-head"><span class="d-num">29</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">晨跑</span><span class="ev-time">08:30</span></div><div class="ev" style="--c:var(--l-work)"><span class="ev-t">部门培训</span><span class="ev-time">13:30</span></div></div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="d-head"><span class="d-num">30</span></div>
+                  <div class="evs"><div class="ev" style="--c:var(--l-work)"><span class="ev-t">制定营销策略</span><span class="ev-time">09:30</span></div><div class="ev" style="--c:var(--l-fitness)"><span class="ev-t">瑜伽课</span><span class="ev-time">18:30</span></div></div>
+                </div>
+                <div class="day is-out is-weekend">
+                  <div class="d-head"><span class="d-num">1</span></div>
+                  <div class="evs"></div>
+                </div>
+                          </div>
+            </div>
+          </div>
+
+          <footer class="statusbar">
+            <div class="status-group">
+              <span class="live"></span>
+              <span>已同步 · <span class="num">2</span> 分钟前</span>
+              <span class="status-sep"></span>
+              <span>本月 <b>63</b> 项日程</span>
+              <span><b>24</b> 项待办</span>
+              <span>未排期 <b>3</b></span>
+            </div>
+            <div class="status-group right">
+              <span>⌘K 命令面板</span><span>⌘/ 快捷键</span><span class="status-sep"></span><span>视图 <b>月</b></span>
+              <span class="status-sep"></span>
+              <span class="num">v2.4.1</span>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       FRAME 03 — 周视图
+       ==================================================================== -->
+  <section class="showcase" id="view-week" aria-label="周视图">
+    <div class="section-cap">
+      <span class="cap-index">03</span>
+      <h2>周视图</h2>
+      <span class="cap-note">08:00–20:00 · 61px 小时行 · 绝对定位日程块 · 10:35 当前时间线</span>
+      <span class="cap-meta">WEEK · 1440×900</span>
+    </div>
+
+    <div class="device">
+      <div class="app">
+        <aside class="sidebar" aria-label="主导航">
+          <div class="ws">
+            <span class="ws-avatar">陈</span>
+            <span class="ws-name">陈远的工作台</span>
+            <svg class="ws-chev" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.6 4.4 6 7.8l3.4-3.4"/></svg>
+            <button class="ws-add" type="button" aria-label="工作台设置">
+              <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            </button>
+          </div>
+
+          <button class="quick-add" type="button">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            新建任务
+            <kbd>N</kbd>
+          </button>
+
+          <div class="nav-label">工作台<span class="en">WORKSPACE</span></div>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="3.2"/><path d="M8 1.6v1.5M8 12.9v1.5M1.6 8h1.5M12.9 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1"/></svg>
+            今天
+            <span class="nav-count">7</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="8" r="6"/><path d="M8 4.6V8l2.4 1.5"/></svg>
+            最近 7 天
+            <span class="nav-count">24</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.2 4.4h11.6v8.4H2.2z"/><path d="M2.2 8h3.1l1.1 1.6h3.2L10.7 8h3.1"/></svg>
+            收集箱
+            <span class="nav-count">3</span>
+          </button>
+
+          <div class="nav-label">清单<span class="en">LISTS</span></div>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-work)"></i>工作<span class="nav-count">14</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-personal)"></i>个人<span class="nav-count">9</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-study)"></i>学习<span class="nav-count">5</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-fitness)"></i>健身<span class="nav-count">3</span></button>
+          <button class="nav-item" type="button"><i class="dot" style="--c:var(--l-shopping)"></i>购物<span class="nav-count">2</span></button>
+          <button class="nav-item nav-add" type="button">
+            <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><path d="M7 2.5v9M2.5 7h9"/></svg>
+            新建清单
+          </button>
+
+          <div class="nav-label">标签<span class="en">TAGS</span></div>
+          <button class="nav-item" type="button"><span class="hash">#</span>等待回复<span class="nav-count">2</span></button>
+          <button class="nav-item" type="button"><span class="hash">#</span>会议<span class="nav-count">4</span></button>
+          <button class="nav-item" type="button"><span class="hash">#</span>本周<span class="nav-count">7</span></button>
+
+          <div class="nav-label">视图<span class="en">VIEWS</span></div>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" aria-hidden="true"><rect x="2.2" y="2.2" width="4.8" height="4.8" rx="1"/><rect x="9" y="2.2" width="4.8" height="4.8" rx="1"/><rect x="2.2" y="9" width="4.8" height="4.8" rx="1"/><rect x="9" y="9" width="4.8" height="4.8" rx="1"/></svg>
+            四象限
+            <span class="nav-count">36</span>
+          </button>
+          <button class="nav-item is-active" type="button" aria-current="page">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="2"/><path d="M2.4 6.6h11.2M5.4 2.2v2.4M10.6 2.2v2.4"/></svg>
+            日历
+            <span class="nav-count">63</span>
+          </button>
+          <button class="nav-item" type="button">
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.3l3.2 3.2L13 4.7"/></svg>
+            已完成
+            <span class="nav-count">5</span>
+          </button>
+
+          <div class="sb-spacer"></div>
+
+          <div class="sb-stats" aria-label="本周统计">
+            <div class="wp-head"><span>本周完成</span><b>18<span>/26</span></b></div>
+            <div class="wp-track"><i style="width:69%"></i></div>
+            <div class="spark" aria-hidden="true">
+              <i style="--h:7px"></i><i style="--h:11px"></i><i style="--h:5px"></i>
+              <i style="--h:14px"></i><i style="--h:9px"></i><i style="--h:16px"></i>
+              <i class="is-now" style="--h:6px"></i>
+            </div>
+            <div class="wp-foot"><span>逾期 <span class="warn">2</span></span><span>较上周 +4</span></div>
+          </div>
+
+          <div class="sb-foot">
+            <span class="avatar-sm">陈</span>
+            <span class="sb-user">陈远<span class="pro">PRO</span></span>
+            <button class="icon-btn" type="button" aria-label="设置">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true"><circle cx="8" cy="8" r="2.1"/><path d="M8 1.9v1.4M8 12.7v1.4M1.9 8h1.4M12.7 8h1.4M3.7 3.7l1 1M11.3 11.3l1 1M12.3 3.7l-1 1M4.7 11.3l-1 1"/></svg>
+            </button>
+          </div>
+        </aside>
+
+        <main class="main">
+          <header class="topbar">
+            <div class="tb-head">
+              <h1 class="tb-title">9月4日 – 9月10日</h1>
+              <span class="tb-badge">第 36 周</span>
+              <span class="tb-div"></span>
+              <span class="tb-date">今天 9月6日 周三</span>
+            </div>
+            <div class="tb-tools">
+              <label class="search"><svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="7" cy="7" r="4.4"/><path d="M10.3 10.3l3 3"/></svg><input type="text" placeholder="搜索任务…" aria-label="搜索任务"><kbd>⌘K</kbd></label>
+              <button class="fchip is-on" type="button">全部 <span class="cnt">26</span></button>
+              <button class="fchip" type="button">会议 <span class="cnt">7</span></button>
+              <button class="fchip" type="button">未完成 <span class="cnt">12</span></button>
+              <div class="seg" role="tablist" aria-label="视图切换">
+                <button aria-selected="false" type="button" role="tab">矩阵</button>
+                <button aria-selected="false" type="button" role="tab">月</button>
+                <button aria-selected="true" type="button" role="tab">周</button>
+                <button aria-selected="false" type="button" role="tab">日</button>
+              </div>
+              <div class="navgrp" role="group" aria-label="日期导航">
+                <button type="button" aria-label="上一页"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.2 2 3.4 5l2.8 3"/></svg></button>
+                <button class="nav-today" type="button">本周</button>
+                <button type="button" aria-label="下一页"><svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.8 2 6.6 5 3.8 8"/></svg></button>
+              </div>
+              <button class="icon-btn" type="button" aria-label="更多"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><circle cx="3.2" cy="8" r="1.1"/><circle cx="8" cy="8" r="1.1"/><circle cx="12.8" cy="8" r="1.1"/></svg></button>
+              <button class="btn-primary" type="button"><svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M6 2v8M2 6h8"/></svg>新建</button>
+            </div>
+          </header>
+
+          <div class="content">
+            <div class="week">
+              <div class="week-head">
+                <div class="wk-gutter">GMT+8</div>
+                <div class="wk-day"><span class="wd">周一</span><span class="wn">4</span></div>
+                <div class="wk-day"><span class="wd">周二</span><span class="wn">5</span></div>
+                <div class="wk-day is-today"><span class="wd">周三</span><span class="wn">6</span></div>
+                <div class="wk-day"><span class="wd">周四</span><span class="wn">7</span></div>
+                <div class="wk-day"><span class="wd">周五</span><span class="wn">8</span></div>
+                <div class="wk-day"><span class="wd">周六</span><span class="wn">9</span></div>
+                <div class="wk-day"><span class="wd">周日</span><span class="wn">10</span></div>
+              </div>
+
+              <div class="allday" aria-label="全天日程">
+                <div class="ad-lbl">全天</div>
+                <div class="ad-bar" style="grid-column:2/5;--c:var(--l-work)"><span>设计冲刺 · Sprint 12</span></div>
+                <div class="ad-cell" style="grid-column:5"><span class="ad-ev" style="--c:var(--q2)">版本冻结</span></div>
+                <div class="ad-cell" style="grid-column:6"><span class="ad-ev" style="--c:var(--l-personal)">家庭日</span></div>
+                <div class="ad-cell" style="grid-column:7"><span class="ad-ev" style="--c:var(--l-personal)">妈妈生日</span></div>
+                <div class="ad-cell" style="grid-column:8"></div>
+              </div>
+
+              <div class="week-body scroller">
+                <div class="week-gutter" aria-hidden="true">
+                  <div class="hour-lbl is-first" style="top:0px">08:00</div>
+                  <div class="hour-lbl" style="top:61px">09:00</div>
+                  <div class="hour-lbl" style="top:122px">10:00</div>
+                  <div class="hour-lbl" style="top:183px">11:00</div>
+                  <div class="hour-lbl is-noon" style="top:244px">正午</div>
+                  <div class="hour-lbl" style="top:305px">13:00</div>
+                  <div class="hour-lbl" style="top:366px">14:00</div>
+                  <div class="hour-lbl" style="top:427px">15:00</div>
+                  <div class="hour-lbl" style="top:488px">16:00</div>
+                  <div class="hour-lbl" style="top:549px">17:00</div>
+                  <div class="hour-lbl" style="top:610px">18:00</div>
+                  <div class="hour-lbl" style="top:671px">19:00</div>
+                  <div class="hour-lbl is-end" style="top:732px">20:00</div>
+                  <div class="now-gutter" style="top:160px">10:35</div>
+                </div>
+
+                <div class="week-canvas">
+                  <div class="week-cols">
+                <div class="week-col">
+                  <div class="event is-short" style="top:31px;height:31;--c:var(--l-fitness)">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">08:30 – 09:00</div>
+                  </div>
+                  <div class="event" style="top:124px;height:62;--c:var(--l-work)">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">10:00 – 11:00</div>
+                  </div>
+                  <div class="event" style="top:372px;height:62;--c:var(--l-work)">
+                    <div class="event-title">部门培训</div>
+                    <div class="event-time">14:00 – 15:00</div>
+                  </div>
+                  <div class="event" style="top:682px;height:62;--c:var(--l-study)">
+                    <div class="event-title">阅读名人传记</div>
+                    <div class="event-time">19:00 – 20:00</div>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <div class="event" style="top:124px;height:47;--c:var(--l-work)">
+                    <div class="event-title">线上会议</div>
+                    <div class="event-time">10:00 – 10:45</div>
+                  </div>
+                  <div class="event is-short" style="top:465px;height:31;--c:var(--l-shopping)">
+                    <div class="event-title">拿快递</div>
+                    <div class="event-time">15:30 – 16:00</div>
+                  </div>
+                  <div class="event" style="top:651px;height:62;--c:var(--l-fitness)">
+                    <div class="event-title">瑜伽课</div>
+                    <div class="event-time">18:30 – 19:30</div>
+                  </div>
+                </div>
+                <div class="week-col is-today">
+                  <div class="event is-short" style="top:16px;height:31;--c:var(--l-fitness)">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">08:15 – 08:45</div>
+                  </div>
+                  <div class="event" style="top:93px;height:62;--c:var(--l-work)">
+                    <div class="event-title">制定营销策略</div>
+                    <div class="event-time">09:30 – 10:30</div>
+                  </div>
+                  <div class="event is-sel" style="top:186px;height:62;--c:var(--l-work)">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">11:00 – 12:00</div>
+                  </div>
+                  <div class="event" style="top:372px;height:93;--c:var(--l-work)">
+                    <div class="event-title">部门培训</div>
+                    <div class="event-time">14:00 – 15:30</div>
+                  </div>
+                  <div class="event" style="top:496px;height:47;--c:var(--l-work)">
+                    <div class="event-title">线上会议</div>
+                    <div class="event-time">16:00 – 16:45</div>
+                  </div>
+                  <div class="event is-short" style="top:589px;height:31;--c:var(--l-shopping)">
+                    <div class="event-title">拿快递</div>
+                    <div class="event-time">17:30 – 18:00</div>
+                  </div>
+                  <div class="now-line" style="top:160px" aria-hidden="true"></div>
+                </div>
+                <div class="week-col">
+                  <div class="event is-short" style="top:31px;height:31;--c:var(--l-fitness)">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">08:30 – 09:00</div>
+                  </div>
+                  <div class="event" style="top:124px;height:62;--c:var(--l-work)">
+                    <div class="event-title">部门培训</div>
+                    <div class="event-time">10:00 – 11:00</div>
+                  </div>
+                  <div class="event" style="top:341px;height:93;--c:var(--l-personal)">
+                    <div class="event-title">和妈妈逛街</div>
+                    <div class="event-time">13:30 – 15:00</div>
+                  </div>
+                  <div class="event" style="top:527px;height:47;--c:var(--l-work)">
+                    <div class="event-title">线上会议</div>
+                    <div class="event-time">16:30 – 17:15</div>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <div class="event is-short" style="top:62px;height:31;--c:var(--l-fitness)">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">09:00 – 09:30</div>
+                  </div>
+                  <div class="event" style="top:310px;height:62;--c:var(--l-work)">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">13:00 – 14:00</div>
+                  </div>
+                  <div class="event" style="top:434px;height:62;--c:var(--l-fitness)">
+                    <div class="event-title">瑜伽课</div>
+                    <div class="event-time">15:00 – 16:00</div>
+                  </div>
+                  <div class="event" style="top:682px;height:62;--c:var(--l-study)">
+                    <div class="event-title">阅读名人传记</div>
+                    <div class="event-time">19:00 – 20:00</div>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <div class="event" style="top:124px;height:124;--c:var(--l-personal)">
+                    <div class="event-title">和妈妈逛街</div>
+                    <div class="event-time">10:00 – 12:00</div>
+                  </div>
+                  <div class="event is-short" style="top:372px;height:31;--c:var(--l-shopping)">
+                    <div class="event-title">拿快递</div>
+                    <div class="event-time">14:00 – 14:30</div>
+                  </div>
+                  <div class="event" style="top:496px;height:62;--c:var(--l-personal)">
+                    <div class="event-title">整理音乐播放列表</div>
+                    <div class="event-time">16:00 – 17:00</div>
+                  </div>
+                  <div class="event" style="top:620px;height:62;--c:var(--l-fitness)">
+                    <div class="event-title">瑜伽课</div>
+                    <div class="event-time">18:00 – 19:00</div>
+                  </div>
+                </div>
+                <div class="week-col">
+                  <div class="event" style="top:62px;height:47;--c:var(--l-fitness)">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">09:00 – 09:45</div>
+                  </div>
+                  <div class="event" style="top:434px;height:62;--c:var(--l-personal)">
+                    <div class="event-title">和妈妈逛街</div>
+                    <div class="event-time">15:00 – 16:00</div>
+                  </div>
+                  <div class="event" style="top:651px;height:47;--c:var(--l-personal)">
+                    <div class="event-title">整理音乐播放列表</div>
+                    <div class="event-time">18:30 – 19:15</div>
+                  </div>
+                </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <footer class="statusbar">
+            <div class="status-group">
+              <span class="live"></span>
+              <span>已同步 · <span class="num">2</span> 分钟前</span>
+              <span class="status-sep"></span>
+              <span>本周 <b>26</b> 项日程</span>
+              <span>今日 <b>8</b> 项</span>
+              <span>当前 <b class="zon">10:35</b></span>
+            </div>
+            <div class="status-group right">
+              <span>⌘K 命令面板</span><span>⌘/ 快捷键</span><span class="status-sep"></span><span>视图 <b>周</b></span>
+              <span class="status-sep"></span>
+              <span class="num">v2.4.1</span>
+            </div>
+          </footer>
+        </main>
+      </div>
+    </div>
+  </section>
+
+</div>
+</body>
+</html>

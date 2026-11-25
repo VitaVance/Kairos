@@ -1,0 +1,2686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warm Editorial · 清单 — 设计方向 C</title>
+<!--
+  DIRECTION C — WARM EDITORIAL / 暖调编辑
+
+  Positioning: a personal planning journal for people who find productivity software
+  cold and corporatized — a well-made paper planner, translated to screen.
+
+  What makes it distinct:
+  1. Paper & ink only. A warm #f7f3ec ground, #fffdf8 cards, 1px hairlines and four
+     muted pigments (赭红 / 芥黄 / 靛蓝 / 苔绿) used as ink, never as neon UI chrome.
+  2. Editorial type. Georgia + 宋体 carry headings, dates and numerals; a quiet sans
+     carries UI body. Letterspaced serif labels and roman-numeral card watermarks
+     make the matrix read like a printed spread.
+  3. A printed-planner calendar. Underlined date numerals instead of filled circles,
+     dotted hour rules, a subtly ruled week gutter, hairline grids and a floating
+     paper segmented control instead of a dark pill.
+
+  Static design mockup · hardcoded data · self-contained · no external assets.
+  Today: 2026-09-06 (周三) · Frame: 1440 × 900 · Views: 四象限 / 月视图 / 周视图
+-->
+<style>
+/* ============================================================================
+   DESIGN TOKENS — the seed of the Warm Editorial system
+   ========================================================================= */
+
+:root {
+  /* ---- Color: paper & ink ------------------------------------------------ */
+  --paper-desk:   #ece4d7;   /* page / desk behind the device frames           */
+  --paper:        #f7f3ec;   /* app ground                                     */
+  --paper-deep:   #f2ece1;   /* recessed surfaces, out-of-month days           */
+  --paper-rail:   #faf6ef;   /* sidebar                                        */
+  --card:         #fffdf8;   /* cards, popovers, paper chips                   */
+  --line:         #e8e0d3;   /* standard hairline                              */
+  --line-soft:    #f0e9dd;   /* internal hairlines inside cards                */
+  --line-strong:  #dccfbd;   /* frame edge, controls, dividers                 */
+
+  --ink:          #2f2a24;   /* primary text / ink                             */
+  --ink-soft:     #575046;   /* titles at rest                                 */
+  --ink-muted:    #8a8073;   /* secondary text                                 */
+  --ink-faint:    #b3a899;   /* tertiary text, labels, hints                   */
+
+  /* ---- Pigments: the only chroma ---------------------------------------- */
+  --pig-red:      #b4553f;   /* 重要且紧急 · 赭红                             */
+  --pig-yellow:   #c08a2e;   /* 重要不紧急 · 芥黄                             */
+  --pig-indigo:   #4a6d8c;   /* 不重要但紧急 · 靛蓝                           */
+  --pig-green:    #6b8a5e;   /* 不重要不紧急 · 苔绿                           */
+  --red-wash:     rgba(180, 85, 63, .075);
+  --yellow-wash:  rgba(192, 138, 46, .10);
+  --indigo-wash:  rgba(74, 109, 140, .075);
+  --green-wash:   rgba(107, 138, 94, .09);
+
+  /* ---- Type -------------------------------------------------------------- */
+  --serif: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
+  --sans:  "Avenir Next", "Gill Sans", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  --fs-2xs: 8px;
+  --fs-xs:  9.5px;
+  --fs-sm:  10.5px;
+  --fs-ui:  12px;
+  --fs-base: 12.5px;
+  --fs-md:  13.5px;
+  --fs-lg:  15px;
+  --fs-xl:  18px;
+  --fs-2xl: 29px;
+  --fs-3xl: 46px;
+
+  --lh-tight: 1.15;
+  --lh-body:  1.6;
+  --lh-loose: 1.85;
+  --ls-label: .20em;
+  --ls-title: .03em;
+
+  /* ---- Spacing (4px base) ----------------------------------------------- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-7: 28px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* ---- Radii ------------------------------------------------------------- */
+  --r-xs: 2px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+  --r-xl: 12px;
+  --r-pill: 999px;
+
+  /* ---- Shadow: warm, low, never gray ------------------------------------ */
+  --shadow-hair:  0 1px 2px rgba(90, 70, 40, .06);
+  --shadow-card:  0 1px 2px rgba(90, 70, 40, .06), 0 10px 26px -22px rgba(90, 70, 40, .35);
+  --shadow-float: 0 10px 30px -14px rgba(70, 50, 25, .35), 0 2px 6px rgba(90, 70, 40, .08);
+  --shadow-frame: 0 30px 80px -40px rgba(60, 45, 25, .45);
+
+  /* ---- Layout ------------------------------------------------------------ */
+  --frame-w: 1440px;
+  --frame-h: 900px;
+  --rail-w: 208px;
+  --topbar-h: 60px;
+  --gutter-w: 56px;
+  --hour-h: 48px;
+
+  --ease: cubic-bezier(.2, .7, .25, 1);
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================= */
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--paper-desk);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Fine paper grain over the whole specimen */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+  opacity: .05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
+::selection { background: rgba(192, 138, 46, .22); }
+
+a { color: inherit; text-decoration: none; }
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.ic {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.35;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Pigment hooks — any element can become ink-washed */
+[data-pig="red"]    { --pig: var(--pig-red);    --wash: var(--red-wash); }
+[data-pig="yellow"] { --pig: var(--pig-yellow); --wash: var(--yellow-wash); }
+[data-pig="indigo"] { --pig: var(--pig-indigo); --wash: var(--indigo-wash); }
+[data-pig="green"]  { --pig: var(--pig-green);  --wash: var(--green-wash); }
+
+/* ============================================================================
+   SPECIMEN PAGE — header, section captions, footer
+   ========================================================================= */
+
+.doc {
+  width: 100%;
+  max-width: 1536px;
+  margin: 0 auto;
+  padding: 52px 48px 72px;
+}
+
+.doc-head {
+  width: 1440px;
+  max-width: 100%;
+  margin: 0 auto 72px;
+}
+
+.doc-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px solid var(--line-strong);
+  padding-top: 14px;
+  font-size: var(--fs-xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.doc-topline .right { display: flex; gap: var(--sp-6); }
+
+.doc-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--sp-16);
+  margin-top: 42px;
+}
+
+.doc-copy { max-width: 780px; }
+
+.kicker {
+  font-size: var(--fs-xs);
+  letter-spacing: .26em;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+}
+
+.doc h1 {
+  margin: 12px 0 0;
+  font-family: var(--serif);
+  font-size: var(--fs-3xl);
+  font-weight: 400;
+  line-height: 1.06;
+  letter-spacing: -.012em;
+  color: var(--ink);
+}
+
+.doc h1 .cn {
+  margin-left: 18px;
+  font-size: 19px;
+  font-weight: 400;
+  letter-spacing: .18em;
+  color: var(--ink-muted);
+  vertical-align: middle;
+}
+
+.lede {
+  max-width: 640px;
+  margin: 22px 0 0;
+  font-size: var(--fs-md);
+  line-height: 1.95;
+  letter-spacing: .015em;
+  color: var(--ink-soft);
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 30px;
+}
+
+.sw { display: flex; flex-direction: column; gap: 5px; }
+
+.sw i {
+  display: block;
+  width: 34px;
+  height: 16px;
+  border: 1px solid rgba(47, 42, 36, .10);
+  border-radius: var(--r-xs);
+}
+
+.sw b {
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: .05em;
+  color: var(--ink-soft);
+}
+
+.sw span {
+  font-size: var(--fs-2xs);
+  letter-spacing: .03em;
+  color: var(--ink-faint);
+}
+
+.doc-aside {
+  flex: 0 0 250px;
+  margin-bottom: 4px;
+  padding: 2px 0 0 24px;
+  border-left: 1px solid var(--line-strong);
+}
+
+.aside-label {
+  margin-bottom: 8px;
+  font-size: var(--fs-2xs);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.spec-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(220, 207, 189, .6);
+  font-size: var(--fs-xs);
+}
+
+.spec-row span { color: var(--ink-faint); letter-spacing: .06em; }
+
+.spec-row em {
+  font-family: var(--serif);
+  font-style: normal;
+  font-size: var(--fs-sm);
+  letter-spacing: .03em;
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.section {
+  width: 1440px;
+  max-width: 100%;
+  margin: 0 auto 72px;
+  scroll-margin-top: 24px;
+}
+
+.section:last-of-type { margin-bottom: 0; }
+
+.caption {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 13px;
+  padding: 0 2px;
+}
+
+.cap-no {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 11.5px;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+}
+
+.cap-title {
+  font-family: var(--serif);
+  font-size: var(--fs-lg);
+  font-weight: 400;
+  letter-spacing: .1em;
+  color: var(--ink);
+}
+
+.cap-en {
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-label);
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.cap-rule { flex: 1; height: 1px; background: var(--line); }
+
+.cap-note {
+  font-size: var(--fs-xs);
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+}
+
+.doc-foot {
+  display: flex;
+  justify-content: space-between;
+  width: 1440px;
+  max-width: 100%;
+  margin: 56px auto 0;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-strong);
+  font-size: 9px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ============================================================================
+   DEVICE FRAME
+   ========================================================================= */
+
+.frame {
+  position: relative;
+  display: flex;
+  width: var(--frame-w);
+  max-width: 100%;
+  height: var(--frame-h);
+  overflow: hidden;
+  background: var(--paper);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow-frame);
+}
+
+/* ============================================================================
+   SIDEBAR
+   ========================================================================= */
+
+.rail {
+  flex: 0 0 var(--rail-w);
+  width: var(--rail-w);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 15px 16px;
+  background: var(--paper-rail);
+  border-right: 1px solid var(--line);
+}
+
+.rail-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 7px;
+}
+
+.mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 3px;
+  background: var(--ink);
+  color: var(--paper-rail);
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1;
+  box-shadow: 0 1px 2px rgba(47, 42, 36, .18);
+}
+
+.mark::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(247, 243, 236, .28);
+  border-radius: 1px;
+}
+
+.mark::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pig-red);
+}
+
+.brand-name {
+  font-family: var(--serif);
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: .16em;
+  color: var(--ink);
+}
+
+.brand-sub {
+  margin-top: 3px;
+  font-size: 7.5px;
+  letter-spacing: .20em;
+  color: var(--ink-faint);
+}
+
+.rail-nav { margin-top: 32px; }
+
+.rail-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 7px;
+  padding: 0 9px;
+  font-size: var(--fs-2xs);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 34px;
+  margin-bottom: 2px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-size: var(--fs-base);
+  color: var(--ink-soft);
+  transition: background .18s, color .18s;
+}
+
+.nav-item .ic { width: 15px; height: 15px; opacity: .7; }
+
+.nav-item .count {
+  margin-left: auto;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.nav-item:hover {
+  background: rgba(255, 253, 248, .7);
+  color: var(--ink);
+}
+
+.nav-item.active {
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow-hair);
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: -1px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--ink);
+}
+
+.nav-item.active .ic { opacity: .9; }
+
+.rail-sec {
+  margin-top: 26px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.rail-sec .rail-label { margin-bottom: 6px; }
+
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 29px;
+  padding: 0 10px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-ui);
+  color: var(--ink-soft);
+}
+
+.list-item:hover { background: rgba(255, 253, 248, .65); }
+
+.list-item .dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--c, var(--ink-faint));
+}
+
+.list-item .c {
+  margin-left: auto;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-faint);
+}
+
+.new-list {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  margin-top: 6px;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  font-size: 11px;
+  letter-spacing: .03em;
+  color: var(--ink-faint);
+}
+
+.new-list:hover { color: var(--ink-soft); }
+
+.rail-foot {
+  margin-top: auto;
+  padding: 0 7px;
+}
+
+.weekmark {
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.wm-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: var(--fs-2xs);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.wm-top b {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 10px;
+  letter-spacing: .06em;
+  color: var(--ink-muted);
+}
+
+.wm-days {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 9px;
+}
+
+.wm-days span {
+  position: relative;
+  width: 18px;
+  padding-bottom: 7px;
+  font-family: var(--serif);
+  font-size: var(--fs-xs);
+  text-align: center;
+  color: var(--ink-faint);
+}
+
+.wm-days span.on { color: var(--ink); }
+
+.wm-days span.on::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  margin-left: -1.5px;
+  border-radius: 50%;
+  background: var(--pig-red);
+}
+
+.rail-quote {
+  margin: 20px 0 0;
+  padding-left: 11px;
+  border-left: 1px solid var(--line-strong);
+  font-family: var(--serif);
+  font-size: 11.5px;
+  line-height: 1.85;
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+}
+
+.rail-quote span {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--sans);
+  font-size: var(--fs-2xs);
+  letter-spacing: .14em;
+  color: var(--ink-faint);
+}
+
+.user {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line);
+}
+
+.user-avatar {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  border: 1px solid #d8c9b2;
+  border-radius: 50%;
+  background: #e8dcc8;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+.user-name {
+  font-size: 11.5px;
+  line-height: 1.3;
+  color: var(--ink-soft);
+}
+
+.user-role {
+  font-size: var(--fs-2xs);
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+}
+
+/* ============================================================================
+   MAIN + TOPBAR
+   ========================================================================= */
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 0 0 var(--topbar-h);
+  height: var(--topbar-h);
+  padding: 0 28px 0 30px;
+  border-bottom: 1px solid var(--line);
+}
+
+.tb-context {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.tb-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pig-red);
+}
+
+.tb-today {
+  font-family: var(--serif);
+  font-size: 11.5px;
+  letter-spacing: .1em;
+  color: var(--ink);
+}
+
+.tb-rule {
+  width: 1px;
+  height: 10px;
+  background: var(--line-strong);
+}
+
+.tb-date {
+  font-size: var(--fs-sm);
+  letter-spacing: .06em;
+  color: var(--ink-muted);
+}
+
+.tb-week {
+  padding-left: 4px;
+  font-family: var(--serif);
+  font-size: var(--fs-xs);
+  letter-spacing: .08em;
+  color: var(--ink-faint);
+}
+
+.tb-spacer { flex: 1; }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 212px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: rgba(255, 253, 248, .55);
+  font-size: var(--fs-sm);
+  letter-spacing: .02em;
+  color: var(--ink-faint);
+}
+
+.search .ic { width: 13px; height: 13px; opacity: .8; }
+
+.search .kbd {
+  margin-left: auto;
+  padding: 1px 4px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--card);
+  font-size: var(--fs-2xs);
+  line-height: 1.4;
+  letter-spacing: .03em;
+  color: var(--ink-faint);
+}
+
+.btn-new {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 13px 0 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: var(--shadow-hair);
+  font-size: 11px;
+  letter-spacing: .03em;
+  color: var(--ink);
+  transition: background .18s, box-shadow .18s;
+}
+
+.btn-new:hover {
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(90, 70, 40, .10);
+}
+
+.btn-new .ic { width: 12px; height: 12px; }
+
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #d9cab4;
+  border-radius: 50%;
+  background: #e7dcc9;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  color: var(--ink-soft);
+}
+
+/* ============================================================================
+   VIEW SCAFFOLD
+   ========================================================================= */
+
+.view {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  padding: 24px 32px 66px;
+}
+
+.vh {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin-bottom: 7px;
+  font-size: var(--fs-2xs);
+  line-height: 1;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.vh-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.vh h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: var(--fs-2xl);
+  font-weight: 400;
+  line-height: 1.1;
+  letter-spacing: var(--ls-title);
+  color: var(--ink);
+}
+
+.vh h1 .num {
+  margin-left: 7px;
+  font-size: var(--fs-lg);
+  font-weight: 400;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+}
+
+.vh-meta {
+  font-size: var(--fs-sm);
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+}
+
+.vh-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 2px;
+}
+
+.text-tool {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 6px;
+  border: 0;
+  background: none;
+  font-size: var(--fs-sm);
+  letter-spacing: .04em;
+  color: var(--ink-muted);
+}
+
+.text-tool .ic { width: 12px; height: 12px; opacity: .75; }
+
+.text-tool:hover { color: var(--ink); }
+
+.ctrl {
+  display: flex;
+  align-items: stretch;
+  height: 30px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-pill);
+  background: var(--card);
+  box-shadow: var(--shadow-hair);
+}
+
+.ctrl button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border: 0;
+  background: none;
+  font-size: var(--fs-sm);
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+  transition: background .16s;
+}
+
+.ctrl button:hover { background: var(--paper); }
+
+.ctrl button + button { border-left: 1px solid var(--line-soft); }
+
+.ctrl .chev { width: 28px; padding: 0; }
+.ctrl .chev .ic { width: 11px; height: 11px; }
+
+.ctrl .today {
+  padding: 0 13px;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  letter-spacing: .08em;
+}
+
+/* ============================================================================
+   VIEW 1 — EISENHOWER MATRIX
+   ========================================================================= */
+
+.q-grid {
+  display: grid;
+  flex: 1;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--sp-4);
+  min-height: 0;
+}
+
+.q-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 17px 20px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow-hair);
+}
+
+/* Quiet roman-numeral watermark — printed-spread detail */
+.q-card::after {
+  content: attr(data-num);
+  position: absolute;
+  right: 18px;
+  bottom: 6px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 46px;
+  line-height: 1;
+  letter-spacing: .02em;
+  color: rgba(47, 42, 36, .05);
+  pointer-events: none;
+}
+
+.q-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.q-mark {
+  width: 14px;
+  height: 2px;
+  flex: 0 0 14px;
+  border-radius: 2px;
+  background: var(--pig);
+}
+
+.q-title {
+  margin: 0;
+  font-family: var(--serif);
+  font-size: 14.5px;
+  font-weight: 400;
+  letter-spacing: .06em;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.q-en {
+  margin-left: 2px;
+  padding-top: 2px;
+  font-size: 7.5px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.q-count {
+  margin-left: auto;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+}
+
+.q-rows { display: flex; flex-direction: column; }
+
+.q-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 37px;
+  padding: 7px 0;
+  border-bottom: 1px solid rgba(232, 224, 211, .55);
+}
+
+.q-row:last-child { border-bottom-color: transparent; }
+
+.checkbox {
+  position: relative;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  padding: 0;
+  border: 1px solid #bcb0a0;
+  border-radius: 50% 47% 52% 49% / 48% 52% 47% 53%;
+  background: transparent;
+  transform: rotate(-2deg);
+  transition: border-color .16s, background .16s;
+}
+
+.checkbox:hover {
+  border-color: var(--pig);
+  background: var(--wash);
+}
+
+.q-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-base);
+  line-height: 1.45;
+  letter-spacing: .015em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.q-when {
+  margin-left: 10px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  color: var(--ink-muted);
+}
+
+.q-row.is-done .q-name {
+  color: var(--ink-faint);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(138, 128, 115, .6);
+}
+
+.q-row.is-done .checkbox::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 6px;
+  height: 3px;
+  border-left: 1.2px solid var(--ink-muted);
+  border-bottom: 1.2px solid var(--ink-muted);
+  transform: rotate(-45deg);
+}
+
+/* A blank ruled line — the next entry in a paper planner, not a placeholder */
+.q-blank {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 37px;
+  opacity: .55;
+}
+
+.q-blank i {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 1px dashed #cfc3b2;
+  border-radius: 50% 47% 52% 49% / 48% 52% 47% 53%;
+  transform: rotate(-2deg);
+}
+
+.q-blank::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: repeating-linear-gradient(to right, #ded3c2 0 3px, transparent 3px 7px);
+}
+
+/* A quiet line, not an illustration, for the quadrant with room to breathe */
+.q-quiet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 15px;
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  font-style: italic;
+  letter-spacing: .05em;
+  color: var(--ink-faint);
+}
+
+.q-quiet::before {
+  content: "";
+  width: 12px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.q-add {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  margin-top: auto;
+  padding: 9px 0 3px;
+  border: 0;
+  background: none;
+  font-size: var(--fs-sm);
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+}
+
+.q-add:hover { color: var(--ink-soft); }
+
+.q-add .plus {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--ink-muted);
+}
+
+/* Completed band */
+.done-band {
+  flex: 0 0 auto;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.done-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+
+.done-chev {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--ink-muted);
+  transition: transform .2s var(--ease);
+}
+
+.done-chev .ic { width: 9px; height: 9px; }
+
+.done-band.is-collapsed .done-chev { transform: rotate(-90deg); }
+.done-band.is-collapsed .done-body { display: none; }
+
+.done-lbl {
+  font-family: var(--serif);
+  font-size: var(--fs-base);
+  letter-spacing: .06em;
+  color: var(--ink-soft);
+}
+
+.done-cnt {
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  color: var(--ink-faint);
+}
+
+.done-hint {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  letter-spacing: .08em;
+  color: var(--ink-faint);
+}
+
+.done-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 26px;
+  padding: 0 0 13px 27px;
+}
+
+.done-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-sm);
+  letter-spacing: .02em;
+  color: var(--ink-muted);
+}
+
+.mini-check {
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border: 1px solid #cfc3b2;
+  border-radius: 50%;
+  color: var(--pig-green);
+}
+
+.mini-check .ic { width: 7px; height: 7px; stroke-width: 2; }
+
+.done-item .t {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: rgba(138, 128, 115, .55);
+}
+
+/* ============================================================================
+   VIEW 2 — MONTH
+   ========================================================================= */
+
+.weekday-row {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 0 0 9px;
+}
+
+.weekday-row span {
+  padding-left: 9px;
+  font-family: var(--serif);
+  font-size: var(--fs-xs);
+  letter-spacing: .22em;
+  color: var(--ink-faint);
+}
+
+.weekday-row span.we { color: #a2937e; }
+
+.month {
+  display: grid;
+  flex: 1;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(5, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--shadow-hair);
+  min-height: 0;
+}
+
+.mcell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 8px 8px 5px;
+  border-top: 1px solid var(--line-soft);
+  border-left: 1px solid var(--line-soft);
+  background: var(--card);
+}
+
+.mcell:nth-child(7n + 1) { border-left: 0; }
+.mcell:nth-child(-n + 7) { border-top: 0; }
+
+.mcell.out { background: rgba(242, 236, 225, .5); }
+.mcell.out .dnum { color: #c1b5a4; }
+.mcell.today { background: #fdf8f0; }
+
+.dhead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 18px;
+  margin-bottom: 3px;
+}
+
+.dnum {
+  font-family: var(--serif);
+  font-size: 13.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  color: var(--ink-soft);
+}
+
+.mcell.today .dnum {
+  color: var(--pig-red);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(180, 85, 63, .55);
+}
+
+.dlabel {
+  font-size: 7.5px;
+  letter-spacing: .12em;
+  color: var(--pig-red);
+  opacity: .85;
+}
+
+.mchips {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+}
+
+.mchip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 18px;
+  height: 18px;
+  min-width: 0;
+  padding: 0 5px;
+  border-left: 2px solid var(--pig);
+  border-radius: 1px;
+  background: var(--wash);
+}
+
+.mchip .mt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  line-height: 1;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.mchip .mtime {
+  flex: 0 0 auto;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .01em;
+  color: var(--ink-muted);
+}
+
+.more {
+  margin-top: 2px;
+  padding: 0 0 0 3px;
+  border: 0;
+  background: none;
+  font-size: 8.5px;
+  line-height: 1.2;
+  letter-spacing: .04em;
+  text-align: left;
+  color: var(--ink-faint);
+}
+
+.more:hover { color: var(--ink-muted); }
+
+/* ============================================================================
+   VIEW 3 — WEEK
+   ========================================================================= */
+
+.week {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.week-head {
+  display: grid;
+  flex: 0 0 54px;
+  grid-template-columns: var(--gutter-w) repeat(7, 1fr);
+  height: 54px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  background: var(--card);
+}
+
+.wh-gutter {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 0 8px 7px;
+  font-family: var(--serif);
+  font-size: var(--fs-2xs);
+  letter-spacing: .1em;
+  color: var(--ink-faint);
+}
+
+.day-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-left: 1px solid var(--line-soft);
+}
+
+.dh-day {
+  font-family: var(--serif);
+  font-size: 9px;
+  letter-spacing: .16em;
+  color: var(--ink-muted);
+}
+
+.dh-num {
+  font-family: var(--serif);
+  font-size: var(--fs-xl);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+
+.day-head.today { background: rgba(192, 138, 46, .07); }
+.day-head.today .dh-day { color: var(--pig-red); }
+
+.day-head.today .dh-num {
+  color: var(--pig-red);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 4px;
+  text-decoration-color: rgba(180, 85, 63, .55);
+}
+
+.week-body {
+  position: relative;
+  display: grid;
+  flex: 0 0 576px;
+  grid-template-columns: var(--gutter-w) repeat(7, 1fr);
+  height: 576px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  background: var(--card);
+}
+
+/* Dotted hour rules: a dotted hairline tiled every 48px */
+.hour-gutter,
+.day-col {
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='48'%3E%3Cline x1='0' y1='47.5' x2='8' y2='47.5' stroke='%23d8cdbb' stroke-width='1' stroke-dasharray='1 3'/%3E%3C/svg%3E");
+  background-size: 8px 48px;
+  background-repeat: repeat;
+}
+
+/* Ruled-paper texture, kept to the gutter and barely there */
+.hour-gutter {
+  position: relative;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='48'%3E%3Cline x1='0' y1='47.5' x2='8' y2='47.5' stroke='%23d8cdbb' stroke-width='1' stroke-dasharray='1 3'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(to bottom, rgba(90, 70, 40, .045) 0 1px, transparent 1px 6px);
+  background-size: 8px 48px, 100% 100%;
+  background-repeat: repeat;
+}
+
+.hour-label {
+  position: absolute;
+  right: 8px;
+  font-size: var(--fs-2xs);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .03em;
+  color: var(--ink-faint);
+}
+
+.hour-label.noon {
+  font-family: var(--serif);
+  font-size: var(--fs-sm);
+  letter-spacing: .12em;
+  color: var(--ink-muted);
+}
+
+.day-col {
+  position: relative;
+  min-width: 0;
+  border-left: 1px solid var(--line-soft);
+}
+
+.day-col.today { background-color: rgba(192, 138, 46, .055); }
+
+.noon-rule {
+  position: absolute;
+  top: 192px;
+  right: 0;
+  left: var(--gutter-w);
+  z-index: 2;
+  height: 1px;
+  background: rgba(90, 70, 40, .16);
+  pointer-events: none;
+}
+
+.ev {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+  padding: 4px 6px;
+  border-left: 2px solid var(--pig);
+  border-radius: var(--r-xs);
+  background: var(--wash);
+  transition: box-shadow .16s, transform .16s;
+}
+
+.ev:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 3px 10px -4px rgba(90, 70, 40, .28);
+}
+
+.ev-title {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: .01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+
+.ev-time {
+  font-size: var(--fs-2xs);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .02em;
+  color: var(--ink-muted);
+}
+
+.ev.short {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.ev.short .ev-title {
+  flex: 1;
+  font-size: 9.5px;
+  line-height: 1;
+}
+
+.ev.short .ev-time {
+  flex: 0 0 auto;
+  display: block;
+  font-size: 7.5px;
+  line-height: 1;
+}
+
+.now-line {
+  position: absolute;
+  top: 224px;
+  right: 0;
+  left: 0;
+  z-index: 5;
+  height: 1px;
+  background: var(--pig-red);
+  opacity: .8;
+  pointer-events: none;
+}
+
+.now-line::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--pig-red);
+}
+
+.now-line span {
+  position: absolute;
+  top: -12px;
+  right: 5px;
+  padding: 0 2px;
+  background: rgba(253, 248, 240, .8);
+  font-size: 7.5px;
+  letter-spacing: .1em;
+  color: var(--pig-red);
+}
+
+.week-legend {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  letter-spacing: .05em;
+  color: var(--ink-muted);
+}
+
+.legend-item i {
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  background: var(--pig);
+}
+
+.legend-hint {
+  margin-left: auto;
+  font-size: var(--fs-2xs);
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+}
+
+/* ============================================================================
+   FLOATING VIEW SWITCHER — paper control, not a dark pill
+   ========================================================================= */
+
+.viewswitch {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #ded3c2;
+  border-radius: var(--r-pill);
+  background: rgba(255, 253, 248, .92);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+}
+
+.vs-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: none;
+  font-size: var(--fs-sm);
+  letter-spacing: .08em;
+  color: var(--ink-muted);
+  transition: color .18s, background .18s, box-shadow .18s;
+}
+
+.vs-btn:hover { color: var(--ink-soft); }
+
+.vs-btn.active {
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgba(90, 70, 40, .10), inset 0 0 0 1px rgba(232, 224, 211, .9);
+}
+
+.vs-btn.active::before {
+  content: "";
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--pig-red);
+}
+
+/* ============================================================================
+   MOTION PREFERENCE
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Inline icon sprite — no external assets -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-sun" viewBox="0 0 16 16">
+    <circle cx="8" cy="8" r="3"/>
+    <path d="M8 1.5v1.4M8 13.1v1.4M1.5 8h1.4M13.1 8h1.4M3.4 3.4l1 1M11.6 11.6l1 1M12.6 3.4l-1 1M4.4 11.6l-1 1"/>
+  </symbol>
+  <symbol id="i-grid" viewBox="0 0 16 16">
+    <rect x="2.5" y="2.5" width="4.6" height="4.6" rx="1"/>
+    <rect x="8.9" y="2.5" width="4.6" height="4.6" rx="1"/>
+    <rect x="2.5" y="8.9" width="4.6" height="4.6" rx="1"/>
+    <rect x="8.9" y="8.9" width="4.6" height="4.6" rx="1"/>
+  </symbol>
+  <symbol id="i-calendar" viewBox="0 0 16 16">
+    <rect x="2.2" y="3.2" width="11.6" height="10.6" rx="1.2"/>
+    <path d="M2.2 6.7h11.6M5.4 1.8v2.6M10.6 1.8v2.6"/>
+  </symbol>
+  <symbol id="i-list" viewBox="0 0 16 16">
+    <path d="M5.6 4.2h8M5.6 8h8M5.6 11.8h8"/>
+    <circle cx="2.6" cy="4.2" r=".7" fill="currentColor" stroke="none"/>
+    <circle cx="2.6" cy="8" r=".7" fill="currentColor" stroke="none"/>
+    <circle cx="2.6" cy="11.8" r=".7" fill="currentColor" stroke="none"/>
+  </symbol>
+  <symbol id="i-search" viewBox="0 0 16 16">
+    <circle cx="7" cy="7" r="4.2"/>
+    <path d="m10.2 10.2 3 3"/>
+  </symbol>
+  <symbol id="i-plus" viewBox="0 0 16 16">
+    <path d="M8 3v10M3 8h10"/>
+  </symbol>
+  <symbol id="i-chev-down" viewBox="0 0 16 16">
+    <path d="m4 6 4 4 4-4"/>
+  </symbol>
+  <symbol id="i-chev-left" viewBox="0 0 16 16">
+    <path d="m10 3-5 5 5 5"/>
+  </symbol>
+  <symbol id="i-chev-right" viewBox="0 0 16 16">
+    <path d="m6 3 5 5-5 5"/>
+  </symbol>
+  <symbol id="i-sort" viewBox="0 0 16 16">
+    <path d="M3 4.5h10M5 8h6M7 11.5h2"/>
+  </symbol>
+  <symbol id="i-check" viewBox="0 0 16 16">
+    <path d="m3.5 8.4 3 3 6-6.6"/>
+  </symbol>
+</svg>
+
+<div class="doc">
+
+  <!-- ======================================================================
+       SPECIMEN HEADER
+       ================================================================== -->
+  <header class="doc-head">
+    <div class="doc-topline">
+      <span>Design Directions / 设计方向</span>
+      <div class="right">
+        <span>03 · Warm Editorial</span>
+        <span>Desktop · 1440 × 900</span>
+        <span>Sept 2026</span>
+      </div>
+    </div>
+
+    <div class="doc-main">
+      <div class="doc-copy">
+        <div class="kicker">A quiet planner, made of paper and ink</div>
+        <h1>Warm Editorial<span class="cn">暖调编辑</span></h1>
+        <p class="lede">
+          把待办清单做成一本用得顺手的纸本手账：温润的纸色、克制的墨、低饱和的颜料，
+          以及足够但不浪费的留白。它不喧哗——每一条线、每一个数字，仍然为效率服务。
+        </p>
+        <div class="palette" aria-label="核心色板">
+          <div class="sw"><i style="background:#f7f3ec"></i><b>纸</b><span>#F7F3EC</span></div>
+          <div class="sw"><i style="background:#2f2a24"></i><b>墨</b><span>#2F2A24</span></div>
+          <div class="sw"><i style="background:#b4553f"></i><b>赭红</b><span>#B4553F</span></div>
+          <div class="sw"><i style="background:#c08a2e"></i><b>芥黄</b><span>#C08A2E</span></div>
+          <div class="sw"><i style="background:#4a6d8c"></i><b>靛蓝</b><span>#4A6D8C</span></div>
+          <div class="sw"><i style="background:#6b8a5e"></i><b>苔绿</b><span>#6B8A5E</span></div>
+          <div class="sw"><i style="background:#fffdf8"></i><b>卡纸</b><span>#FFFDF8</span></div>
+          <div class="sw"><i style="background:#e8e0d3"></i><b>细线</b><span>#E8E0D3</span></div>
+        </div>
+      </div>
+
+      <aside class="doc-aside" aria-label="设计标注">
+        <div class="aside-label">Specimen notes</div>
+        <div class="spec-row"><span>展示字体</span><em>Georgia / 宋体</em></div>
+        <div class="spec-row"><span>界面正文</span><em>Avenir Next / 雅黑</em></div>
+        <div class="spec-row"><span>栅格</span><em>4 / 8 pt</em></div>
+        <div class="spec-row"><span>圆角</span><em>2 · 4 · 6 · 8 · 12</em></div>
+        <div class="spec-row"><span>阴影</span><em>暖褐，低透明度</em></div>
+        <div class="spec-row"><span>底色</span><em>#F7F3EC / #FFFDF8</em></div>
+      </aside>
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       VIEW 01 — 四象限
+       ================================================================== -->
+  <section class="section" id="view-matrix">
+    <div class="caption">
+      <span class="cap-no">01</span>
+      <h2 class="cap-title">四象限</h2>
+      <span class="cap-en">Eisenhower Matrix</span>
+      <span class="cap-rule"></span>
+      <span class="cap-note">2 × 2 · 按重要与紧急排布 · 16 项进行中</span>
+    </div>
+
+    <div class="frame">
+      <aside class="rail" aria-label="主导航">
+        <div class="rail-brand">
+          <div class="mark" aria-hidden="true">清</div>
+          <div>
+            <div class="brand-name">清单</div>
+            <div class="brand-sub">Paper Planner</div>
+          </div>
+        </div>
+
+        <nav class="rail-nav" aria-label="视图">
+          <div class="rail-label">视图</div>
+          <a class="nav-item" href="#view-matrix"><svg class="ic"><use href="#i-sun"/></svg>今天<span class="count">3</span></a>
+          <a class="nav-item active" href="#view-matrix" aria-current="page"><svg class="ic"><use href="#i-grid"/></svg>四象限</a>
+          <a class="nav-item" href="#view-month"><svg class="ic"><use href="#i-calendar"/></svg>日历</a>
+          <a class="nav-item" href="#view-week"><svg class="ic"><use href="#i-list"/></svg>清单</a>
+        </nav>
+
+        <div class="rail-sec">
+          <div class="rail-label">清单 <span>Lists</span></div>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-indigo)"></i>工作<span class="c">9</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-yellow)"></i>生活<span class="c">6</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-green)"></i>阅读<span class="c">3</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-red)"></i>学习<span class="c">2</span></a>
+          <button class="new-list" type="button"><span>＋</span>新建清单</button>
+        </div>
+
+        <div class="rail-foot">
+          <div class="weekmark">
+            <div class="wm-top"><span>第 36 周</span><b>九月</b></div>
+            <div class="wm-days">
+              <span>一</span><span>二</span><span class="on">三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+            </div>
+          </div>
+          <p class="rail-quote">“把日子过成自己的。”<span>手账扉页</span></p>
+          <div class="user">
+            <div class="user-avatar">林</div>
+            <div>
+              <div class="user-name">林语</div>
+              <div class="user-role">个人空间</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div class="tb-context">
+            <span class="tb-dot"></span>
+            <span class="tb-today">今天</span>
+            <span class="tb-rule"></span>
+            <span class="tb-date">2026 年 9 月 6 日 · 周三</span>
+            <span class="tb-week">第 36 周</span>
+          </div>
+          <div class="tb-spacer"></div>
+          <div class="search">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <span>搜索任务与日程</span>
+            <span class="kbd">Ctrl K</span>
+          </div>
+          <button class="btn-new" type="button"><svg class="ic"><use href="#i-plus"/></svg>新任务</button>
+          <div class="avatar" aria-label="林语">林</div>
+        </header>
+
+        <div class="view">
+          <div class="vh">
+            <div>
+              <div class="eyebrow">Eisenhower Matrix · 09 / 06</div>
+              <div class="vh-title-row">
+                <h1>四象限</h1>
+                <span class="vh-meta">16 项进行中 · 5 项已完成</span>
+              </div>
+            </div>
+            <div class="vh-right">
+              <button class="text-tool" type="button"><svg class="ic"><use href="#i-sort"/></svg>按截止时间</button>
+            </div>
+          </div>
+
+          <div class="q-grid">
+            <!-- 重要且紧急 -->
+            <article class="q-card" data-pig="red" data-num="I">
+              <header class="q-head">
+                <span class="q-mark"></span>
+                <h2 class="q-title">重要且紧急</h2>
+                <span class="q-en">Do first</span>
+                <span class="q-count">04</span>
+              </header>
+              <div class="q-rows">
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：制定营销策略"></button>
+                  <span class="q-name">制定营销策略</span>
+                  <span class="q-when">今天 10:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：产品评审"></button>
+                  <span class="q-name">产品评审</span>
+                  <span class="q-when">今天 15:30</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：修复登录页样式"></button>
+                  <span class="q-name">修复登录页样式</span>
+                  <span class="q-when">今天 11:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：回复客户邮件"></button>
+                  <span class="q-name">回复客户邮件</span>
+                  <span class="q-when">今天 09:00</span>
+                </div>
+                <div class="q-blank" aria-hidden="true"><i></i></div>
+              </div>
+              <button class="q-add" type="button"><span class="plus">＋</span>添加任务</button>
+            </article>
+
+            <!-- 重要不紧急 -->
+            <article class="q-card" data-pig="yellow" data-num="II">
+              <header class="q-head">
+                <span class="q-mark"></span>
+                <h2 class="q-title">重要不紧急</h2>
+                <span class="q-en">Schedule</span>
+                <span class="q-count">04</span>
+              </header>
+              <div class="q-rows">
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：晨跑"></button>
+                  <span class="q-name">晨跑</span>
+                  <span class="q-when">06:30</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：阅读名人传记"></button>
+                  <span class="q-name">阅读名人传记</span>
+                  <span class="q-when">21:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：瑜伽课"></button>
+                  <span class="q-name">瑜伽课</span>
+                  <span class="q-when">周四 19:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：和妈妈逛街"></button>
+                  <span class="q-name">和妈妈逛街</span>
+                  <span class="q-when">周六 14:00</span>
+                </div>
+                <div class="q-blank" aria-hidden="true"><i></i></div>
+              </div>
+              <button class="q-add" type="button"><span class="plus">＋</span>添加任务</button>
+            </article>
+
+            <!-- 不重要但紧急 -->
+            <article class="q-card" data-pig="indigo" data-num="III">
+              <header class="q-head">
+                <span class="q-mark"></span>
+                <h2 class="q-title">不重要但紧急</h2>
+                <span class="q-en">Delegate</span>
+                <span class="q-count">04</span>
+              </header>
+              <div class="q-rows">
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：拿快递"></button>
+                  <span class="q-name">拿快递</span>
+                  <span class="q-when">今天 18:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：部门培训"></button>
+                  <span class="q-name">部门培训</span>
+                  <span class="q-when">明天 10:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：线上会议"></button>
+                  <span class="q-name">线上会议</span>
+                  <span class="q-when">今天 16:00</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：报销差旅费用"></button>
+                  <span class="q-name">报销差旅费用</span>
+                  <span class="q-when">周五 16:00</span>
+                </div>
+                <div class="q-blank" aria-hidden="true"><i></i></div>
+              </div>
+              <button class="q-add" type="button"><span class="plus">＋</span>添加任务</button>
+            </article>
+
+            <!-- 不重要不紧急 -->
+            <article class="q-card" data-pig="green" data-num="IV">
+              <header class="q-head">
+                <span class="q-mark"></span>
+                <h2 class="q-title">不重要不紧急</h2>
+                <span class="q-en">Eliminate</span>
+                <span class="q-count">04</span>
+              </header>
+              <div class="q-rows">
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：整理音乐播放列表"></button>
+                  <span class="q-name">整理音乐播放列表</span>
+                  <span class="q-when">生活</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：挑选新的笔记本"></button>
+                  <span class="q-name">挑选新的笔记本</span>
+                  <span class="q-when">生活</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：整理桌面文件"></button>
+                  <span class="q-name">整理桌面文件</span>
+                  <span class="q-when">工作</span>
+                </div>
+                <div class="q-row">
+                  <button class="checkbox" type="button" role="checkbox" aria-checked="false" aria-label="完成任务：浏览设计资讯"></button>
+                  <span class="q-name">浏览设计资讯</span>
+                  <span class="q-when">随时</span>
+                </div>
+              </div>
+              <p class="q-quiet">留一点空白，也是一种安排。</p>
+              <button class="q-add" type="button"><span class="plus">＋</span>添加任务</button>
+            </article>
+          </div>
+
+          <section class="done-band" aria-label="已完成任务">
+            <button class="done-head" type="button" aria-expanded="true">
+              <span class="done-chev"><svg class="ic"><use href="#i-chev-down"/></svg></span>
+              <span class="done-lbl">已完成</span>
+              <span class="done-cnt">5</span>
+              <span class="done-hint">收起</span>
+            </button>
+            <div class="done-body">
+              <div class="done-item"><span class="mini-check"><svg class="ic"><use href="#i-check"/></svg></span><span class="t">归档八月发票</span></div>
+              <div class="done-item"><span class="mini-check"><svg class="ic"><use href="#i-check"/></svg></span><span class="t">预约体检</span></div>
+              <div class="done-item"><span class="mini-check"><svg class="ic"><use href="#i-check"/></svg></span><span class="t">买咖啡豆</span></div>
+              <div class="done-item"><span class="mini-check"><svg class="ic"><use href="#i-check"/></svg></span><span class="t">给绿植浇水</span></div>
+              <div class="done-item"><span class="mini-check"><svg class="ic"><use href="#i-check"/></svg></span><span class="t">整理书架</span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <nav class="viewswitch" aria-label="切换视图">
+        <button class="vs-btn active" type="button" data-target="view-matrix">四象限</button>
+        <button class="vs-btn" type="button" data-target="view-month">月视图</button>
+        <button class="vs-btn" type="button" data-target="view-week">周视图</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       VIEW 02 — 月视图
+       ================================================================== -->
+  <section class="section" id="view-month">
+    <div class="caption">
+      <span class="cap-no">02</span>
+      <h2 class="cap-title">月视图</h2>
+      <span class="cap-en">Month View</span>
+      <span class="cap-rule"></span>
+      <span class="cap-note">打印手账式月网格 · 2026 年 9 月 · 5 个自然周</span>
+    </div>
+
+    <div class="frame">
+      <aside class="rail" aria-label="主导航">
+        <div class="rail-brand">
+          <div class="mark" aria-hidden="true">清</div>
+          <div>
+            <div class="brand-name">清单</div>
+            <div class="brand-sub">Paper Planner</div>
+          </div>
+        </div>
+
+        <nav class="rail-nav" aria-label="视图">
+          <div class="rail-label">视图</div>
+          <a class="nav-item" href="#view-matrix"><svg class="ic"><use href="#i-sun"/></svg>今天<span class="count">3</span></a>
+          <a class="nav-item" href="#view-matrix"><svg class="ic"><use href="#i-grid"/></svg>四象限</a>
+          <a class="nav-item active" href="#view-month" aria-current="page"><svg class="ic"><use href="#i-calendar"/></svg>日历</a>
+          <a class="nav-item" href="#view-week"><svg class="ic"><use href="#i-list"/></svg>清单</a>
+        </nav>
+
+        <div class="rail-sec">
+          <div class="rail-label">清单 <span>Lists</span></div>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-indigo)"></i>工作<span class="c">9</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-yellow)"></i>生活<span class="c">6</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-green)"></i>阅读<span class="c">3</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-red)"></i>学习<span class="c">2</span></a>
+          <button class="new-list" type="button"><span>＋</span>新建清单</button>
+        </div>
+
+        <div class="rail-foot">
+          <div class="weekmark">
+            <div class="wm-top"><span>第 36 周</span><b>九月</b></div>
+            <div class="wm-days">
+              <span>一</span><span>二</span><span class="on">三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+            </div>
+          </div>
+          <p class="rail-quote">“把日子过成自己的。”<span>手账扉页</span></p>
+          <div class="user">
+            <div class="user-avatar">林</div>
+            <div>
+              <div class="user-name">林语</div>
+              <div class="user-role">个人空间</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div class="tb-context">
+            <span class="tb-dot"></span>
+            <span class="tb-today">今天</span>
+            <span class="tb-rule"></span>
+            <span class="tb-date">2026 年 9 月 6 日 · 周三</span>
+            <span class="tb-week">第 36 周</span>
+          </div>
+          <div class="tb-spacer"></div>
+          <div class="search">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <span>搜索任务与日程</span>
+            <span class="kbd">Ctrl K</span>
+          </div>
+          <button class="btn-new" type="button"><svg class="ic"><use href="#i-plus"/></svg>新日程</button>
+          <div class="avatar" aria-label="林语">林</div>
+        </header>
+
+        <div class="view">
+          <div class="vh">
+            <div>
+              <div class="eyebrow">September 2026 · Week 36</div>
+              <div class="vh-title-row">
+                <h1>九月<span class="num">2026</span></h1>
+                <span class="vh-meta">30 天 · 第 36–40 周</span>
+              </div>
+            </div>
+            <div class="vh-right">
+              <div class="ctrl">
+                <button class="chev" type="button" aria-label="上个月"><svg class="ic"><use href="#i-chev-left"/></svg></button>
+                <button class="today" type="button">今天</button>
+                <button class="chev" type="button" aria-label="下个月"><svg class="ic"><use href="#i-chev-right"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="weekday-row" aria-hidden="true">
+            <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span class="we">周六</span><span class="we">周日</span>
+          </div>
+
+          <div class="month" role="grid" aria-label="2026 年 9 月日历">
+            <!-- Week 1 · Aug 28 – Sep 3 -->
+            <div class="mcell out"><div class="dhead"><span class="dnum">28</span></div></div>
+            <div class="mcell out"><div class="dhead"><span class="dnum">29</span></div></div>
+            <div class="mcell out"><div class="dhead"><span class="dnum">30</span></div></div>
+            <div class="mcell out"><div class="dhead"><span class="dnum">31</span></div></div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">1</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">线上会议</span><span class="mtime">10:00</span></div>
+                <div class="mchip" data-pig="yellow"><span class="mt">整理音乐播放列表</span><span class="mtime">20:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">2</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">瑜伽课</span><span class="mtime">10:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">3</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="yellow"><span class="mt">和妈妈逛街</span><span class="mtime">14:00</span></div>
+                <div class="mchip" data-pig="green"><span class="mt">阅读名人传记</span><span class="mtime">21:00</span></div>
+              </div>
+            </div>
+
+            <!-- Week 2 · Sep 4 – 10 -->
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">4</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">部门培训</span><span class="mtime">10:00</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">产品评审</span><span class="mtime">15:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">5</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">线上会议</span><span class="mtime">09:30</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">制定营销策略</span><span class="mtime">13:30</span></div>
+                <div class="mchip" data-pig="green"><span class="mt">阅读名人传记</span><span class="mtime">21:00</span></div>
+              </div>
+            </div>
+            <div class="mcell today">
+              <div class="dhead"><span class="dnum">6</span><span class="dlabel">今天</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">晨跑</span><span class="mtime">06:30</span></div>
+                <div class="mchip" data-pig="indigo"><span class="mt">回复客户邮件</span><span class="mtime">09:00</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">制定营销策略</span><span class="mtime">10:00</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">产品评审</span><span class="mtime">15:30</span></div>
+              </div>
+              <button class="more" type="button">还有 2 项</button>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">7</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">部门培训</span><span class="mtime">10:00</span></div>
+                <div class="mchip" data-pig="green"><span class="mt">瑜伽课</span><span class="mtime">19:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">8</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">线上会议</span><span class="mtime">11:00</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">提交周报</span><span class="mtime">16:30</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">9</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="yellow"><span class="mt">和妈妈逛街</span><span class="mtime">14:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">10</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">瑜伽课</span><span class="mtime">09:00</span></div>
+                <div class="mchip" data-pig="yellow"><span class="mt">整理音乐播放列表</span><span class="mtime">18:00</span></div>
+                <div class="mchip" data-pig="green"><span class="mt">阅读名人传记</span><span class="mtime">19:00</span></div>
+              </div>
+            </div>
+
+            <!-- Week 3 · Sep 11 – 17 -->
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">11</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="red"><span class="mt">产品评审</span><span class="mtime">15:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">12</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">线上会议</span><span class="mtime">10:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">13</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="red"><span class="mt">制定营销策略</span><span class="mtime">14:00</span></div>
+                <div class="mchip" data-pig="yellow"><span class="mt">拿快递</span><span class="mtime">18:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">14</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">部门培训</span><span class="mtime">10:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">15</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">报销差旅费用</span><span class="mtime">16:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">16</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">瑜伽课</span><span class="mtime">10:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">17</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="yellow"><span class="mt">和妈妈逛街</span><span class="mtime">14:00</span></div>
+                <div class="mchip" data-pig="green"><span class="mt">阅读名人传记</span><span class="mtime">21:00</span></div>
+              </div>
+            </div>
+
+            <!-- Week 4 · Sep 18 – 24 -->
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">18</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">月度复盘</span><span class="mtime">15:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">19</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">阅读名人传记</span><span class="mtime">21:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">20</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">线上会议</span><span class="mtime">09:30</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">产品评审</span><span class="mtime">15:30</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">21</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">部门培训</span><span class="mtime">10:00</span></div>
+                <div class="mchip" data-pig="yellow"><span class="mt">拿快递</span><span class="mtime">18:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">22</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="yellow"><span class="mt">整理音乐播放列表</span><span class="mtime">20:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">23</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">晨跑</span><span class="mtime">06:30</span></div>
+                <div class="mchip" data-pig="yellow"><span class="mt">和妈妈逛街</span><span class="mtime">14:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">24</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">瑜伽课</span><span class="mtime">10:00</span></div>
+                <div class="mchip" data-pig="yellow"><span class="mt">挑选新的笔记本</span><span class="mtime">15:00</span></div>
+              </div>
+            </div>
+
+            <!-- Week 5 · Sep 25 – Oct 1 -->
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">25</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="red"><span class="mt">制定营销策略</span><span class="mtime">14:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">26</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">线上会议</span><span class="mtime">10:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">27</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">回复客户邮件</span><span class="mtime">09:30</span></div>
+                <div class="mchip" data-pig="red"><span class="mt">产品评审</span><span class="mtime">15:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">28</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="indigo"><span class="mt">部门培训</span><span class="mtime">10:00</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">29</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="red"><span class="mt">提交周报</span><span class="mtime">16:30</span></div>
+              </div>
+            </div>
+            <div class="mcell">
+              <div class="dhead"><span class="dnum">30</span></div>
+              <div class="mchips">
+                <div class="mchip" data-pig="green"><span class="mt">阅读名人传记</span><span class="mtime">21:00</span></div>
+              </div>
+            </div>
+            <div class="mcell out"><div class="dhead"><span class="dnum">1</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="viewswitch" aria-label="切换视图">
+        <button class="vs-btn" type="button" data-target="view-matrix">四象限</button>
+        <button class="vs-btn active" type="button" data-target="view-month">月视图</button>
+        <button class="vs-btn" type="button" data-target="view-week">周视图</button>
+      </nav>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       VIEW 03 — 周视图
+       ================================================================== -->
+  <section class="section" id="view-week">
+    <div class="caption">
+      <span class="cap-no">03</span>
+      <h2 class="cap-title">周视图</h2>
+      <span class="cap-en">Week View</span>
+      <span class="cap-rule"></span>
+      <span class="cap-note">08:00 – 20:00 · 按时长定位 · 9 月 4 – 10 日</span>
+    </div>
+
+    <div class="frame">
+      <aside class="rail" aria-label="主导航">
+        <div class="rail-brand">
+          <div class="mark" aria-hidden="true">清</div>
+          <div>
+            <div class="brand-name">清单</div>
+            <div class="brand-sub">Paper Planner</div>
+          </div>
+        </div>
+
+        <nav class="rail-nav" aria-label="视图">
+          <div class="rail-label">视图</div>
+          <a class="nav-item" href="#view-matrix"><svg class="ic"><use href="#i-sun"/></svg>今天<span class="count">3</span></a>
+          <a class="nav-item" href="#view-matrix"><svg class="ic"><use href="#i-grid"/></svg>四象限</a>
+          <a class="nav-item active" href="#view-week" aria-current="page"><svg class="ic"><use href="#i-calendar"/></svg>日历</a>
+          <a class="nav-item" href="#view-week"><svg class="ic"><use href="#i-list"/></svg>清单</a>
+        </nav>
+
+        <div class="rail-sec">
+          <div class="rail-label">清单 <span>Lists</span></div>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-indigo)"></i>工作<span class="c">9</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-yellow)"></i>生活<span class="c">6</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-green)"></i>阅读<span class="c">3</span></a>
+          <a class="list-item" href="#"><i class="dot" style="--c:var(--pig-red)"></i>学习<span class="c">2</span></a>
+          <button class="new-list" type="button"><span>＋</span>新建清单</button>
+        </div>
+
+        <div class="rail-foot">
+          <div class="weekmark">
+            <div class="wm-top"><span>第 36 周</span><b>九月</b></div>
+            <div class="wm-days">
+              <span>一</span><span>二</span><span class="on">三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+            </div>
+          </div>
+          <p class="rail-quote">“把日子过成自己的。”<span>手账扉页</span></p>
+          <div class="user">
+            <div class="user-avatar">林</div>
+            <div>
+              <div class="user-name">林语</div>
+              <div class="user-role">个人空间</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <div class="main">
+        <header class="topbar">
+          <div class="tb-context">
+            <span class="tb-dot"></span>
+            <span class="tb-today">今天</span>
+            <span class="tb-rule"></span>
+            <span class="tb-date">2026 年 9 月 6 日 · 周三</span>
+            <span class="tb-week">第 36 周</span>
+          </div>
+          <div class="tb-spacer"></div>
+          <div class="search">
+            <svg class="ic"><use href="#i-search"/></svg>
+            <span>搜索任务与日程</span>
+            <span class="kbd">Ctrl K</span>
+          </div>
+          <button class="btn-new" type="button"><svg class="ic"><use href="#i-plus"/></svg>新日程</button>
+          <div class="avatar" aria-label="林语">林</div>
+        </header>
+
+        <div class="view">
+          <div class="vh">
+            <div>
+              <div class="eyebrow">Week 36 · 2026</div>
+              <div class="vh-title-row">
+                <h1>第 36 周</h1>
+                <span class="vh-meta">9 月 4 日 – 9 月 10 日 · 08:00–20:00</span>
+              </div>
+            </div>
+            <div class="vh-right">
+              <div class="ctrl">
+                <button class="chev" type="button" aria-label="上一周"><svg class="ic"><use href="#i-chev-left"/></svg></button>
+                <button class="today" type="button">今天</button>
+                <button class="chev" type="button" aria-label="下一周"><svg class="ic"><use href="#i-chev-right"/></svg></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="week">
+            <div class="week-head">
+              <div class="wh-gutter">GMT+8</div>
+              <div class="day-head"><span class="dh-day">周一</span><span class="dh-num">4</span></div>
+              <div class="day-head"><span class="dh-day">周二</span><span class="dh-num">5</span></div>
+              <div class="day-head today"><span class="dh-day">周三</span><span class="dh-num">6</span></div>
+              <div class="day-head"><span class="dh-day">周四</span><span class="dh-num">7</span></div>
+              <div class="day-head"><span class="dh-day">周五</span><span class="dh-num">8</span></div>
+              <div class="day-head"><span class="dh-day">周六</span><span class="dh-num">9</span></div>
+              <div class="day-head"><span class="dh-day">周日</span><span class="dh-num">10</span></div>
+            </div>
+
+            <div class="week-body">
+              <div class="hour-gutter" aria-hidden="true">
+                <div class="hour-label" style="top:2px">08:00</div>
+                <div class="hour-label" style="top:50px">09:00</div>
+                <div class="hour-label" style="top:98px">10:00</div>
+                <div class="hour-label" style="top:146px">11:00</div>
+                <div class="hour-label noon" style="top:196px">正午</div>
+                <div class="hour-label" style="top:242px">13:00</div>
+                <div class="hour-label" style="top:290px">14:00</div>
+                <div class="hour-label" style="top:338px">15:00</div>
+                <div class="hour-label" style="top:386px">16:00</div>
+                <div class="hour-label" style="top:434px">17:00</div>
+                <div class="hour-label" style="top:482px">18:00</div>
+                <div class="hour-label" style="top:530px">19:00</div>
+                <div class="hour-label" style="top:560px">20:00</div>
+              </div>
+
+              <!-- Monday 4 -->
+              <div class="day-col">
+                <div class="ev" data-pig="indigo" style="top:96px;height:96px">
+                  <span class="ev-title">部门培训</span>
+                  <span class="ev-time">10:00 – 12:00</span>
+                </div>
+                <div class="ev" data-pig="red" style="top:336px;height:72px">
+                  <span class="ev-title">产品评审</span>
+                  <span class="ev-time">15:00 – 16:30</span>
+                </div>
+                <div class="ev" data-pig="green" style="top:528px;height:48px">
+                  <span class="ev-title">瑜伽课</span>
+                  <span class="ev-time">19:00 – 20:00</span>
+                </div>
+              </div>
+
+              <!-- Tuesday 5 -->
+              <div class="day-col">
+                <div class="ev" data-pig="indigo" style="top:72px;height:48px">
+                  <span class="ev-title">线上会议</span>
+                  <span class="ev-time">09:30 – 10:30</span>
+                </div>
+                <div class="ev" data-pig="red" style="top:264px;height:72px">
+                  <span class="ev-title">制定营销策略</span>
+                  <span class="ev-time">13:30 – 15:00</span>
+                </div>
+              </div>
+
+              <!-- Wednesday 6 · today -->
+              <div class="day-col today">
+                <div class="ev short" data-pig="indigo" style="top:48px;height:24px">
+                  <span class="ev-title">回复客户邮件</span>
+                  <span class="ev-time">09:00 – 09:30</span>
+                </div>
+                <div class="ev" data-pig="red" style="top:96px;height:72px">
+                  <span class="ev-title">制定营销策略</span>
+                  <span class="ev-time">10:00 – 11:30</span>
+                </div>
+                <div class="ev" data-pig="red" style="top:360px;height:72px;left:4px;right:auto;width:calc(50% - 6px)">
+                  <span class="ev-title">产品评审</span>
+                  <span class="ev-time">15:30 – 17:00</span>
+                </div>
+                <div class="ev" data-pig="indigo" style="top:384px;height:48px;left:calc(50% + 2px);right:4px">
+                  <span class="ev-title">线上会议</span>
+                  <span class="ev-time">16:00 – 17:00</span>
+                </div>
+                <div class="ev short" data-pig="yellow" style="top:480px;height:24px">
+                  <span class="ev-title">拿快递</span>
+                  <span class="ev-time">18:00 – 18:30</span>
+                </div>
+                <div class="now-line"><span>现在</span></div>
+              </div>
+
+              <!-- Thursday 7 -->
+              <div class="day-col">
+                <div class="ev" data-pig="indigo" style="top:96px;height:72px">
+                  <span class="ev-title">部门培训</span>
+                  <span class="ev-time">10:00 – 11:30</span>
+                </div>
+                <div class="ev" data-pig="green" style="top:528px;height:48px">
+                  <span class="ev-title">瑜伽课</span>
+                  <span class="ev-time">19:00 – 20:00</span>
+                </div>
+              </div>
+
+              <!-- Friday 8 -->
+              <div class="day-col">
+                <div class="ev" data-pig="indigo" style="top:144px;height:48px">
+                  <span class="ev-title">线上会议</span>
+                  <span class="ev-time">11:00 – 12:00</span>
+                </div>
+                <div class="ev short" data-pig="red" style="top:408px;height:24px">
+                  <span class="ev-title">提交周报</span>
+                  <span class="ev-time">16:30 – 17:00</span>
+                </div>
+              </div>
+
+              <!-- Saturday 9 -->
+              <div class="day-col">
+                <div class="ev" data-pig="yellow" style="top:288px;height:144px">
+                  <span class="ev-title">和妈妈逛街</span>
+                  <span class="ev-time">14:00 – 17:00</span>
+                </div>
+              </div>
+
+              <!-- Sunday 10 -->
+              <div class="day-col">
+                <div class="ev" data-pig="green" style="top:48px;height:48px">
+                  <span class="ev-title">瑜伽课</span>
+                  <span class="ev-time">09:00 – 10:00</span>
+                </div>
+                <div class="ev" data-pig="yellow" style="top:480px;height:48px">
+                  <span class="ev-title">整理音乐播放列表</span>
+                  <span class="ev-time">18:00 – 19:00</span>
+                </div>
+                <div class="ev" data-pig="green" style="top:528px;height:48px">
+                  <span class="ev-title">阅读名人传记</span>
+                  <span class="ev-time">19:00 – 20:00</span>
+                </div>
+              </div>
+
+              <div class="noon-rule" aria-hidden="true"></div>
+            </div>
+
+            <div class="week-legend">
+              <div class="legend-item" data-pig="red"><i></i>工作重点</div>
+              <div class="legend-item" data-pig="indigo"><i></i>会议与培训</div>
+              <div class="legend-item" data-pig="yellow"><i></i>生活事务</div>
+              <div class="legend-item" data-pig="green"><i></i>身心时间</div>
+              <span class="legend-hint">双击空白处新建日程</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <nav class="viewswitch" aria-label="切换视图">
+        <button class="vs-btn" type="button" data-target="view-matrix">四象限</button>
+        <button class="vs-btn" type="button" data-target="view-month">月视图</button>
+        <button class="vs-btn active" type="button" data-target="view-week">周视图</button>
+      </nav>
+    </div>
+  </section>
+
+  <footer class="doc-foot">
+    <span>Warm Editorial · Direction 03</span>
+    <span>Georgia / 宋体 · Avenir Next / 雅黑 · 4–8 pt grid</span>
+    <span>Pure HTML &amp; CSS · no external assets</span>
+  </footer>
+</div>
+
+<script>
+  // Task checkboxes — tiny, honest interaction for the static mockup.
+  document.querySelectorAll('.q-row .checkbox').forEach(function (box) {
+    box.addEventListener('click', function () {
+      var row = box.closest('.q-row');
+      var done = row.classList.toggle('is-done');
+      box.setAttribute('aria-checked', String(done));
+    });
+  });
+
+  // Collapsible "已完成 5" band.
+  document.querySelectorAll('.done-head').forEach(function (head) {
+    head.addEventListener('click', function () {
+      var band = head.closest('.done-band');
+      var collapsed = band.classList.toggle('is-collapsed');
+      head.setAttribute('aria-expanded', String(!collapsed));
+      head.querySelector('.done-hint').textContent = collapsed ? '展开' : '收起';
+    });
+  });
+
+  // Floating switcher jumps between the three stacked frames.
+  document.querySelectorAll('.vs-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var target = document.getElementById(btn.dataset.target);
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  });
+</script>
+</body>
+</html>

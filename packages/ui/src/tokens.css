@@ -1,0 +1,579 @@
+/* ============================================================================
+   @todolist/ui — design tokens
+   ----------------------------------------------------------------------------
+   This file is the single source of truth for the *static* theme. Component
+   styles in styles.css only ever reference var(--tl-*), so swapping the
+   winning design direction means editing ONLY this file and the matching
+   `defaultTheme` object in src/themes/index.ts. Nothing else needs to change.
+
+   Light values are seeded from design/A-refined.html. Dark values override the
+   neutral + surface tokens only; the palette (hues, quadrants, accent) stays.
+
+   ----------------------------------------------------------------------------
+   THEME PACKS
+   Three design directions ship as runtime-switchable palettes. The default
+   (no `data-palette` attribute) is A. Each pack overrides only tokens — no
+   component rule anywhere knows which theme is active.
+
+     A  (default)  "refined"   — cool neutral, blue accent, crisp
+     B  `protool`             — warm near-white, single indigo accent, dense
+     C  `editorial`           — paper & ink, muted pigments, serif display
+
+   `data-palette` and `data-theme` compose: a pack defines its own light values
+   and, where the neutral ramp genuinely differs, its own dark values.
+   ========================================================================== */
+
+:root {
+  /* ---- Canvas & surfaces ------------------------------------------------ */
+  --tl-bg: #f5f5f6;
+  --tl-surface: #ffffff;
+  --tl-surface-raised: #ffffff;
+  --tl-surface-subtle: #fafafa;
+  --tl-surface-hover: #f4f4f5;
+  --tl-surface-sunken: #f0f0f2;
+
+  /* ---- Hairlines -------------------------------------------------------- */
+  --tl-border: #ececee;
+  --tl-border-soft: #f2f2f4;
+  --tl-border-strong: #e3e3e6;
+
+  /* ---- Ink -------------------------------------------------------------- */
+  --tl-text: #1d1d1f;
+  --tl-text-secondary: #6e6e73;
+  --tl-text-tertiary: #a1a1a6;
+  --tl-text-disabled: #c7c7cc;
+  --tl-text-inverse: #ffffff;
+  --tl-chip-text: #2c2c2e;
+
+  /**
+   * The colour a tint is mixed *toward*.
+   *
+   * Tinted surfaces are built with `color-mix(in oklab, <hue> N%, var(--tl-tint-base))`.
+   * Mixing toward a literal `white` bakes a near-white background that is
+   * invisible in light mode but glaring in dark mode — that was the bug where
+   * every calendar chip rendered as a white bar on a dark grid. Pointing the
+   * mix at the *current surface* makes one rule correct in every theme and
+   * every palette.
+   */
+  --tl-tint-base: var(--tl-surface);
+
+  /* ---- Brand & actions -------------------------------------------------- */
+  --tl-accent: #3b82f6;
+  --tl-accent-hover: #2f74e8;
+  --tl-accent-contrast: #ffffff;
+  --tl-accent-tint: #eef4ff;
+  /* Readable accent for accent-coloured *text/icons* on surface or a tint;
+     --tl-accent itself is a fill colour and is 3.7:1 as ink. */
+  --tl-accent-ink: #2563eb;
+  --tl-danger: #ff5252;
+  --tl-danger-hover: #ea4747;
+  --tl-danger-tint: #fff0ef;
+  --tl-warning: #ff9500;
+  --tl-warning-hover: #f08c00;
+  --tl-success: #10b981;
+
+  /* ---- Eisenhower quadrants (exact reference hues) ---------------------- */
+  --tl-quadrant-q1: #ff5252; /* urgent + important       */
+  --tl-quadrant-q1-tint: #fff0ef;
+  --tl-quadrant-q2: #ff9500; /* not urgent + important   */
+  --tl-quadrant-q2-tint: #fff6e8;
+  --tl-quadrant-q3: #3b82f6; /* urgent + not important   */
+  --tl-quadrant-q3-tint: #eff5ff;
+  --tl-quadrant-q4: #10b981; /* neither                  */
+  --tl-quadrant-q4-tint: #ebf9f3;
+
+  /* ---- 8 curated list hues ---------------------------------------------
+     `base`  — rule / dot on light surfaces
+     `solid` — base darkened ~8%, for solid fills / pressed states
+     `tint`  — the desaturated chip background
+     -------------------------------------------------------------------- */
+  --tl-hue-1-base: #5b8def;
+  --tl-hue-1-solid: #5482dc;
+  --tl-hue-1-tint: #eef4ff;
+  --tl-hue-2-base: #3aa88b;
+  --tl-hue-2-solid: #359b80;
+  --tl-hue-2-tint: #eaf7f2;
+  --tl-hue-3-base: #d99a3d;
+  --tl-hue-3-solid: #c88e38;
+  --tl-hue-3-tint: #fcf3e2;
+  --tl-hue-4-base: #dd7366;
+  --tl-hue-4-solid: #cb6a5e;
+  --tl-hue-4-tint: #fdefec;
+  --tl-hue-5-base: #8b79c9;
+  --tl-hue-5-solid: #806fb9;
+  --tl-hue-5-tint: #f3effb;
+  --tl-hue-6-base: #c56d92;
+  --tl-hue-6-solid: #b56486;
+  --tl-hue-6-tint: #fbeef3;
+  --tl-hue-7-base: #88a35c;
+  --tl-hue-7-solid: #7d9655;
+  --tl-hue-7-tint: #f1f5e9;
+  --tl-hue-8-base: #4a9cc0;
+  --tl-hue-8-solid: #4490b1;
+  --tl-hue-8-tint: #eaf5fa;
+
+  /* ---- Spacing — strict 4px rhythm ------------------------------------- */
+  --tl-space-1: 4px;
+  --tl-space-2: 8px;
+  --tl-space-3: 12px;
+  --tl-space-4: 16px;
+  --tl-space-5: 20px;
+  --tl-space-6: 24px;
+  --tl-space-7: 28px;
+  --tl-space-8: 32px;
+  --tl-space-9: 36px;
+  --tl-space-10: 40px;
+
+  /* ---- Radii ------------------------------------------------------------ */
+  --tl-radius-xs: 4px;
+  --tl-radius-sm: 6px;
+  --tl-radius-md: 8px;
+  --tl-radius-lg: 10px;
+  --tl-radius-xl: 12px;
+  --tl-radius-full: 999px;
+
+  /* ---- Typography ------------------------------------------------------- */
+  --tl-font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+    "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --tl-font-mono: "SFMono-Regular", "Cascadia Code", Consolas, "Liberation Mono",
+    monospace;
+
+  --tl-font-size-xs: 11px;
+  --tl-font-size-sm: 12px;
+  --tl-font-size-base: 13px;
+  --tl-font-size-md: 14px;
+  --tl-font-size-lg: 16px;
+  --tl-font-size-xl: 18px;
+  --tl-font-size-2xl: 26px;
+
+  --tl-font-weight-regular: 400;
+  --tl-font-weight-medium: 500;
+  --tl-font-weight-semibold: 600;
+  --tl-font-weight-bold: 700;
+
+  --tl-line-height-tight: 1.2;
+  --tl-line-height-snug: 1.35;
+  --tl-line-height-normal: 1.5;
+  --tl-line-height-relaxed: 1.65;
+
+  /* ---- Depth — only where depth is earned ------------------------------ */
+  --tl-shadow-sm: 0 1px 2px rgba(20, 20, 25, 0.05);
+  --tl-shadow-md: 0 1px 2px rgba(20, 20, 25, 0.04),
+    0 6px 18px -8px rgba(20, 20, 25, 0.1);
+  --tl-shadow-lg: 0 2px 4px rgba(20, 20, 25, 0.05),
+    0 14px 34px -12px rgba(20, 20, 25, 0.18);
+  --tl-shadow-float: 0 1px 2px rgba(0, 0, 0, 0.14),
+    0 10px 28px -10px rgba(0, 0, 0, 0.32),
+    0 30px 60px -24px rgba(0, 0, 0, 0.26);
+
+  /* ---- Layering --------------------------------------------------------- */
+  --tl-z-base: 0;
+  --tl-z-raised: 1;
+  --tl-z-sticky: 10;
+  --tl-z-dropdown: 100;
+  --tl-z-overlay: 200;
+  --tl-z-popover: 300;
+  --tl-z-toast: 400;
+
+  /* ---- Motion ----------------------------------------------------------- */
+  --tl-duration-fast: 120ms;
+  --tl-duration-base: 180ms;
+  --tl-duration-slow: 260ms;
+  --tl-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --tl-ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --tl-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- Focus ------------------------------------------------------------ */
+  --tl-focus-ring: rgba(59, 130, 246, 0.55);
+
+  /* ---- Floating view switcher ------------------------------------------ */
+  --tl-pill-bg: rgba(58, 58, 60, 0.93);
+  --tl-pill-border: rgba(255, 255, 255, 0.08);
+  --tl-pill-text: #ffffff;
+  --tl-pill-text-muted: #c9c9cd;
+  --tl-pill-hover: rgba(255, 255, 255, 0.06);
+  --tl-pill-active: rgba(255, 255, 255, 0.14);
+
+  /* ---- CTA (the primary action inside the floating pill) ----------------
+     Follows the palette's accent rather than a fixed amber. The reference
+     design used amber because its CTA was an *upgrade* prompt; in this app the
+     same button is 新建日程, so an upgrade-coloured action reads as an ad. */
+  --tl-cta-bg: var(--tl-accent);
+  --tl-cta-bg-hover: var(--tl-accent-hover);
+  --tl-cta-text: var(--tl-accent-contrast);
+  /* Ink for the CTA fill, kept for palettes that override it with a light
+     fill (e.g. editorial dark), where accent-contrast alone is too weak. */
+  --tl-cta-ink: #1d1d1f;
+
+  /* ---- Scrollbars ------------------------------------------------------- */
+  --tl-scrollbar-thumb: #d9d9de;
+  --tl-scrollbar-thumb-hover: #c4c4c9;
+}
+
+/* ============================================================================
+   DARK THEME — neutrals + surfaces + surface-derived tints only.
+   The 8 list hues and 4 quadrant hues intentionally keep their identity.
+   ========================================================================== */
+[data-theme="dark"] {
+  --tl-bg: #161617;
+  --tl-surface: #1f1f21;
+  --tl-surface-raised: #262628;
+  --tl-surface-subtle: #1a1a1c;
+  --tl-surface-hover: #2a2a2d;
+  --tl-surface-sunken: #121214;
+
+  --tl-border: #2e2e32;
+  --tl-border-soft: #26262a;
+  --tl-border-strong: #3c3c42;
+
+  --tl-text: #f5f5f7;
+  --tl-text-secondary: #a8a8ae;
+  --tl-text-tertiary: #7c7c83;
+  --tl-text-disabled: #5a5a61;
+  --tl-text-inverse: #1d1d1f;
+  --tl-chip-text: #ececef;
+
+  /* Dark palettes lighten the accent fill; white ink on it is 2.8–3.7:1.
+     Keep the ink dark so primary buttons, check ticks and "today" pills read. */
+  --tl-accent-contrast: #101418;
+  --tl-accent-tint: #1c2b45;
+  --tl-accent-ink: #60a5fa;
+  --tl-danger-tint: #3a2424;
+
+  --tl-quadrant-q1-tint: #3a2424;
+  --tl-quadrant-q2-tint: #3a2e1c;
+  --tl-quadrant-q3-tint: #1c2b45;
+  --tl-quadrant-q4-tint: #173229;
+
+  --tl-hue-1-tint: #1b2a45;
+  --tl-hue-2-tint: #163029;
+  --tl-hue-3-tint: #342a1a;
+  --tl-hue-4-tint: #352321;
+  --tl-hue-5-tint: #292343;
+  --tl-hue-6-tint: #35222b;
+  --tl-hue-7-tint: #27301c;
+  --tl-hue-8-tint: #183139;
+
+  --tl-focus-ring: rgba(96, 165, 250, 0.7);
+  --tl-scrollbar-thumb: #3a3a40;
+  --tl-scrollbar-thumb-hover: #4a4a52;
+  /* The CTA keeps its amber fill in dark mode, so its ink stays dark. */
+  --tl-cta-ink: #1d1d1f;
+}
+
+/* ============================================================================
+   PALETTE B — "protool"  (design/B-pro-tool.html)
+   Warm near-white ground, one indigo accent, quadrant hues as desaturated
+   signals. Denser and cooler than the editorial pack, flatter than A.
+   ========================================================================== */
+[data-palette="protool"] {
+  --tl-bg: #fbfbfa;
+  --tl-surface: #ffffff;
+  --tl-surface-raised: #ffffff;
+  --tl-surface-subtle: #f6f5f2;
+  --tl-surface-hover: #f4f3f0;
+  --tl-surface-sunken: #f2f1ee;
+
+  --tl-border: #e6e5e3;
+  --tl-border-soft: #efeeeb;
+  --tl-border-strong: #d8d5d0;
+
+  --tl-text: #1f1e1d;
+  /* Darkened from the mockup's #787774, which was 4.32:1 on the app ground —
+     below the 4.5:1 body-text floor. Hue and character are unchanged. */
+  --tl-text-secondary: #6d6660;
+  --tl-text-tertiary: #9b9893;
+  --tl-text-disabled: #c3c0ba;
+  --tl-text-inverse: #ffffff;
+  --tl-chip-text: #2b2a28;
+
+  --tl-accent: #5b5bd6;
+  --tl-accent-hover: #4b4bc6;
+  --tl-accent-contrast: #ffffff;
+  --tl-accent-tint: #eeeefb;
+  --tl-accent-ink: #5b5bd6;
+  --tl-danger: #c64141;
+  --tl-danger-hover: #b03a3a;
+  --tl-danger-tint: #fbeeee;
+  --tl-warning: #cf8a2e;
+  --tl-warning-hover: #b97b27;
+  --tl-success: #3f8f68;
+
+  --tl-quadrant-q1: #cf4b4b;
+  --tl-quadrant-q1-tint: #fbeeee;
+  --tl-quadrant-q2: #cf8a2e;
+  --tl-quadrant-q2-tint: #fbf3e6;
+  --tl-quadrant-q3: #3f79bf;
+  --tl-quadrant-q3-tint: #edf3fb;
+  --tl-quadrant-q4: #3f8f68;
+  --tl-quadrant-q4-tint: #edf6f1;
+
+  --tl-hue-1-base: #55688a;
+  --tl-hue-1-solid: #4b5c7b;
+  --tl-hue-1-tint: #eef0f5;
+  --tl-hue-2-base: #3f8f68;
+  --tl-hue-2-solid: #377d5b;
+  --tl-hue-2-tint: #edf6f1;
+  --tl-hue-3-base: #bd7a2d;
+  --tl-hue-3-solid: #a86d28;
+  --tl-hue-3-tint: #fbf3e8;
+  --tl-hue-4-base: #b34f5b;
+  --tl-hue-4-solid: #a04651;
+  --tl-hue-4-tint: #fbeeef;
+  --tl-hue-5-base: #8a6bb8;
+  --tl-hue-5-solid: #7a5ea3;
+  --tl-hue-5-tint: #f3effa;
+  --tl-hue-6-base: #c2688a;
+  --tl-hue-6-solid: #ac5c7b;
+  --tl-hue-6-tint: #fbeef3;
+  --tl-hue-7-base: #6f8a4f;
+  --tl-hue-7-solid: #627a46;
+  --tl-hue-7-tint: #f1f5ea;
+  --tl-hue-8-base: #4a8fa0;
+  --tl-hue-8-solid: #417e8d;
+  --tl-hue-8-tint: #ecf5f6;
+
+  --tl-radius-xs: 3px;
+  --tl-radius-sm: 5px;
+  --tl-radius-md: 7px;
+  --tl-radius-lg: 8px;
+  --tl-radius-xl: 10px;
+
+  --tl-font-sans: "Segoe UI Variable Text", "Segoe UI", "PingFang SC",
+    "Microsoft YaHei UI", "Noto Sans SC", system-ui, sans-serif;
+
+  --tl-shadow-sm: 0 1px 2px rgba(31, 30, 29, 0.05);
+  --tl-shadow-md: 0 1px 2px rgba(31, 30, 29, 0.04),
+    0 6px 16px -10px rgba(31, 30, 29, 0.14);
+  --tl-shadow-lg: 0 2px 4px rgba(31, 30, 29, 0.05),
+    0 14px 30px -14px rgba(31, 30, 29, 0.2);
+
+  --tl-focus-ring: rgba(91, 91, 214, 0.5);
+  --tl-scrollbar-thumb: #dcd9d4;
+  --tl-scrollbar-thumb-hover: #c9c5bf;
+  --tl-pill-bg: rgba(35, 34, 34, 0.93);
+  --tl-cta-bg: #5b5bd6;
+  --tl-cta-bg-hover: #4b4bc6;
+  --tl-cta-ink: #ffffff;
+}
+
+[data-palette="protool"][data-theme="dark"] {
+  --tl-bg: #141413;
+  --tl-surface: #1d1d1b;
+  --tl-surface-raised: #242422;
+  --tl-surface-subtle: #191917;
+  --tl-surface-hover: #272725;
+  --tl-surface-sunken: #101010;
+
+  --tl-border: #302f2d;
+  --tl-border-soft: #262624;
+  --tl-border-strong: #3d3c39;
+
+  --tl-text: #f4f3f1;
+  --tl-text-secondary: #a5a29d;
+  --tl-text-tertiary: #78756f;
+  --tl-text-disabled: #55534f;
+  --tl-text-inverse: #1f1e1d;
+  --tl-chip-text: #ebe9e5;
+
+  --tl-accent: #8b8bf0;
+  --tl-accent-contrast: #141413;
+  --tl-accent-ink: #8b8bf0;
+  --tl-accent-hover: #9c9cf4;
+  --tl-accent-tint: #22223a;
+  --tl-danger: #e06a6a;
+  --tl-danger-tint: #33201f;
+  --tl-warning: #d99a3d;
+  --tl-success: #5aab84;
+
+  --tl-quadrant-q1-tint: #33201f;
+  --tl-quadrant-q2-tint: #332a19;
+  --tl-quadrant-q3-tint: #1d2735;
+  --tl-quadrant-q4-tint: #1b2a23;
+
+  --tl-hue-1-tint: #1f2530;
+  --tl-hue-2-tint: #1b2a23;
+  --tl-hue-3-tint: #2d2519;
+  --tl-hue-4-tint: #2e1e20;
+  --tl-hue-5-tint: #262035;
+  --tl-hue-6-tint: #2e2027;
+  --tl-hue-7-tint: #232a1c;
+  --tl-hue-8-tint: #1a272a;
+
+  --tl-focus-ring: rgba(139, 139, 240, 0.65);
+  --tl-scrollbar-thumb: #35342f;
+  --tl-scrollbar-thumb-hover: #45433d;
+  --tl-cta-bg: #8b8bf0;
+  --tl-cta-bg-hover: #9c9cf4;
+  --tl-cta-text: #141413;
+  --tl-cta-ink: #141413;
+}
+
+/* ============================================================================
+   PALETTE C — "editorial"  (design/C-warm-editorial.html)
+   Paper & ink. A warm cream ground, near-white cards, muted pigments used as
+   ink rather than UI chrome, and a serif display face for headings.
+   ========================================================================== */
+[data-palette="editorial"] {
+  --tl-bg: #f7f3ec;
+  --tl-surface: #fffdf8;
+  --tl-surface-raised: #fffdf8;
+  --tl-surface-subtle: #faf6ef;
+  --tl-surface-hover: #f2ece1;
+  --tl-surface-sunken: #f2ece1;
+
+  --tl-border: #e8e0d3;
+  --tl-border-soft: #f0e9dd;
+  --tl-border-strong: #dccfbd;
+
+  --tl-text: #2f2a24;
+  /* Darkened from the mockup's #8a8073, which was 3.51:1 on paper — well under
+     the 4.5:1 body-text floor. Kept warm so it still reads as ink, not grey. */
+  --tl-text-secondary: #6b6155;
+  --tl-text-tertiary: #b3a899;
+  --tl-text-disabled: #cfc5b6;
+  --tl-text-inverse: #fffdf8;
+  --tl-chip-text: #575046;
+
+  --tl-accent: #4a6d8c;
+  --tl-accent-hover: #3d5b75;
+  --tl-accent-contrast: #fffdf8;
+  --tl-accent-tint: rgba(74, 109, 140, 0.09);
+  --tl-accent-ink: #4a6d8c;
+  --tl-danger: #b4553f;
+  --tl-danger-hover: #9c4634;
+  --tl-danger-tint: rgba(180, 85, 63, 0.09);
+  --tl-warning: #c08a2e;
+  --tl-warning-hover: #a87726;
+  --tl-success: #6b8a5e;
+
+  --tl-quadrant-q1: #b4553f;
+  --tl-quadrant-q1-tint: rgba(180, 85, 63, 0.075);
+  --tl-quadrant-q2: #c08a2e;
+  --tl-quadrant-q2-tint: rgba(192, 138, 46, 0.1);
+  --tl-quadrant-q3: #4a6d8c;
+  --tl-quadrant-q3-tint: rgba(74, 109, 140, 0.075);
+  --tl-quadrant-q4: #6b8a5e;
+  --tl-quadrant-q4-tint: rgba(107, 138, 94, 0.09);
+
+  --tl-hue-1-base: #4a6d8c;
+  --tl-hue-1-solid: #3f5e79;
+  --tl-hue-1-tint: rgba(74, 109, 140, 0.08);
+  --tl-hue-2-base: #6b8a5e;
+  --tl-hue-2-solid: #5b774f;
+  --tl-hue-2-tint: rgba(107, 138, 94, 0.09);
+  --tl-hue-3-base: #c08a2e;
+  --tl-hue-3-solid: #a87726;
+  --tl-hue-3-tint: rgba(192, 138, 46, 0.1);
+  --tl-hue-4-base: #b4553f;
+  --tl-hue-4-solid: #9c4634;
+  --tl-hue-4-tint: rgba(180, 85, 63, 0.075);
+  --tl-hue-5-base: #7d6a92;
+  --tl-hue-5-solid: #6b5b7e;
+  --tl-hue-5-tint: rgba(125, 106, 146, 0.08);
+  --tl-hue-6-base: #a56273;
+  --tl-hue-6-solid: #8f5463;
+  --tl-hue-6-tint: rgba(165, 98, 115, 0.08);
+  --tl-hue-7-base: #8a8a4f;
+  --tl-hue-7-solid: #767643;
+  --tl-hue-7-tint: rgba(138, 138, 79, 0.09);
+  --tl-hue-8-base: #4f8a8a;
+  --tl-hue-8-solid: #437575;
+  --tl-hue-8-tint: rgba(79, 138, 138, 0.08);
+
+  --tl-radius-xs: 2px;
+  --tl-radius-sm: 4px;
+  --tl-radius-md: 6px;
+  --tl-radius-lg: 8px;
+  --tl-radius-xl: 12px;
+
+  /* Serif display for headings and numerals; a quiet sans carries UI body. */
+  --tl-font-serif: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
+  --tl-font-sans: "Avenir Next", "Gill Sans", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+
+  --tl-shadow-sm: 0 1px 2px rgba(90, 70, 40, 0.06);
+  --tl-shadow-md: 0 1px 2px rgba(90, 70, 40, 0.06),
+    0 10px 26px -22px rgba(90, 70, 40, 0.35);
+  --tl-shadow-lg: 0 10px 30px -14px rgba(70, 50, 25, 0.3),
+    0 2px 6px rgba(90, 70, 40, 0.08);
+
+  --tl-focus-ring: rgba(74, 109, 140, 0.45);
+  --tl-scrollbar-thumb: #dccfbd;
+  --tl-scrollbar-thumb-hover: #c9b9a3;
+  --tl-pill-bg: rgba(255, 253, 248, 0.97);
+  --tl-pill-border: #dccfbd;
+  --tl-pill-text: #2f2a24;
+  --tl-pill-text-muted: #8a8073;
+  --tl-pill-hover: rgba(47, 42, 36, 0.05);
+  --tl-pill-active: rgba(47, 42, 36, 0.09);
+  --tl-cta-bg: #b4553f;
+  --tl-cta-bg-hover: #9c4634;
+  /* Rust CTA: white paper ink reads better than the palette's dark ink. */
+  --tl-cta-ink: #fffdf8;
+}
+
+[data-palette="editorial"][data-theme="dark"] {
+  --tl-bg: #1a1713;
+  --tl-surface: #221e19;
+  --tl-surface-raised: #2a251f;
+  --tl-surface-subtle: #1e1a16;
+  --tl-surface-hover: #2e2822;
+  --tl-surface-sunken: #14110e;
+
+  --tl-border: #362f27;
+  --tl-border-soft: #2b251f;
+  --tl-border-strong: #453c31;
+
+  --tl-text: #f0e9dd;
+  --tl-text-secondary: #a89c8b;
+  --tl-text-tertiary: #7b7164;
+  --tl-text-disabled: #574f45;
+  --tl-text-inverse: #1a1713;
+  --tl-chip-text: #e5dccd;
+
+  --tl-accent: #7d9dba;
+  --tl-accent-contrast: #1a1713;
+  --tl-accent-ink: #7d9dba;
+  --tl-accent-hover: #8fadc7;
+  --tl-accent-tint: rgba(125, 157, 186, 0.14);
+  --tl-danger: #cd7661;
+  --tl-danger-tint: rgba(205, 118, 97, 0.14);
+  --tl-warning: #d2a052;
+  --tl-success: #86a377;
+
+  --tl-quadrant-q1: #cd7661;
+  --tl-quadrant-q1-tint: rgba(205, 118, 97, 0.14);
+  --tl-quadrant-q2: #d2a052;
+  --tl-quadrant-q2-tint: rgba(210, 160, 82, 0.15);
+  --tl-quadrant-q3: #7d9dba;
+  --tl-quadrant-q3-tint: rgba(125, 157, 186, 0.14);
+  --tl-quadrant-q4: #86a377;
+  --tl-quadrant-q4-tint: rgba(134, 163, 119, 0.15);
+
+  --tl-hue-1-tint: rgba(125, 157, 186, 0.14);
+  --tl-hue-2-tint: rgba(134, 163, 119, 0.15);
+  --tl-hue-3-tint: rgba(210, 160, 82, 0.15);
+  --tl-hue-4-tint: rgba(205, 118, 97, 0.14);
+  --tl-hue-5-tint: rgba(157, 138, 178, 0.14);
+  --tl-hue-6-tint: rgba(191, 134, 149, 0.14);
+  --tl-hue-7-tint: rgba(166, 166, 111, 0.14);
+  --tl-hue-8-tint: rgba(111, 166, 166, 0.14);
+
+  --tl-focus-ring: rgba(125, 157, 186, 0.55);
+  --tl-scrollbar-thumb: #3d352c;
+  --tl-scrollbar-thumb-hover: #4d4438;
+  --tl-pill-bg: rgba(42, 37, 31, 0.96);
+  --tl-pill-border: #453c31;
+  /* The light palette paints dark ink on a paper pill; in dark mode the pill is
+     itself dark, so the ink and the hover/active overlays must invert too or the
+     selected view label disappears. */
+  --tl-pill-text: #f0e9dd;
+  --tl-pill-text-muted: #a89c8b;
+  --tl-pill-hover: rgba(240, 233, 221, 0.07);
+  --tl-pill-active: rgba(240, 233, 221, 0.13);
+  --tl-cta-bg: #cd7661;
+  --tl-cta-bg-hover: #d98a76;
+  --tl-cta-text: #1a1713;
+  --tl-cta-ink: #1a1713;
+}
