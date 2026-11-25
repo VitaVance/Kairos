@@ -1,0 +1,137 @@
+/* ============================================================================
+   Reminder banner — a top-of-app strip for newly-due items.
+   Colors come from --tl-* tokens only.
+   ========================================================================== */
+
+.reminder-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-accent-tint);
+  animation: reminder-in var(--tl-duration-base) var(--tl-ease-out);
+}
+
+@keyframes reminder-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reminder-banner {
+    animation: none;
+  }
+}
+
+.reminder-banner__list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--tl-space-1);
+  min-inline-size: 0;
+}
+
+.reminder-banner__item {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  min-inline-size: 0;
+  font-size: var(--tl-font-size-base);
+}
+
+.reminder-banner__kind {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface);
+  color: var(--tl-accent-ink);
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.reminder-banner__title {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tl-text);
+}
+
+.reminder-banner__time {
+  flex: none;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.reminder-banner__actions {
+  display: flex;
+  flex: none;
+  gap: var(--tl-space-1);
+}
+
+.reminder-banner__btn {
+  block-size: 32px;
+  min-inline-size: 44px;
+  padding: 0 var(--tl-space-3);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface);
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.reminder-banner__btn:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+/* Touch screens get a full 44×44 target; the dense desktop strip stays 32px
+   tall but never narrower than 44px. */
+@media (any-pointer: coarse) {
+  .reminder-banner__btn {
+    block-size: 44px;
+  }
+}
+
+.reminder-banner__btn--primary {
+  border-color: transparent;
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+}
+
+.reminder-banner__btn--primary:hover {
+  background: var(--tl-accent-hover);
+  color: var(--tl-accent-contrast);
+}
+
+.reminder-banner__btn:focus-visible,
+.reminder-banner__dismiss:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.reminder-banner__dismiss {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 24px;
+  block-size: 24px;
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+}
+
+.reminder-banner__dismiss:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}

@@ -1,0 +1,391 @@
+/* Expanded list sidebar — the column to the right of the icon rail.
+   Every color/space/radius comes from a --tl-* token. */
+
+.list-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-1);
+  /* 232px is the painted width; the padding and the trailing hairline live
+     inside it. In content-box the column measured 249px and sat 8px taller
+     than the viewport, which grew the whole document. */
+  box-sizing: border-box;
+  inline-size: 232px;
+  flex: none;
+  min-block-size: 0;
+  padding: var(--tl-space-3) var(--tl-space-2);
+  border-inline-end: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+}
+
+/* ---------------- Quick filters (今天 / 最近7天 / 全部) ---------------- */
+.list-sidebar__quick {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-block-end: var(--tl-space-2);
+}
+
+.list-sidebar__quick-item {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  inline-size: 100%;
+  block-size: 30px;
+  padding: 0 var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.list-sidebar__quick-item:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.list-sidebar__quick-item--active {
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.list-sidebar__quick-label {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-sidebar__quick-count {
+  flex: none;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------- 清单 header + add button ---------------- */
+.list-sidebar__head {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-2) var(--tl-space-2) var(--tl-space-1);
+}
+
+.list-sidebar__heading {
+  flex: 1;
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  letter-spacing: 0.04em;
+  color: var(--tl-text-secondary);
+}
+
+.list-sidebar__head .tl-icon-btn {
+  inline-size: 24px;
+  block-size: 24px;
+}
+
+/* ---------------- Lists ---------------- */
+.list-sidebar__lists {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-sidebar__item {
+  border-radius: var(--tl-radius-sm);
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.list-sidebar__item--active {
+  background: var(--tl-surface-hover);
+}
+
+.list-sidebar__item--drop {
+  background: var(--tl-accent-tint);
+  box-shadow: inset 0 0 0 1.5px var(--tl-accent);
+}
+
+.list-sidebar__row {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+  border-radius: var(--tl-radius-sm);
+}
+
+.list-sidebar__row:hover {
+  background: var(--tl-surface-hover);
+}
+
+.list-sidebar__select {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--tl-space-2);
+  min-inline-size: 0;
+  block-size: 30px;
+  padding: 0 var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  text-align: start;
+  cursor: pointer;
+}
+
+.list-sidebar__select:focus-visible,
+.list-sidebar__quick-item:focus-visible,
+.list-sidebar__menu-item:focus-visible,
+.list-sidebar__swatch:focus-visible,
+.list-sidebar__cancel:focus-visible,
+.list-sidebar__danger:focus-visible,
+.list-editor__swatch:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.list-sidebar__dot {
+  flex: none;
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--tl-radius-xs);
+}
+
+.list-sidebar__name {
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-sidebar__count {
+  flex: none;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The … button only appears on hover / focus, but stays reachable by keyboard. */
+.list-sidebar__more {
+  inline-size: 26px;
+  block-size: 26px;
+  opacity: 0;
+  transition: opacity var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.list-sidebar__row:hover .list-sidebar__more,
+.list-sidebar__more:focus-visible,
+.list-sidebar__more[aria-expanded='true'] {
+  opacity: 1;
+}
+
+.list-sidebar__menu-wrap {
+  position: relative;
+  flex: none;
+  display: flex;
+  padding-inline-end: var(--tl-space-1);
+}
+
+.list-sidebar__menu {
+  position: absolute;
+  inset-block-start: calc(100% + 4px);
+  inset-inline-end: 0;
+  z-index: var(--tl-z-dropdown);
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 128px;
+  padding: var(--tl-space-1);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  box-shadow: var(--tl-shadow-lg);
+}
+
+.list-sidebar__menu-item {
+  display: flex;
+  align-items: center;
+  inline-size: 100%;
+  block-size: 30px;
+  padding: 0 var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  text-align: start;
+  cursor: pointer;
+}
+
+.list-sidebar__menu-item:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+}
+
+.list-sidebar__menu-item--danger {
+  color: var(--tl-danger);
+}
+
+.list-sidebar__menu-item--danger:hover:not(:disabled) {
+  background: var(--tl-danger-tint);
+}
+
+.list-sidebar__menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ---------------- Recolor row ---------------- */
+.list-sidebar__recolor {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: var(--tl-space-2) var(--tl-space-2) var(--tl-space-2) calc(var(--tl-space-2) + 16px);
+}
+
+.list-sidebar__swatch,
+.list-editor__swatch {
+  inline-size: 18px;
+  block-size: 18px;
+  padding: 0;
+  border: 1.5px solid transparent;
+  border-radius: var(--tl-radius-full);
+  cursor: pointer;
+  transition: box-shadow var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.list-sidebar__swatch--selected,
+.list-editor__swatch--selected {
+  box-shadow:
+    0 0 0 2px var(--tl-surface),
+    0 0 0 3.5px var(--tl-text-secondary);
+}
+
+.list-sidebar__swatch:disabled,
+.list-editor__swatch:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.list-sidebar__cancel {
+  border: 0;
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+}
+
+.list-sidebar__cancel:hover {
+  color: var(--tl-text);
+}
+
+/* ---------------- Delete confirmation (two-step) ---------------- */
+.list-sidebar__confirm {
+  margin: 2px var(--tl-space-1) var(--tl-space-2);
+  padding: var(--tl-space-2);
+  border: 1px solid var(--tl-danger);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-danger-tint);
+}
+
+.list-sidebar__confirm-text {
+  margin: 0 0 var(--tl-space-2);
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-snug);
+  color: var(--tl-text);
+}
+
+.list-sidebar__confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+}
+
+.list-sidebar__danger {
+  block-size: 26px;
+  padding: 0 var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-danger);
+  color: var(--tl-text-inverse);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  cursor: pointer;
+}
+
+.list-sidebar__danger:hover:not(:disabled) {
+  background: var(--tl-danger-hover);
+}
+
+.list-sidebar__danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------------- Inline editor host ----------------
+   Sits in a list row or under the header; the ListEditor itself supplies the
+   field, swatch radiogroup and actions. */
+.list-sidebar__editor {
+  padding: var(--tl-space-2);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+}
+
+.list-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+}
+
+.list-editor__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-inline: 2px;
+}
+
+.list-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+}
+
+.list-editor__error {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-danger);
+}
+
+.list-sidebar__error {
+  margin: 0 var(--tl-space-2) var(--tl-space-1);
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-danger);
+}
+
+.list-sidebar__empty {
+  margin: 0;
+  padding: var(--tl-space-3) var(--tl-space-2);
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}

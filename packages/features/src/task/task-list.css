@@ -1,0 +1,104 @@
+/* ============================================================================
+   Flat, date-grouped task list (TaskListScreen)
+   ----------------------------------------------------------------------------
+   Layout only. Every colour, radius, size and duration comes from a --tl-*
+   token, so the three palettes and both themes need no rules of their own.
+   Tints, if added later, must mix toward var(--tl-tint-base), never white.
+   ========================================================================== */
+
+.flat-screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-5);
+  /*
+   * Left-aligned, not centred.
+   *
+   * A centred 720px reading column looks tidy on its own, but every other
+   * surface in this app starts at the content gutter (the quadrant grid, the
+   * calendar). Centring made the whole body jump sideways when switching
+   * between 全部 and 今天. The cap stays so a single column of titles does not
+   * stretch to 1400px on a wide monitor.
+   */
+  max-inline-size: 760px;
+  padding-block-end: var(--tl-space-10);
+}
+
+.flat-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+}
+
+.flat-group__head {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  margin: 0;
+  /* Matches the row's inline padding so the heading text, its rule and the
+     task titles below all share one left edge. Without it the rule starts 8px
+     left of every title and the group reads as misaligned. */
+  padding-inline: 8px;
+  padding-block-end: var(--tl-space-2);
+  border-block-end: 1px solid var(--tl-border);
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text-secondary);
+}
+
+.flat-group__label {
+  line-height: var(--tl-line-height-tight);
+}
+
+/* Overdue and today get a colour signal. The hues are tokens so the dot stays
+   legible on every palette's surface in both light and dark. */
+.flat-group__dot {
+  flex: none;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: var(--tl-radius-full);
+}
+
+.flat-group__dot--overdue {
+  background: var(--tl-danger);
+}
+
+.flat-group__dot--today {
+  background: var(--tl-accent);
+}
+
+/* Count sits at the far end of the rule, quiet enough not to compete with the
+   group name. Tabular figures keep single- and double-digit counts aligned. */
+.flat-group__count {
+  margin-inline-start: auto;
+  min-inline-size: 20px;
+  padding: 1px var(--tl-space-2);
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-tertiary);
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.flat-group__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flat-group__item {
+  min-inline-size: 0;
+}
+
+/* The empty message holds an area of its own instead of collapsing to a thin
+   strip: a loading → empty transition then moves nothing below it, and the
+   screen never reads as a blank rectangle. */
+.flat-empty {
+  display: grid;
+  place-items: center;
+  min-block-size: 240px;
+}

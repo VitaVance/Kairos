@@ -1,0 +1,1279 @@
+/* Feature screens — layout only. All colors/sizes come from --tl-* tokens. */
+
+/* ---------------- Quadrant matrix ---------------- */
+.qz-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  /* Equal, *bounded* quarters: `1fr` in a fixed-height grid is already equal,
+     but a `minmax(280px, …)` floor let the row grow past its share and spill
+     under the floating view switcher at 960×640. minmax(0, 1fr) gives every
+     card the same box at every window size and lets the inner list scroll. */
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+}
+
+.qz-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* 16px of padding + 1px of border on each side. Grid items stretch, so the
+     card's painted box already matched its track; without border-box the
+     *content* inside was 34px narrower than intended. Defensive, kept so the
+     card's inner width is predictable rather than track-minus-borders. */
+  box-sizing: border-box;
+  padding: 16px;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  transition:
+    border-color var(--tl-duration-base) var(--tl-ease-standard),
+    box-shadow var(--tl-duration-base) var(--tl-ease-standard);
+}
+
+.qz-card--over {
+  border-color: var(--tl-accent);
+  box-shadow: 0 0 0 3px var(--tl-accent-tint);
+}
+
+/* Post-move pulse. Pointer users see the row reappear in the new card; a
+   keyboard user has no drag trail, so the destination card acknowledges the
+   move once. Same accent as the drop highlight to read as one language. */
+.qz-card--flash {
+  animation: tl-qz-flash 700ms var(--tl-ease-out);
+}
+
+@keyframes tl-qz-flash {
+  0%,
+  40% {
+    border-color: var(--tl-accent);
+    box-shadow: 0 0 0 3px var(--tl-accent-tint);
+  }
+  100% {
+    border-color: var(--tl-border);
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.qz-card__head {
+  margin-bottom: 10px;
+}
+
+.qz-card__add {
+  margin-bottom: 8px;
+}
+
+.qz-card__list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+}
+
+.qz-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Border-box: the 8px inline padding is the *inside* of the row. In
+     content-box the 2px block padding was added on top of `min-height`, so
+     a `min-height: 34px` row measured 38px and the checkbox sat 0.5px below
+     the title's optical centre (185.5 vs 185). */
+  box-sizing: border-box;
+  padding: 2px 8px;
+  /* Completion is the row's main interaction; the grab cursor belongs to the
+     handle alone. min-height keeps the 32px checkbox hit target from being
+     clipped while staying far below the old 28px+ row height. */
+  min-height: 34px;
+  border-radius: var(--tl-radius-sm);
+  /* The row itself is not a control — only its title button and checkbox are.
+     The grab cursor moved to the handle, so the pointer now tells the truth. */
+  cursor: default;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.qz-row:hover {
+  background: var(--tl-surface-hover);
+}
+
+/* Drag handle — the only element that claims to be draggable. Hidden until the
+   row is hovered or focus lands inside it, so the list stays calm. It is a real
+   <button> (keyboard moves live on it) with the UA chrome stripped. */
+.qz-row__handle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: 10px;
+  block-size: 22px;
+  margin-inline-start: -4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tl-text-tertiary);
+  cursor: grab;
+  /* Scoped to the handle alone: on the row these would trap page scrolling
+     and kill text selection in the title. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  opacity: 0;
+  transition: opacity var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.qz-row:hover .qz-row__handle,
+.qz-row:focus-within .qz-row__handle {
+  opacity: 1;
+}
+
+/* The pointer leaves the handle the moment a drag starts, so `:active` alone
+   never paints the dragging cursor; the screen toggles a class on the grid. */
+.qz-row__handle:active,
+.qz-grid--dragging .qz-row__handle {
+  cursor: grabbing;
+}
+
+.qz-row__handle:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--tl-radius-xs);
+}
+
+/* The row being carried fades; the drop-target card takes the accent ring. */
+.qz-row--dragging {
+  opacity: 0.4;
+}
+
+.qz-row__title {
+  /* Above the oversized checkbox input so text taps open the task, not toggle it. */
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text);
+  /* Let the strike-through animate instead of snapping on. */
+  text-decoration: line-through transparent;
+  transition:
+    color var(--tl-duration-fast) var(--tl-ease-standard),
+    opacity 160ms var(--tl-ease-out);
+}
+
+.qz-row__meta {
+  flex: none;
+  font-size: var(--tl-font-size-xs);
+  /* Due date / list name — content, so it must clear 4.5:1 in dark. */
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.qz-row--done .qz-row__title {
+  color: var(--tl-text-secondary);
+  text-decoration: line-through;
+}
+
+/* ---- completion feedback (instant default → animated when motion is OK) ----
+   Only completing plays it; reopening changes state without ceremony. The
+   `--fresh` class lives for ~220ms, so the whole sequence stays under 200ms of
+   motion. With `prefers-reduced-motion: reduce` the rule below removes it. */
+.qz-row--done.qz-row--fresh .qz-row__title,
+.tk-row--done.tk-row--fresh .tk-row__title,
+.search-row--done.search-row--fresh .search-row__title {
+  animation: tl-complete-text 180ms var(--tl-ease-out) both;
+}
+
+@keyframes tl-complete-text {
+  from {
+    opacity: 1;
+    text-decoration: line-through transparent;
+  }
+  55% {
+    opacity: 0.4;
+    text-decoration: line-through var(--tl-text-secondary);
+  }
+  to {
+    opacity: 1;
+    text-decoration: line-through currentColor;
+  }
+}
+
+/* Completed rows linger for one beat in the open list, then fade out. Without
+   this the row disappears on the same frame the tick lands, which reads as a
+   deletion rather than a completion. */
+.qz-row--leaving {
+  animation: tl-complete-leave 220ms var(--tl-ease-out) forwards;
+  pointer-events: none;
+}
+
+@keyframes tl-complete-leave {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qz-row--done.qz-row--fresh .qz-row__title,
+  .tk-row--done.tk-row--fresh .tk-row__title,
+  .search-row--done.search-row--fresh .search-row__title {
+    animation: none;
+  }
+  .qz-row--leaving {
+    animation: none;
+  }
+  /* Reduced motion must not lose the *signal*, only the fade: hold the ring
+     for the class's lifetime instead of animating it away. */
+  .qz-card--flash {
+    animation: none;
+    border-color: var(--tl-accent);
+    box-shadow: 0 0 0 3px var(--tl-accent-tint);
+  }
+}
+
+/* On touch-capable screens the checkbox target grows to 44×44; give each row
+   the same height so neighbouring targets never overlap one another. */
+@media (any-pointer: coarse) {
+  .qz-row,
+  .tk-row {
+    min-block-size: 44px;
+  }
+  .tk-checkline {
+    min-block-size: 44px;
+  }
+}
+
+/* ---------------- Month view ---------------- */
+.mv {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  overflow: hidden;
+}
+
+.mv__weekdays,
+.mv__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mv__weekdays {
+  flex: none;
+  border-bottom: 1px solid var(--tl-border);
+  background: var(--tl-surface-subtle);
+}
+
+.mv__weekday {
+  padding: 9px 0;
+  text-align: center;
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-medium);
+  letter-spacing: 0.02em;
+  color: var(--tl-text-secondary);
+}
+
+.mv__grid {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mv__week {
+  flex: 1;
+  min-height: 0;
+  border-bottom: 1px solid var(--tl-border-soft);
+}
+
+.mv__week:last-child {
+  border-bottom: 0;
+}
+
+.mv__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 4px 6px 5px;
+  border-right: 1px solid var(--tl-border-soft);
+  overflow: hidden;
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+  /* The cell's own ground, exposed so the floating `+N` indicator can mask the
+     chip it overlaps. Every variant below updates it, and hover is declared
+     last so it wins like the real background does. */
+  --mv-ground: var(--tl-surface);
+}
+
+.mv__cell:last-child {
+  border-right: 0;
+}
+
+/* Saturday/Sunday get a quiet wash so the week reads as weeks, not 42 cells.
+   `:where()` keeps this selector at the base class specificity, so the later
+   `--out` / `--today` / `:hover` rules still win on a weekend cell. */
+.mv__cell:where(:nth-child(6), :nth-child(7)) {
+  background: var(--tl-surface-subtle);
+  --mv-ground: var(--tl-surface-subtle);
+}
+
+.mv__cell:hover {
+  background: var(--tl-surface-hover);
+  --mv-ground: var(--tl-surface-hover);
+}
+
+/* Out-of-month days recede: cooler ground, faded numerals and chips. */
+.mv__cell--out {
+  background: var(--tl-surface-sunken);
+  --mv-ground: var(--tl-surface-sunken);
+}
+
+.mv__cell--out .mv__date {
+  color: var(--tl-text-disabled);
+  font-weight: var(--tl-font-weight-regular);
+}
+
+.mv__cell--out .tl-chip {
+  opacity: 0.6;
+}
+
+/* Today is a plain, unmistakable column marker: tinted ground plus a hairline
+   ring, independent of the filled date pill. */
+.mv__cell--today {
+  background: color-mix(in oklab, var(--tl-accent) 5%, var(--tl-tint-base));
+  --mv-ground: color-mix(in oklab, var(--tl-accent) 5%, var(--tl-tint-base));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent) 24%, transparent);
+}
+
+.mv__cell--today:hover {
+  background: color-mix(in oklab, var(--tl-accent) 8%, var(--tl-tint-base));
+  --mv-ground: color-mix(in oklab, var(--tl-accent) 8%, var(--tl-tint-base));
+}
+
+.mv__date {
+  display: grid;
+  place-items: center;
+  align-self: flex-start;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--tl-radius-full);
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.mv__date--today {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+  font-weight: var(--tl-font-weight-semibold);
+  box-shadow: 0 0 0 3px var(--tl-accent-tint);
+}
+
+.mv__events {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Month cells are only as tall as one week row allows, so the four chips a
+   cell renders routinely exceed the space available. Letting them flex-shrink
+   (the default) squashed a 20.5px chip to 15px at 1440×900 and 4px at 960×640,
+   clipping its text. Chips keep their intrinsic height; the cell's
+   `overflow: hidden` is the clip boundary, and the `+N` indicator below is
+   pinned to the cell's trailing edge so it is never the thing that gets cut. */
+.mv__events > .tl-chip {
+  flex: 0 0 auto;
+}
+
+.mv__more {
+  /* Sticky, not absolute: it stays an in-flow child (so the chip stack keeps
+     its natural order) but pins to the bottom of the clipped events box once
+     the chips overflow it. Its own ground masks the chip underneath — the
+     cell's --mv-ground tracks every background variant, hover included.
+     Right-aligned so it covers the chip's truncated tail (a month chip has no
+     time label, only a title that ellipsises) rather than its first glyph. */
+  position: sticky;
+  inset-block-end: 0;
+  align-self: flex-end;
+  padding-inline: 4px 2px;
+  background: var(--mv-ground);
+  font-size: 10px;
+  color: var(--tl-text-secondary);
+}
+
+/* Loading/empty is an overlay, never a flow child: the six week rows keep their
+   exact geometry while data arrives, so nothing jumps when it resolves. */
+.mv > .tl-empty,
+.mv > .cal-error {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  z-index: var(--tl-z-raised);
+  translate: 0 -50%;
+  margin: 0;
+  padding: var(--tl-space-4);
+  background: color-mix(in oklab, var(--tl-surface) 82%, transparent);
+  pointer-events: none;
+}
+
+/* ---------------- Week view ---------------- */
+.wv {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+}
+
+.wv__head {
+  position: sticky;
+  top: 0;
+  z-index: var(--tl-z-sticky);
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  flex: none;
+  border-bottom: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+}
+
+.wv__dayhead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 9px 0;
+  border-left: 1px solid var(--tl-border-soft);
+}
+
+.wv__daynum {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: var(--tl-radius-full);
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Today's header cell gets the filled pill *and* a tinted column wash below
+   (`.wv__col--today`), so the day is obvious even when scrolled past the head. */
+.wv__dayhead--today .wv__daynum {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+}
+
+.wv__dayhead--today .wv__dayname {
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.wv__dayname {
+  font-size: 10px;
+  color: var(--tl-text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+/* When the shell supplies `onOpenDay`, the header cell becomes a drill-down
+   button. The column body below stays a plain create/drag surface, so only
+   this strip is interactive. Content-box + the same padding as `.wv__dayhead`
+   keeps the row at its former height (padding + day number + weekday line). */
+.wv__dayhead--button {
+  box-sizing: content-box;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  /* A button brings a 2px UA border; drop it or the header row grows 4px. */
+  border: 0;
+  cursor: pointer;
+  border-radius: var(--tl-radius-sm);
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.wv__dayhead--button:hover {
+  background: var(--tl-surface-hover);
+}
+
+.wv__dayhead--button:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wv__dayhead--button {
+    transition: none;
+  }
+}
+
+/* Leading offset so the first hour label (e.g. 08:00) and the first event block
+   sit below the top rule instead of clipping at it. */
+.wv__body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  min-height: 0;
+  padding-block-start: 8px;
+}
+
+.wv__gutter {
+  display: flex;
+  flex-direction: column;
+}
+
+.wv__hour {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 6px;
+  font-size: 10px;
+  color: var(--tl-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The body's leading offset puts the first label below the top edge; each label
+   is then lifted half a line so its baseline sits on the hour rule it names. */
+.wv__hour span {
+  translate: 0 -6px;
+  line-height: 1;
+}
+
+.wv__col {
+  position: relative;
+  border-left: 1px solid var(--tl-border-soft);
+  /* Half-hour rules: a faint line halfway down each hour row. The hour rules
+     themselves come from `.wv__line`, so the two weights stay clearly distinct
+     (half-hour is softer and 1px hairline; hour is the structural rule). */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--wv-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent) calc(var(--wv-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent) calc(var(--wv-hour, 58px) / 2 + 1px),
+    transparent calc(var(--wv-hour, 58px) / 2 + 1px),
+    transparent var(--wv-hour, 58px)
+  );
+}
+
+/* Today reads as a column, not a tinted header: a soft accent wash plus a
+   pair of accent hairlines down both edges. */
+.wv__col--today {
+  background-color: color-mix(in oklab, var(--tl-accent) 4%, var(--tl-tint-base));
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklab, var(--tl-accent) 18%, transparent),
+    inset -1px 0 0 color-mix(in oklab, var(--tl-accent) 18%, transparent);
+}
+
+/* The app has no global `box-sizing` reset, so a bordered row would grow 1px
+   taller than the inline `height` and push every later rule down — the drift
+   that made late-hour labels and blocks misalign. Border-box pins each row to
+   its exact height. */
+.wv__line {
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--tl-border);
+}
+
+.wv__block {
+  position: absolute;
+  /* The inline `left`/`width` in WeekView.tsx are `calc(%+2px)` / `calc(%-4px)`,
+     which assume the 2px+3px gutters sit *inside* the declared width. In
+     content-box the padding was added on top, so the block's right edge landed
+     4px past its column and the scroller paid for it with a horizontal
+     scrollbar. Border-box makes the gutter a real inset. */
+  box-sizing: border-box;
+  padding: 2px 3px;
+  /* No overflow clip here: the chip inside owns its own ellipsis. Clipping at
+     this level cuts the chip's right-aligned time label in half. */
+}
+
+/* Event blocks read as objects rather than tinted strips: slightly rounded
+   corners and a soft lift. The chip inside owns the left accent rule and its
+   own tint, so this layer only frames it. */
+.wv__block .tl-chip,
+.mdv__block .tl-chip,
+.cal-day__block .tl-chip {
+  border-radius: var(--tl-radius-sm);
+  box-shadow: var(--tl-shadow-sm);
+}
+
+.wv__block .tl-chip {
+  transition:
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard),
+    filter var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+/* Hover on the block itself lifts the whole object; the chip's own hover state
+   handles the tint shift. */
+.wv__block:hover .tl-chip,
+.wv__block .tl-chip:hover,
+.mdv__block:hover .tl-chip,
+.mdv__block .tl-chip:hover,
+.cal-day__block:hover .tl-chip,
+.cal-day__block .tl-chip:hover {
+  box-shadow: var(--tl-shadow-md);
+  filter: saturate(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wv__block .tl-chip {
+    transition: none;
+  }
+}
+
+/* ---------------- Timeline (agenda) ---------------- */
+.tv {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.tv__day {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Today's section is given a left accent rail and a quiet wash so it is
+   obvious at a glance without recolouring every header. */
+.tv__day--today {
+  padding-inline-start: var(--tl-space-3);
+  border-inline-start: 2px solid var(--tl-accent);
+}
+
+.tv__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--tl-border);
+}
+
+.tv__date {
+  font-size: var(--tl-font-size-xl);
+  font-weight: var(--tl-font-weight-bold);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.tv__date--today {
+  color: var(--tl-accent-ink);
+}
+
+.tv__weekday {
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.tv__badge {
+  padding: 1px 7px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-size: 10px;
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.tv__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Agenda empty state is a single quiet line pinned to the row height, so the
+   seven day sections keep their rhythm whether or not a day has entries. */
+.tv__empty {
+  margin: 0;
+  padding: var(--tl-space-2) 0 var(--tl-space-2) 106px;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-tertiary);
+}
+
+.tv__item {
+  position: relative;
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.tv__axis {
+  position: absolute;
+  top: 14px;
+  bottom: -10px;
+  left: 102px;
+  width: 1px;
+  background: var(--tl-border);
+}
+
+.tv__item:last-child .tv__axis {
+  display: none;
+}
+
+.tv__time {
+  padding-top: 8px;
+  text-align: right;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The list row reads as an object: left accent rule from the entry's own
+   colour, rounded corners, padding and a hover lift. */
+.tv__event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-left: 3px solid var(--chip-color);
+  border-radius: var(--tl-radius-sm);
+  background: color-mix(in oklab, var(--chip-color) 9%, var(--tl-tint-base));
+  box-shadow: var(--tl-shadow-sm);
+  transition:
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard),
+    filter var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tv__event:hover {
+  box-shadow: var(--tl-shadow-md);
+  filter: saturate(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv__event {
+    transition: none;
+  }
+}
+
+.tv__event--done .tv__event-title {
+  color: var(--tl-text-secondary);
+  text-decoration: line-through;
+}
+
+.tv__event-title {
+  font-size: var(--tl-font-size-base);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-chip-text);
+}
+
+/* ---------------- Pill variant of the view switcher ---------------- */
+.view-pill {
+  display: inline-flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-pill-bg);
+}
+
+.view-pill__item {
+  padding: 0 12px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--tl-radius-full);
+  background: transparent;
+  /* Same reasoning as .tl-pill__item: keep inactive labels ≥4.5:1 per palette. */
+  color: color-mix(in oklab, var(--tl-pill-text) 76%, var(--tl-pill-bg));
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+}
+
+.view-pill__item--active {
+  background: var(--tl-pill-active);
+  color: var(--tl-pill-text);
+}
+
+@media (max-width: 880px) {
+  .qz-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: none;
+    height: auto;
+  }
+}
+
+/* ---- task detail ---- */
+.tk-panel {
+  position: fixed;
+  inset-block: 0;
+  inset-inline-end: 0;
+  z-index: var(--tl-z-overlay);
+  display: flex;
+  flex-direction: column;
+  /* 380px is the *painted* width: keep the 1px inline border inside it so the
+     panel's inner content lines up with the 16px inset used by every section. */
+  box-sizing: border-box;
+  inline-size: min(380px, 100vw);
+  border-inline-start: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+  box-shadow: var(--tl-shadow-lg);
+  animation: tk-enter var(--tl-duration-base) var(--tl-ease-out);
+}
+
+@keyframes tk-enter {
+  from {
+    translate: 16px 0;
+    opacity: 0;
+  }
+}
+
+.tk-panel__head {
+  display: flex;
+  /* Centre on one line: the 17px checkbox box, the one-line title and the
+     corner button were each sitting on their own baseline when this was
+     flex-start (box centre 24.5, title 27.5, button 29). */
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-4) var(--tl-space-4) var(--tl-space-3);
+  border-block-end: 1px solid var(--tl-border);
+}
+
+.tk-panel__title-wrap {
+  flex: 1;
+  min-inline-size: 0;
+  /* A long title wraps label-style — to the top of the panel, not vertically
+     centred against the 16px size — so pairing it with `align-items: center`
+     on the header requires no extra knob. */
+}
+
+.tk-panel__title {
+  inline-size: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  line-height: var(--tl-line-height-snug);
+  color: var(--tl-text);
+  cursor: text;
+  border-radius: var(--tl-radius-sm);
+}
+
+.tk-panel__title:hover {
+  color: var(--tl-accent-ink);
+}
+
+.tk-panel__title--done {
+  color: var(--tl-text-secondary);
+  text-decoration: line-through;
+}
+
+.tk-panel__title-field {
+  background: var(--tl-surface-subtle);
+}
+
+.tk-panel__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--tl-space-5);
+  min-block-size: 0;
+  overflow-y: auto;
+  padding: var(--tl-space-4);
+}
+
+.tk-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+}
+
+.tk-section__title {
+  margin: 0;
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--tl-text-secondary);
+}
+
+.tk-section__hint {
+  margin: 0;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-tertiary);
+}
+
+.tk-schedule {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tl-space-2);
+}
+
+.tk-input {
+  /* Keeps `inline-size: 100%` including the border, so full-width fields resolve
+     to the same width as their column instead of column + 2px. */
+  box-sizing: border-box;
+  padding: 0 var(--tl-space-2);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+}
+
+.tk-input:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.tk-input:disabled {
+  background: var(--tl-surface-sunken);
+  color: var(--tl-text-disabled);
+}
+
+.tk-schedule__date,
+.tk-schedule__time {
+  block-size: 30px;
+}
+
+/* The five-way precision switch sits on its own baseline so it wraps cleanly
+   under the date field in a 380px panel. */
+.tk-schedule__period {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-1);
+}
+
+.tk-schedule__label {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+/* The precision echo is a full-width caption under the controls, not another
+   item in the wrap row. */
+.tk-schedule__hint {
+  flex-basis: 100%;
+}
+
+.tk-checkline {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+  /* Give the label itself the touch target: the 32px/44px input may overflow
+     the row without being clipped, and the label text is clickable too. */
+  min-block-size: 32px;
+  padding-inline-end: var(--tl-space-1);
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+  cursor: pointer;
+}
+
+.tk-readonly {
+  padding: var(--tl-space-2);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-subtle);
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text-secondary);
+}
+
+.tk-readonly--row {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+}
+
+.tk-list-dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-accent);
+}
+
+.tk-list-dot--none {
+  background: var(--tl-text-disabled);
+}
+
+.tk-notes {
+  resize: vertical;
+  padding: var(--tl-space-2);
+  line-height: var(--tl-line-height-normal);
+}
+
+/* ---- repeat picker ---- */
+.tk-repeat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-2);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-subtle);
+}
+
+.tk-repeat__interval,
+.tk-repeat__until {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+}
+
+.tk-repeat__label {
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.tk-repeat__number {
+  inline-size: 64px;
+  block-size: 30px;
+}
+
+.tk-repeat__date {
+  block-size: 30px;
+}
+
+/* The pickers draw their own trigger; these only size it within the repeat row. */
+.tk-repeat__until .tk-picker-trigger {
+  min-inline-size: 132px;
+}
+
+.tk-repeat__unit {
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.tk-repeat__weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tk-repeat__day {
+  min-inline-size: 34px;
+  block-size: 28px;
+  padding: 0 var(--tl-space-1);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-xs);
+  cursor: pointer;
+}
+
+.tk-repeat__day--active {
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+.tk-notes:read-only {
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  cursor: default;
+}
+
+.tk-panel__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-3) var(--tl-space-4);
+  border-block-start: 1px solid var(--tl-border);
+}
+
+.tk-confirm {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  margin-inline-start: auto;
+}
+
+/* ---- task list row ---- */
+.tk-row {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  /* Same box model as .qz-row so both list surfaces share one rhythm. */
+  box-sizing: border-box;
+  padding: 2px 8px;
+  /* Row stays compact but tall enough to hold the 32px checkbox hit target
+     without clipping it or changing the visual rhythm of dense lists. */
+  min-block-size: 34px;
+  border-radius: var(--tl-radius-sm);
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-row:hover {
+  background: var(--tl-surface-hover);
+}
+
+.tk-row__title {
+  /* Above the oversized checkbox input so text taps open the task, not toggle it. */
+  position: relative;
+  flex: 1;
+  min-inline-size: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text);
+  cursor: pointer;
+}
+
+.tk-row__title:hover {
+  color: var(--tl-accent-ink);
+}
+
+.tk-row--done .tk-row__title {
+  color: var(--tl-text-secondary);
+  text-decoration: line-through;
+}
+
+.tk-row__due {
+  flex: none;
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.tk-row__delete {
+  flex: none;
+  padding: 2px var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-xs);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--tl-duration-fast) var(--tl-ease-standard),
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.tk-row:hover .tk-row__delete,
+.tk-row__delete:focus-visible,
+.tk-row__delete--confirm {
+  opacity: 1;
+}
+
+/* There is no hover to reveal the button on a touch screen, and a delete
+   control the user cannot see is a dead end on mobile widths. */
+@media (hover: none) {
+  .tk-row__delete {
+    opacity: 1;
+  }
+}
+
+.tk-row__title:focus-visible,
+.tk-row__delete:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.tk-row__delete:hover {
+  background: var(--tl-danger-tint);
+  color: var(--tl-danger);
+}
+
+.tk-row__delete--confirm {
+  background: var(--tl-danger);
+  color: var(--tl-text-inverse);
+}
+
+/* ---- quick add ---- */
+.tk-quickadd {
+  inline-size: 100%;
+}
+
+.tk-quickadd .tl-field {
+  background: var(--tl-surface-subtle);
+  border-color: var(--tl-border);
+}
+
+/* Quadrant row title as a button (keeps .qz-row__title typography) */
+.qz-row__title--btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* Buttons do not inherit the page font; without this the title switches to the
+   UA default face the moment it becomes a <button>. */
+.qz-row__title--btn,
+.tk-row__title {
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+}
+
+.qz-row__title--btn:focus-visible,
+.qz-row__title:focus-visible,
+.tk-row__title:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--tl-radius-xs);
+}
+
+/* The weekday toggles live in the detail panel, not the calendar, but share
+   the same toggle look; they still need a focus ring of their own. */
+.tk-repeat__day:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+/* Label wrapper for the list <select>. The select paints its own border and
+   background (.tk-input), so the wrapper only lays it out full width. */
+.tk-select {
+  display: flex;
+  inline-size: 100%;
+}
+
+/* The select's 1px border must not sit outside a 100%-wide box (content-box
+   made it 2px wider than every other full-width field in the panel). */
+.tk-select > .tk-input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 30px;
+}
+
+/* A rejected write surfaces here, above the delete action. */
+.tk-panel__error {
+  margin: 0;
+  padding: var(--tl-space-2);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-danger-tint);
+  color: var(--tl-danger);
+}

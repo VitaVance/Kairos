@@ -1,0 +1,1359 @@
+/* ============================================================================
+   Calendar surfaces — dialog, day grid, week drag affordances, month chips.
+   Every color comes from a --tl-* token; all classes are prefixed `cal-` so
+   they never collide with the shared `wv-` / `mv-` rules in styles.css.
+   ========================================================================== */
+
+/* ---------------- Event editor dialog ---------------- */
+.cal-dialog {
+  inline-size: min(460px, calc(100vw - 32px));
+  max-block-size: calc(100vh - 64px);
+  padding: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-lg);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.cal-dialog::backdrop {
+  /* --tl-pill-bg stays dark in both themes, so the scrim reads as a scrim. */
+  background: color-mix(in oklab, var(--tl-pill-bg) 52%, transparent);
+}
+
+.cal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-3);
+  padding: var(--tl-space-4) var(--tl-space-5) var(--tl-space-5);
+}
+
+.cal-form__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--tl-space-2);
+}
+
+.cal-form__title {
+  margin: 0;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+.cal-form__hint {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+.cal-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-1);
+  min-inline-size: 0;
+}
+
+/*
+ * One control height for the whole form.
+ *
+ * Measured before: the title field was 34px (content-box + 1px borders), the
+ * list select 32px (border-box), and the date/time trigger 30px — three
+ * different heights stacked in the same 420px column. Normalised to 32px here,
+ * scoped to the editor so the shared pickers used by the task panel are
+ * unaffected.
+ */
+.cal-form .tl-field,
+.cal-form .cal-select,
+.cal-form .tk-picker-trigger {
+  block-size: 32px;
+  box-sizing: border-box;
+}
+
+.cal-field__label {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+.cal-field__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 124px;
+  gap: var(--tl-space-2);
+}
+
+.cal-field__row > .tk-picker-trigger {
+  inline-size: 100%;
+}
+
+.cal-input {
+  /* border-box, or `inline-size: 100%` plus padding and a 1px border overflows
+     the form column by 18px (measured: textarea 438 wide in a 420 column). */
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 32px;
+  min-inline-size: 0;
+  padding: 0 var(--tl-space-2);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  transition:
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.cal-input:hover:not(:disabled) {
+  border-color: var(--tl-text-secondary);
+}
+
+.cal-input:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.cal-input:disabled {
+  color: var(--tl-text-disabled);
+  background: var(--tl-surface-subtle);
+  cursor: not-allowed;
+}
+
+.cal-input--area {
+  block-size: auto;
+  min-block-size: 72px;
+  padding: var(--tl-space-2);
+  line-height: var(--tl-line-height-normal);
+  resize: vertical;
+}
+
+.cal-check {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text-secondary);
+  cursor: pointer;
+}
+
+.cal-check--disabled {
+  color: var(--tl-text-disabled);
+  cursor: not-allowed;
+}
+
+.cal-note {
+  margin: 0;
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+}
+
+.cal-error {
+  margin: 0;
+  color: var(--tl-danger);
+  font-size: var(--tl-font-size-sm);
+}
+
+.cal-status {
+  margin: 0;
+  padding: var(--tl-space-2) var(--tl-space-3);
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+}
+
+.cal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+  margin-block-start: var(--tl-space-1);
+}
+
+/* Destructive action pushed to the leading edge, away from Save. */
+.cal-actions__delete {
+  margin-inline-end: auto;
+}
+
+/* ---------------- Branded native select ----------------
+   The branded skin lives in `@todolist/ui` as `.tl-select` (appearance:
+   base-select + ::picker(select)), so every select in the app renders
+   identically. The calendar only layers its own `.cal-input` sizing on top by
+   writing `class="cal-input cal-select tl-select"` in EventEditor.
+   Do NOT re-declare `::picker(select)` here, or the two skins drift apart. */
+
+/* ---------------- Discard / delete confirmation ---------------- */
+.cal-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-3);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+}
+
+.cal-confirm__msg {
+  margin: 0;
+  color: var(--tl-text);
+  font-size: var(--tl-font-size-sm);
+}
+
+.cal-confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+}
+
+/* ---------------- All-day banner strips ----------------
+   Week and multi-day views render all-day entries in a row above the timed
+   grid instead of as degenerate midnight slivers. Tracks mirror the header's
+   `56px + N` column template so the strips line up with their day columns. */
+.wv__allday,
+.mdv__allday {
+  display: grid;
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  /* An empty grid row has no intrinsic height, and .wv is a column flex
+     container whose items may shrink. Together those collapsed the strip to a
+     hairline. Pin both: never shrink it, and give it a floor tall enough for
+     one chip plus comfortable padding. */
+  flex: none;
+  min-block-size: 34px;
+  align-items: stretch;
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface-subtle);
+}
+
+.mdv__allday[data-days],
+.mdv[data-days='3'] .mdv__allday {
+  grid-template-columns: 56px repeat(3, minmax(0, 1fr));
+}
+
+.mdv[data-days='5'] .mdv__allday {
+  grid-template-columns: 56px repeat(5, minmax(0, 1fr));
+}
+
+.mdv[data-days='7'] .mdv__allday {
+  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+}
+
+.wv__gutter-head,
+.mdv__gutter-head.wv__gutter-head,
+.wv__allday .wv__gutter-head,
+.mdv__allday .mdv__gutter-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-inline-end: 6px;
+  font-size: 10px;
+  /* The strip is a stub above the grid, not body copy; secondary ink would
+     shout. Tertiary is dimmer but still clears 3:1 on the subtle surface. */
+  color: var(--tl-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wv__allday-cell,
+.mdv__allday-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-inline-size: 0;
+  padding: 3px 3px;
+  border-inline-start: 1px solid var(--tl-border-soft);
+  overflow: hidden;
+}
+
+/* The empty state must be visible, not a blank void: a dashed hairline per
+   empty day reads as "this row is for all-day items and today there are none". */
+.wv__allday-cell--empty::after,
+.mdv__allday-cell--empty::after {
+  content: '';
+  flex: 1;
+  min-block-size: 8px;
+  margin: 2px 3px 3px;
+  border-block-end: 1px dashed var(--tl-border-strong);
+  opacity: 0.55;
+}
+
+.wv__allday-cell .tl-chip,
+.mdv__allday-cell .tl-chip {
+  min-inline-size: 0;
+}
+
+.wv__status {
+  padding: var(--tl-space-2) var(--tl-space-3);
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+/* ---------------- Day view ---------------- */
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  /* Positioning context for the empty/loading overlay so it can centre over
+     the grid without being a flow child. */
+  position: relative;
+}
+
+.cal-day__head {
+  position: sticky;
+  top: 0;
+  z-index: var(--tl-z-sticky);
+  display: flex;
+  align-items: baseline;
+  gap: var(--tl-space-2);
+  padding: 10px var(--tl-space-4);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+}
+
+.cal-day__date {
+  font-size: var(--tl-font-size-xl);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+
+.cal-day__weekday {
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.cal-day__today {
+  padding: 1px 8px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.cal-day__body {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  /* Leading offset: the first hour label and the first block sit below the top
+     edge instead of clipping against the header/scroll boundary. */
+  padding-block-start: 8px;
+}
+
+.cal-day__gutter {
+  position: relative;
+}
+
+.cal-day__hourlabel {
+  position: absolute;
+  inset-inline-end: var(--tl-space-2);
+  font-size: 10px;
+  color: var(--tl-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  /* The body's leading offset puts the first label below the top edge; each
+     label then lifts half a line so its baseline sits on its hour rule. */
+  transform: translateY(-6px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cal-day__col {
+  position: relative;
+  border-inline-start: 1px solid var(--tl-border-soft);
+  /* Faint half-hour rules between the structural hour rules drawn by
+     `.cal-day__line`, so the two weights stay clearly distinct. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--cal-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
+      calc(var(--cal-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
+      calc(var(--cal-hour, 58px) / 2 + 1px),
+    transparent calc(var(--cal-hour, 58px) / 2 + 1px),
+    transparent var(--cal-hour, 58px)
+  );
+}
+
+.cal-day__col--create {
+  cursor: cell;
+}
+
+/* No global `box-sizing` reset exists, so pin each bordered row to its inline
+   height; otherwise every row grows 1px and the hour scale drifts below the
+   labels and blocks. */
+.cal-day__line {
+  box-sizing: border-box;
+  border-block-end: 1px solid var(--tl-border);
+  pointer-events: none;
+}
+
+.cal-day__block {
+  position: absolute;
+  /* DayView.tsx positions this with `calc(%+2px)` / `calc(%-4px)`, which
+     assumes the 2px/3px padding is inside the declared inline size. In
+     content-box it was added on top, so the block's right edge overhung its
+     column by 4px and `.cal-day` showed a horizontal scrollbar. */
+  box-sizing: border-box;
+  padding: 2px 3px;
+  border-radius: var(--tl-radius-sm);
+}
+
+.cal-day__block:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.cal-day__block .tl-chip {
+  block-size: 100%;
+  align-items: flex-start;
+  border-radius: var(--tl-radius-sm);
+}
+
+/* The empty state is an overlay so the grid keeps its exact height; it is
+   visually centred but never shifts the geometry when data arrives. */
+.cal-day__empty {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 34%;
+  z-index: var(--tl-z-raised);
+  margin: 0;
+  padding: var(--tl-space-4);
+  background: color-mix(in oklab, var(--tl-surface) 78%, transparent);
+  pointer-events: none;
+}
+
+/* All-day strip for the single-day view: a labelled row with a floor height,
+   so "全天" is never a hairline. */
+.cal-day__allday {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tl-space-1);
+  padding: var(--tl-space-2) var(--tl-space-4);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface-subtle);
+}
+
+/* ---------------- Week view drag affordances ---------------- */
+.cal-week-block--draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.cal-week-block--draggable:active {
+  cursor: grabbing;
+}
+
+.cal-week-block--dragging {
+  opacity: 0.38;
+}
+
+.cal-week-block:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+  border-radius: var(--tl-radius-sm);
+}
+
+.cal-week-col--create {
+  cursor: cell;
+}
+
+/* ---------------- Drag-to-select a time range ----------------
+   The column is the pointer target: `touch-action: none` stops a touch sweep
+   from scrolling the page, and `user-select: none` (also toggled on <body>
+   while a press is active) stops the sweep from highlighting labels. */
+.cal-range-col {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.cal-selecting {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: cell;
+}
+
+/* Live selection block. Tinted toward the current surface, never a literal
+   white, so it reads in every palette and both modes. Overflow is visible so
+   the label stays legible even on a one-slot (≈15px) selection; the label owns
+   its own ellipsis. */
+.cal-range {
+  position: absolute;
+  inset-inline: 2px;
+  z-index: var(--tl-z-raised);
+  border: 1px solid var(--tl-accent);
+  border-radius: var(--tl-radius-sm);
+  background: color-mix(in oklab, var(--tl-accent) 14%, var(--tl-tint-base));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent) 18%, transparent);
+  pointer-events: none;
+  animation: cal-range-in var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+/* Accent bars at both edges read as "this block was swept out". */
+.cal-range::before,
+.cal-range::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  block-size: 2px;
+  background: var(--tl-accent);
+}
+
+.cal-range::before {
+  inset-block-start: 0;
+}
+
+.cal-range::after {
+  inset-block-end: 0;
+}
+
+.cal-range__label {
+  position: absolute;
+  inset-block-start: 4px;
+  inset-inline-start: 6px;
+  max-inline-size: calc(100% - 12px);
+  padding: 1px 6px;
+  border-radius: var(--tl-radius-full);
+  /* A solid surface chip so the time stays readable when the selection is
+     shorter than the label itself. */
+  background: var(--tl-surface);
+  color: var(--tl-accent-ink);
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: var(--tl-shadow-sm);
+}
+
+@keyframes cal-range-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-range {
+    animation: none;
+  }
+}
+
+.cal-week-ghost {
+  position: absolute;
+  z-index: var(--tl-z-raised);
+  border: 1px dashed var(--tl-accent);
+  border-radius: var(--tl-radius-sm);
+  background: color-mix(in oklab, var(--tl-accent) 9%, transparent);
+  pointer-events: none;
+}
+
+/* ---------------- Month view chips ---------------- */
+.cal-mv-chip {
+  display: flex;
+  min-inline-size: 0;
+}
+
+/* ============================================================================
+   NEW VIEWS — multi-week (mwv__*), multi-day (mdv__*), year (yrv__*).
+   Appended as one self-contained block. Every colour is a --tl-* token or a
+   mix toward --tl-tint-base (never a literal / never `white`), so all three
+   palettes and both modes work with no palette-specific rules.
+   ========================================================================== */
+
+/* ---------------- Multi-week view ---------------- */
+.mwv {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  overflow: hidden;
+}
+
+.mwv__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tl-space-3);
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+}
+
+.mwv__status {
+  min-block-size: 1em;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.mwv__scroll {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  /* Container-query host: cells respond to the panel width, not the window. */
+  container-type: inline-size;
+}
+
+.mwv__weekdays,
+.mwv__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.mwv__weekdays {
+  position: sticky;
+  top: 0;
+  z-index: var(--tl-z-sticky);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface-subtle);
+}
+
+.mwv__weekday {
+  padding: var(--tl-space-2) 0;
+  text-align: center;
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-medium);
+  letter-spacing: 0.02em;
+  color: var(--tl-text-secondary);
+}
+
+.mwv__grid {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-block-size: 0;
+}
+
+.mwv__week {
+  flex: 1;
+  min-block-size: 104px;
+  border-block-end: 1px solid var(--tl-border);
+}
+
+.mwv__week:last-child {
+  border-block-end: 0;
+}
+
+/* Week → week drill-down. When the shell supplies `onOpenWeek`, each row gets
+   a leading gutter holding one control that opens that week. The column is
+   prepended to both the weekday strip and every row so the two grids stay
+   aligned; without the prop neither rule applies and the 7-track grid above is
+   unchanged. */
+.mwv--weeklinks .mwv__weekdays,
+.mwv--weeklinks .mwv__week {
+  grid-template-columns: 40px repeat(7, minmax(0, 1fr));
+}
+
+.mwv__weekday--gutter {
+  padding-inline: 0;
+}
+
+.mwv__weeklead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4px 2px;
+  border-inline-end: 1px solid var(--tl-border-soft);
+}
+
+.mwv__weekopen {
+  padding: 2px 5px;
+  border: 1px solid var(--tl-border-soft);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: 10px;
+  font-weight: var(--tl-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.mwv__weekopen:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+  border-color: var(--tl-border-strong);
+}
+
+.mwv__weekopen:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mwv__weekopen {
+    transition: none;
+  }
+}
+
+.mwv__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-inline-size: 0;
+  padding: 5px 6px;
+  border-inline-end: 1px solid var(--tl-border-soft);
+  overflow: hidden;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.mwv__cell:last-child {
+  border-inline-end: 0;
+}
+
+.mwv__cell:hover {
+  background: var(--tl-surface-hover);
+}
+
+/* Today: tinted column plus a hairline ring, so it stands out even in the
+   dense multi-week grid. */
+.mwv__cell--today {
+  background: color-mix(in oklab, var(--tl-accent) 5%, var(--tl-tint-base));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent) 22%, transparent);
+}
+
+.mwv__cellhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tl-space-1);
+  min-block-size: 22px;
+}
+
+.mwv__date {
+  display: grid;
+  place-items: center;
+  min-inline-size: 22px;
+  block-size: 22px;
+  padding: 0 6px;
+  border-radius: var(--tl-radius-full);
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The numeral doubles as the day drill-down control when the shell supplies
+   `onOpenDay`. Rendered as a <button>, so reset the UA chrome here; the size
+   rules above are inherited unchanged (border-box + 22px, no border), which
+   keeps the cell head and therefore the cell height identical to the
+   non-interactive variant. */
+.mwv__datebtn {
+  appearance: none;
+  box-sizing: border-box;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  /* Only the family needs resetting — UA buttons use the system font. Size,
+     weight and colour come from `.mwv__date` and must stay as they are. */
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+/* Hover only where it will not fight the "today" pill's accent fill. */
+.mwv__datebtn:not(.mwv__date--today):hover {
+  background: var(--tl-surface-sunken);
+  color: var(--tl-text);
+}
+
+.mwv__datebtn:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mwv__datebtn {
+    transition: none;
+  }
+}
+
+.mwv__date--today {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+  font-weight: var(--tl-font-weight-semibold);
+  box-shadow: 0 0 0 3px var(--tl-accent-tint);
+}
+
+.mwv__monthtag {
+  padding: 1px 6px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-sunken);
+  color: var(--tl-text-secondary);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.mwv__events {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-inline-size: 0;
+  overflow: hidden;
+}
+
+.mwv__chip {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.mwv__chip .tl-chip {
+  border-radius: var(--tl-radius-sm);
+  box-shadow: var(--tl-shadow-sm);
+  transition:
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard),
+    filter var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.mwv__chip .tl-chip:hover {
+  box-shadow: var(--tl-shadow-md);
+  filter: saturate(1.05);
+}
+
+.mwv__more {
+  padding-inline-start: 4px;
+  font-size: 10px;
+  color: var(--tl-text-secondary);
+}
+
+/* Narrow panel: drop the month tag so the chips keep their room. */
+@container (max-inline-size: 640px) {
+  .mwv__monthtag {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mwv__cell,
+  .mwv__chip .tl-chip {
+    transition: none;
+  }
+}
+
+/* ---------------- Multi-day view ---------------- */
+.mdv {
+  display: flex;
+  flex-direction: column;
+  block-size: 100%;
+  min-block-size: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  overflow: hidden;
+  /* The grid below queries this container, so day columns respond to the
+     panel width instead of the viewport. */
+  container-type: inline-size;
+}
+
+.mdv__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tl-space-3);
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+}
+
+.mdv__status {
+  min-block-size: 1em;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.mdv__scroll {
+  flex: 1;
+  min-block-size: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+}
+
+.mdv__grid {
+  /* Sizing box only: it sets the minimum width so the scroll area can scroll
+     horizontally, while head and body carry the actual column tracks. */
+  --mdv-min: 88px;
+  min-inline-size: calc(56px + 3 * var(--mdv-min));
+  /* The all-day strip is a third track set alongside head/body and must use the
+     same minimums, or its columns drift out of alignment with the grid below. */
+}
+
+.mdv[data-days='5'] .mdv__grid {
+  min-inline-size: calc(56px + 5 * var(--mdv-min));
+}
+
+.mdv[data-days='7'] .mdv__grid {
+  min-inline-size: calc(56px + 7 * var(--mdv-min));
+}
+
+/* Head, all-day strip and body share identical tracks so their columns line up
+   exactly. The strip previously hard-coded a `1fr` template and drifted from
+   the `minmax(var(--mdv-min), 1fr)` tracks below at narrow widths. */
+.mdv__head,
+.mdv__allday,
+.mdv__body {
+  display: grid;
+  grid-template-columns: 56px repeat(3, minmax(var(--mdv-min), 1fr));
+}
+
+.mdv[data-days='5'] .mdv__head,
+.mdv[data-days='5'] .mdv__allday,
+.mdv[data-days='5'] .mdv__body {
+  grid-template-columns: 56px repeat(5, minmax(var(--mdv-min), 1fr));
+}
+
+.mdv[data-days='7'] .mdv__head,
+.mdv[data-days='7'] .mdv__allday,
+.mdv[data-days='7'] .mdv__body {
+  grid-template-columns: 56px repeat(7, minmax(var(--mdv-min), 1fr));
+}
+
+.mdv__head {
+  position: sticky;
+  top: 0;
+  z-index: var(--tl-z-sticky);
+  border-block-end: 1px solid var(--tl-border);
+  background: var(--tl-surface);
+}
+
+.mdv__dayhead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--tl-space-2) 0;
+  border-inline-start: 1px solid var(--tl-border-soft);
+}
+
+.mdv__daynum {
+  display: grid;
+  place-items: center;
+  min-inline-size: 24px;
+  block-size: 24px;
+  border-radius: var(--tl-radius-full);
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.mdv__dayhead--today .mdv__daynum {
+  background: var(--tl-accent);
+  color: var(--tl-accent-contrast);
+}
+
+.mdv__dayhead--today .mdv__dayname {
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.mdv__dayname {
+  font-size: 10px;
+  color: var(--tl-text-tertiary);
+  letter-spacing: 0.02em;
+}
+
+.mdv__body {
+  position: relative;
+  min-block-size: 0;
+  /* Leading offset so the first hour label and first block sit below the top
+     edge instead of clipping. */
+  padding-block-start: 8px;
+}
+
+.mdv__gutter {
+  display: flex;
+  flex-direction: column;
+}
+
+.mdv__hour {
+  position: relative;
+  display: flex;
+  justify-content: flex-end;
+  padding-inline-end: 6px;
+  font-size: 10px;
+  color: var(--tl-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.mdv__hour span {
+  translate: 0 -6px;
+  line-height: 1;
+}
+
+.mdv__col {
+  position: relative;
+  border-inline-start: 1px solid var(--tl-border-soft);
+  /* Faint half-hour rules under the structural hour rules. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--wv-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
+      calc(var(--wv-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
+      calc(var(--wv-hour, 58px) / 2 + 1px),
+    transparent calc(var(--wv-hour, 58px) / 2 + 1px),
+    transparent var(--wv-hour, 58px)
+  );
+}
+
+.mdv__col--today {
+  background-color: color-mix(in oklab, var(--tl-accent) 4%, var(--tl-tint-base));
+  box-shadow:
+    inset 1px 0 0 color-mix(in oklab, var(--tl-accent) 18%, transparent),
+    inset -1px 0 0 color-mix(in oklab, var(--tl-accent) 18%, transparent);
+}
+
+/* Border-box keeps each row exactly `hourHeight` tall (no global reset exists). */
+.mdv__line {
+  box-sizing: border-box;
+  border-block-end: 1px solid var(--tl-border);
+}
+
+.mdv__block {
+  position: absolute;
+  /* MultiDayView.tsx uses the same `calc(%+2px)` / `calc(%-4px)` inline
+     placement as day/week, so the padding must be inside the declared width.
+     Content-box left the block 4px past its column and `.mdv__scroll` gained a
+     horizontal scrollbar. */
+  box-sizing: border-box;
+  padding: 2px 3px;
+}
+
+.mdv__block:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--tl-radius-sm);
+}
+
+/* Wider panel: more room per day. Wider still: the comfortable column. Both
+   keys off .mdv's inline size (container queries), never the viewport. */
+@container (min-inline-size: 720px) {
+  .mdv__grid {
+    --mdv-min: 112px;
+  }
+}
+
+@container (min-inline-size: 1080px) {
+  .mdv__grid {
+    --mdv-min: 132px;
+  }
+}
+
+/* ---------------- Year view ---------------- */
+.yrv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-3);
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.yrv__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tl-space-3);
+}
+
+.yrv__year {
+  font-size: var(--tl-font-size-2xl);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Legend: the scale, spelled out. It reads as a definition list of five
+   samples rather than a decorative "少…多" gradient, so the dot counts mean
+   something the first time someone looks at them. */
+.yrv__legend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tl-space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yrv__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.yrv__legend-dots {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.yrv__legend-label {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--tl-text-secondary);
+}
+
+.yrv__status {
+  margin-inline-start: auto;
+  min-block-size: 1em;
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.yrv__container {
+  flex: 1;
+  min-block-size: 0;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  container-type: inline-size;
+}
+
+.yrv__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* Rows share whatever height the container has, so the year fills the view
+     instead of clustering at the top. `minmax(min-content, 1fr)` lets a row
+     shrink to the height its six-week mini actually needs; when the container
+     is shorter than that the grid grows past it and `.yrv__container` scrolls,
+     so no week is ever clipped. border-box keeps the bottom pad inside the
+     100% box rather than adding to it.
+
+     The gap is --tl-space-3 rather than --tl-space-4: three rows plus two
+     16px gutters and the bottom pad ran 8px past the container at 1440×900,
+     so the last row scrolled under the fold. At 12px the 3×4 grid fits the
+     container exactly and the rows flex up to consume it. */
+  /* `minmax(0, 1fr)`, NOT `minmax(min-content, 1fr)`. With `min-content` the
+     card's intrinsic height is a floor, so at 1440×900 the three rows measured
+     650px inside a 593px container and clipped 9–12月 — the very thing the
+     fill was supposed to prevent. A zero floor lets the rows divide exactly
+     the available height; if a card genuinely cannot fit, `.yrv__container`
+     scrolls, so nothing is unreachable either way. */
+  grid-auto-rows: minmax(0, 1fr);
+  /* `block-size`, not `min-block-size`: the grid must be exactly as tall as the
+     container so `1fr` rows divide that height. `min-block-size: 100%` only set
+     a floor — the content was free to grow past it, which is why three rows
+     still measured 626px in a 593px box. */
+  block-size: 100%;
+  min-block-size: 0;
+  box-sizing: border-box;
+  gap: var(--tl-space-3);
+  /* 8px, not 16: with the 11px day numerals the natural 3-row height is
+     ~686px at 1440×900, and a 16px pad pushed it 6px past the 688px
+     container so the grid scrolled instead of filling. */
+  padding-block-end: var(--tl-space-2);
+}
+
+/* 3 → 4 columns by the container's own width. Capped at 4: past this the cards
+   grow wider rather than more numerous, which keeps the day numerals legible
+   and stops twelve months collapsing into one cramped row. */
+@container (min-inline-size: 880px) {
+  .yrv__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.yrv__month {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-1);
+  min-inline-size: 0;
+  padding: var(--tl-space-2);
+  /* The grid owns the row height; the card must not add to it. `overflow:
+     hidden` is the backstop so a month whose 6-week shape needs a few more
+     pixels crops its own trailing padding instead of pushing 9–12月 under the
+     fold. Nothing meaningful is clipped: the cell floor (14px) already keeps
+     every numeral fully visible. */
+  min-block-size: 0;
+  overflow: hidden;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-surface);
+  transition:
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    box-shadow var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.yrv__month:hover {
+  border-color: var(--tl-border-strong);
+  background: var(--tl-surface-hover);
+  box-shadow: var(--tl-shadow-sm);
+}
+
+.yrv__monthhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-block-end: 2px;
+}
+
+.yrv__monthname {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-semibold);
+  cursor: pointer;
+  border-radius: var(--tl-radius-xs);
+  transition: color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.yrv__monthname:hover {
+  color: var(--tl-accent-ink);
+}
+
+.yrv__monthname:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.yrv__mini {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.yrv__weekdays,
+.yrv__week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 1px;
+}
+
+.yrv__weekday {
+  padding-block-end: 2px;
+  text-align: center;
+  font-size: 9px;
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text-tertiary);
+}
+
+.yrv__cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  /* A floor, not a fixed height: it is how small a day may get before it stops
+     being legible. 6 week rows × this floor + the month header must fit three
+     card rows in the container, or the grid scrolls. Measured at 1440×900 the
+     container is 593px; three rows plus gaps leave ~186px per card, so the
+     floor has to be small enough that 6 rows + header fit inside it. */
+  min-block-size: 14px;
+  padding: 1px 0;
+  border-radius: var(--tl-radius-xs);
+}
+
+/* Out-of-month days recede rather than disappear outright: the numerals stay
+   faintly present as a rhythm cue, at disabled ink. */
+.yrv__cell--out .yrv__daynum {
+  color: var(--tl-text-disabled);
+  font-weight: var(--tl-font-weight-regular);
+}
+
+.yrv__cell--today {
+  background: var(--tl-accent);
+}
+
+.yrv__cell--today .yrv__daynum {
+  color: var(--tl-accent-contrast);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+.yrv__cell--today .yrv__dot {
+  background: color-mix(in oklab, var(--tl-accent-contrast) 55%, transparent);
+}
+
+.yrv__cell--today .yrv__dot--on {
+  background: var(--tl-accent-contrast);
+}
+
+.yrv__daynum {
+  display: grid;
+  place-items: center;
+  /* Content-box made this a 22px pill (18px floor + 2px padding each side),
+     which overhung the ~19.8px day cell and let adjacent numerals touch.
+     Border-box paints it at the declared 18px; `min()` keeps the floor honest
+     when a very narrow container leaves a cell smaller than that. */
+  box-sizing: border-box;
+  min-inline-size: min(18px, 100%);
+  block-size: 18px;
+  padding: 0 2px;
+  border-radius: var(--tl-radius-full);
+  font-size: 10px;
+  line-height: 1;
+  color: var(--tl-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.yrv__heat {
+  display: inline-flex;
+  gap: 1px;
+  block-size: 4px;
+}
+
+.yrv__dot {
+  display: block;
+  inline-size: 3px;
+  block-size: 3px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-border-strong);
+}
+
+.yrv__dot--on {
+  background: var(--tl-accent);
+}
+
+/* At four columns the cards are ~270–390px wide, so the mini calendar earns a
+   step up from the cramped 9/10px it needed at twelve. Declared after the
+   base .yrv__weekday / .yrv__daynum rules so it actually wins. */
+@container (min-inline-size: 880px) {
+  .yrv__weekday {
+    font-size: 10px;
+  }
+
+  .yrv__daynum {
+    font-size: var(--tl-font-size-xs);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .yrv__monthname {
+    transition: none;
+  }
+}
