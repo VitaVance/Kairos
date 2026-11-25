@@ -1,19 +1,62 @@
 name: ci
 
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+
+# Superseded runs are wasted runners and wasted attention. Pushing a fix
+# while the previous run is still going used to leave two full Rust builds
+# compiling side by side; only the newest commit matters, so cancel the older.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # Decide once whether the tree changed in a way that could affect behaviour.
+  # `dorny/paths-filter` would do the same with an extra dependency; a plain
+  # git diff against the previous SHA needs nothing and states exactly which
+  # paths matter.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          # `before` is all-zeros on a first push or a manual dispatch; in that
+          # case we cannot diff, so assume code changed and run everything.
+          before='${{ github.event.before }}'
+          if [ -z "$before" ] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet "$before" HEAD -- \
+               ':!**.md' ':!docs/**' ':!LICENSE' ':!.handoff/**' \
+               ':!design/**' ':!.vscode/**' ':!.github/ISSUE_TEMPLATE/**'; then
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Only docs/assets changed — skipping the build and test jobs."
+          else
+            echo "code=true" >> "$GITHUB_OUTPUT"
+          fi
+
   verify:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
 
+      # No `with: version` here on purpose. The action reads
+      # `packageManager` from package.json (pnpm@11.21.0) and errors out with
+      # "Multiple versions of pnpm specified" if this also names one. Pinning
+      # it in one place means CI and a local shell can never disagree.
       - uses: pnpm/action-setup@v6
-        with:
-          version: 11
 
       - uses: actions/setup-node@v7
         with:
@@ -35,24 +78,52 @@ jobs:
       - name: Build web bundle
         run: pnpm --filter @todolist/desktop build
 
-  # The desktop binary needs Rust; keep it separate so web CI stays fast.
+  # The desktop binary needs a Rust toolchain and a cold build costs minutes,
+  # so this job only runs where it can actually catch something the web job
+  # cannot: a Rust compile error. PRs get the fast web gate; `main` gets the
+  # binary check as well, and only when Rust or its inputs moved.
   desktop:
+    needs: [changes, verify]
+    if: github.event_name == 'push' && needs.changes.outputs.code == 'true'
     runs-on: windows-latest
-    needs: verify
-    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
         with:
-          version: 11
+          fetch-depth: 0
+
+      # A commit that only touched TypeScript cannot break the Rust build, and
+      # recompiling it costs more than the rest of CI combined.
+      - name: Did anything the binary depends on change?
+        id: rust
+        shell: bash
+        run: |
+          set -euo pipefail
+          before='${{ github.event.before }}'
+          if [ -z "$before" ] || ! git cat-file -e "$before^{commit}" 2>/dev/null; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --quiet "$before" HEAD -- apps/desktop/src-tauri packages apps/desktop/src apps/desktop/package.json pnpm-lock.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No Rust or shared-input changes — skipping the desktop build."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v6
+        if: steps.rust.outputs.changed == 'true'
       - uses: actions/setup-node@v7
+        if: steps.rust.outputs.changed == 'true'
         with:
           node-version: 22
           cache: pnpm
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.rust.outputs.changed == 'true'
       - name: Install
+        if: steps.rust.outputs.changed == 'true'
         run: pnpm install --frozen-lockfile
       - name: Build desktop app
+        if: steps.rust.outputs.changed == 'true'
         # `--no-bundle` on purpose. `tauri.conf.json` has
         # `createUpdaterArtifacts: true`, so bundling signs the installer and
         # fails outright when TAURI_SIGNING_PRIVATE_KEY is absent — and it must
