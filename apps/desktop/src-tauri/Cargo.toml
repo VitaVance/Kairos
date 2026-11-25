@@ -1,0 +1,45 @@
+[package]
+name = "todolist-desktop"
+version = "0.1.0"
+description = "Local-first todo list and calendar"
+authors = ["you"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "todolist_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+# `tray-icon` keeps the process (and therefore the reminder scheduler) alive
+# after the main window is hidden; `image-png` is what lets `Image::from_bytes`
+# decode the tray icon we embed below.
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-sql = { version = "2", features = ["sqlite"] }
+tauri-plugin-notification = "2"
+# Update channel. Verifies a signature over the downloaded artifact before it
+# will install anything — see the security note in docs/PACKAGING.md §7.
+tauri-plugin-updater = "2"
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Release profile tuned for a small, fast Windows binary.
+# LTO + codegen-units=1 maximise optimization and shrink the artifact at the
+# cost of build time. panic="abort" removes landing pads/unwinding code.
+# strip=true removes debug symbols (the MSI/NSIS installer is also smaller).
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+# Dev profile: defaults are fine; kept explicit so it is obvious it is
+# intentionally unoptimised (fast incremental builds).
+[profile.dev]
+opt-level = 0
+debug = true
