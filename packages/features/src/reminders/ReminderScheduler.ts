@@ -1,4 +1,5 @@
-import type { CalendarEvent, Instant, Task } from '@todolist/core';
+import type { CalendarEvent, DuePeriod, Instant, LocalDate, Task } from '@todolist/core';
+import { duePrecisionOf, endOfDay, instantAtLocal } from '@todolist/core';
 
 /**
  * Reminder scheduling — pure, framework-free, and clock-free.
@@ -8,24 +9,160 @@ import type { CalendarEvent, Instant, Task } from '@todolist/core';
  * "what just became due that I have not announced yet?". That keeps the logic
  * deterministic and unit-testable, and lets the same code run under React,
  * React Native or a worker.
+ *
+ * ## A reminder is not always `task.dueAt`
+ * Day and half-day tasks store local midnight in `dueAt` — a placeholder that
+ * keeps them on the calendar, not an instant anyone wants to be woken at.
+ * Announcing the stored value is how a "today" task ended up reminding at
+ * 00:00 and then never again. The instant that should actually announce is
+ * derived per tick by `reminderAnchorOf()`. The anchor is never written back to
+ * storage: the task keeps meaning "some day" (or "some morning") and the anchor
+ * is recomputed from current data every tick.
  */
 
 export type ReminderKind = 'task' | 'event';
+
+/** How precise a task's date is. Only tasks have a non-`time` granularity. */
+export type ReminderGranularity = 'day' | 'period' | 'time';
+
+/**
+ * When a task should be announced, derived from its precision.
+ *
+ * `date` is the local day that bounds a late announcement. It is non-null for
+ * `day` / `period` (which may announce any time on their own day) and null for
+ * `time`, whose instant is its own deadline.
+ */
+export interface ReminderAnchor {
+  readonly anchor: Instant;
+  readonly granularity: ReminderGranularity;
+  readonly date: LocalDate | null;
+  /** Half-day bucket when `granularity` is `'period'`; null otherwise. */
+  readonly period: DuePeriod | null;
+}
+
+/**
+ * The wall-clock hour each half-day bucket announces at.
+ *
+ * These follow Todoist's public natural-language mapping (`in the morning` →
+ * 9 AM, `in the afternoon` → noon, `in the evening` → 7 PM) rather than an
+ * invented rule, so there is nothing new for the user to learn. Fixed
+ * constants on purpose — no setting, no per-user boundaries (design doc §5.7).
+ */
+const PERIOD_ANCHOR: Record<DuePeriod, string> = {
+  morning: '09:00',
+  afternoon: '12:00',
+  evening: '19:00',
+};
+
+/** A whole-day task announces with the morning bucket: early, but not at 00:00. */
+const DAY_ANCHOR = '09:00';
+
+/**
+ * Derive the instant a task should be announced, or null when it has no date.
+ *
+ * This is the single place that turns precision into an announcement time.
+ * It uses `duePrecisionOf()` rather than reading `allDay` directly, because
+ * `allDay` is true for both day and period tasks and cannot tell them apart.
+ *
+ *   - `time`   — `dueAt` itself.
+ *   - `period` — the bucket's fixed local hour on `dueDate` (`period` set).
+ *   - `day`    — 09:00 local on `dueDate`.
+ *
+ * Rows that predate the "dueAt and dueDate are set together" invariant can have
+ * `dueAt` but no `dueDate`; `duePrecisionOf` calls those `none`. Rather than
+ * silently dropping a reminder the user used to get, fall back to the stored
+ * instant (the same defensive choice `isOverdue()` makes in core).
+ *
+ * Malformed dates return null instead of throwing: this runs inside the host's
+ * 30-second tick, and one corrupt row must not stop every other reminder.
+ */
+export function reminderAnchorOf(
+  task: Pick<Task, 'dueDate' | 'dueAt' | 'allDay' | 'duePeriod'>,
+): ReminderAnchor | null {
+  switch (duePrecisionOf(task)) {
+    case 'time':
+      return task.dueAt === null
+        ? null
+        : { anchor: task.dueAt, granularity: 'time', date: null, period: null };
+
+    case 'day': {
+      if (task.dueDate === null) return null;
+      const anchor = anchorAt(task.dueDate, DAY_ANCHOR);
+      return anchor === null
+        ? null
+        : { anchor, granularity: 'day', date: task.dueDate, period: null };
+    }
+
+    case 'period': {
+      if (task.dueDate === null || task.duePeriod === null) return null;
+      const anchor = anchorAt(task.dueDate, PERIOD_ANCHOR[task.duePeriod]);
+      return anchor === null
+        ? null
+        : { anchor, granularity: 'period', date: task.dueDate, period: task.duePeriod };
+    }
+
+    case 'none':
+      return task.dueAt === null || Number.isNaN(Date.parse(task.dueAt))
+        ? null
+        : { anchor: task.dueAt, granularity: 'time', date: null, period: null };
+  }
+}
+
+function anchorAt(date: LocalDate, time: string): Instant | null {
+  try {
+    return instantAtLocal(date, time);
+  } catch {
+    // Unreachable for data written through TaskService; kept so a hand-edited
+    // or corrupted row cannot take the whole reminder loop down.
+    return null;
+  }
+}
 
 export interface ReminderItem {
   readonly kind: ReminderKind;
   readonly id: string;
   readonly title: string;
+  /**
+   * The reminder's anchor: `task.dueAt` for exact-time tasks and events, the
+   * derived day/period anchor otherwise. Never the fabricated midnight.
+   */
   readonly dueAt: Instant;
-  /** Whole minutes until the due instant; 0 when due now, negative if late. */
+  /** Whole minutes until the anchor; 0 when due now, negative if late. */
   readonly minutesUntil: number;
   readonly allDay: boolean;
+  /** Half-day bucket for a `period` task; null for day, time and events. */
+  readonly period: DuePeriod | null;
+  /**
+   * The local day a day/period reminder belongs to, which is also its dedupe
+   * date. Null for exact-time items and events, whose keys stay instant-based.
+   */
+  readonly reminderDate: LocalDate | null;
 }
 
 const MINUTE_MS = 60_000;
 
-/** Stable identity for an item, used by the fired-id ledger. */
-export function reminderKey(item: Pick<ReminderItem, 'kind' | 'id' | 'dueAt'>): string {
+/**
+ * The fields that identify a reminder. `reminderDate` is optional so callers
+ * (and tests) can still describe a plain instant-keyed reminder with just
+ * `{ kind, id, dueAt }`.
+ */
+export type ReminderKeyFields = Pick<ReminderItem, 'kind' | 'id' | 'dueAt'> & {
+  readonly reminderDate?: LocalDate | null;
+};
+
+/**
+ * Stable identity for an item, used by the fired-id ledger.
+ *
+ * Day and period reminders key on the local date, not the instant: they are
+ * allowed to announce at any point during their day, so an instant-based key
+ * would change with the anchor and re-fire on every tick. The date key keeps
+ * them at "once per day" and rolls over naturally at midnight. Exact-time
+ * reminders keep their instant key, because moving the time is a new reminder.
+ */
+export function reminderKey(item: ReminderKeyFields): string {
+  if (item.reminderDate !== undefined && item.reminderDate !== null) {
+    return `${item.kind}:${item.id}:${item.reminderDate}`;
+  }
   return `${item.kind}:${item.id}:${item.dueAt}`;
 }
 
@@ -33,7 +170,7 @@ function toItem(
   kind: ReminderKind,
   id: string,
   title: string,
-  dueAt: Instant,
+  found: ReminderAnchor,
   allDay: boolean,
   nowMs: number,
 ): ReminderItem {
@@ -41,18 +178,35 @@ function toItem(
     kind,
     id,
     title,
-    dueAt,
-    minutesUntil: Math.round((Date.parse(dueAt) - nowMs) / MINUTE_MS),
+    dueAt: found.anchor,
+    minutesUntil: Math.round((Date.parse(found.anchor) - nowMs) / MINUTE_MS),
     allDay,
+    period: found.period,
+    reminderDate: found.date,
   };
 }
 
 /**
- * Items whose due instant falls inside `[now, now + windowMinutes]`, inclusive
- * on both ends, sorted by due time (ties broken by kind then id).
+ * Items that should be announced at `now`, sorted by anchor (ties broken by
+ * kind then id).
  *
- * Tasks without a `dueAt` and completed tasks never remind. Events remind at
- * their start instant.
+ * There are two windows, because "due" means different things at different
+ * precisions:
+ *
+ *   - `time` — `now <= anchor <= now + windowMinutes`, inclusive on both ends.
+ *     The instant is a social contract (a meeting, a train); announcing a
+ *     missed one is noise, so there is no catch-up.
+ *   - `day` / `period` — `anchor <= now + windowMinutes` and `now` still inside
+ *     the anchor's own local day. The anchor marks when the task became
+ *     actionable, not a deadline, so a "today" task first seen at 15:00 is
+ *     announced then (with a negative `minutesUntil`) rather than never.
+ *
+ * `endOfDay` is the cut-off for the catch-up window, deliberately not
+ * `endOfPeriod`: the latter is the overdue boundary, and an afternoon task is
+ * still worth surfacing at 17:00 even though it is already late.
+ *
+ * The date-based key from `reminderKey()` is what stops the catch-up rule from
+ * re-announcing the same task on every 30-second tick.
  */
 export function computeUpcoming(
   tasks: readonly Task[],
@@ -67,18 +221,38 @@ export function computeUpcoming(
   const items: ReminderItem[] = [];
 
   for (const task of tasks) {
-    if (task.status === 'done' || task.dueAt === null) continue;
-    const dueMs = Date.parse(task.dueAt);
-    if (Number.isNaN(dueMs)) continue;
-    if (dueMs < nowMs || dueMs > horizonMs) continue;
-    items.push(toItem('task', task.id, task.title, task.dueAt, task.allDay, nowMs));
+    if (task.status === 'done') continue;
+    const found = reminderAnchorOf(task);
+    if (found === null) continue;
+    const anchorMs = Date.parse(found.anchor);
+    if (Number.isNaN(anchorMs) || anchorMs > horizonMs) continue;
+
+    if (found.date === null) {
+      // Exact time: never announce after the moment has passed.
+      if (anchorMs < nowMs) continue;
+    } else {
+      // Day / period: announce any time on (and only on) their own local day.
+      const dayEndMs = Date.parse(endOfDay(found.date));
+      if (Number.isNaN(dayEndMs) || nowMs >= dayEndMs) continue;
+    }
+
+    items.push(toItem('task', task.id, task.title, found, task.allDay, nowMs));
   }
 
   for (const event of events) {
     const dueMs = Date.parse(event.startAt);
     if (Number.isNaN(dueMs)) continue;
     if (dueMs < nowMs || dueMs > horizonMs) continue;
-    items.push(toItem('event', event.id, event.title, event.startAt, event.allDay, nowMs));
+    items.push(
+      toItem(
+        'event',
+        event.id,
+        event.title,
+        { anchor: event.startAt, granularity: 'time', date: null, period: null },
+        event.allDay,
+        nowMs,
+      ),
+    );
   }
 
   return items.sort((a, b) => {
@@ -90,7 +264,7 @@ export function computeUpcoming(
 }
 
 /** False once the item has been announced in this process. */
-export function shouldFire(item: ReminderItem, firedIds: ReadonlySet<string>): boolean {
+export function shouldFire(item: ReminderKeyFields, firedIds: ReadonlySet<string>): boolean {
   return !firedIds.has(reminderKey(item));
 }
 
@@ -133,12 +307,12 @@ export class ReminderState {
     this.windowMinutes = minutes;
   }
 
-  hasFired(item: Pick<ReminderItem, 'kind' | 'id' | 'dueAt'>): boolean {
+  hasFired(item: ReminderKeyFields): boolean {
     return this.fired.has(reminderKey(item));
   }
 
   /** Mark an item as announced without returning it (e.g. after a manual show). */
-  markFired(item: Pick<ReminderItem, 'kind' | 'id' | 'dueAt'>): void {
+  markFired(item: ReminderKeyFields): void {
     this.remember(reminderKey(item));
   }
 

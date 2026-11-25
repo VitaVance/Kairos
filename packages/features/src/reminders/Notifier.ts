@@ -1,3 +1,4 @@
+import type { DuePeriod } from '@todolist/core';
 import type { ReminderItem } from './ReminderScheduler.js';
 import { reminderKey } from './ReminderScheduler.js';
 
@@ -28,8 +29,22 @@ function kindLabel(kind: ReminderItem['kind']): string {
   return kind === 'task' ? '任务' : '日程';
 }
 
+/** The same 上午/下午/晚上 wording the list and calendar chips use. */
+const PERIOD_LABEL: Record<DuePeriod, string> = {
+  morning: '上午',
+  afternoon: '下午',
+  evening: '晚上',
+};
+
+/**
+ * A day/period task announces *during* its bucket, so "全天" would be wrong:
+ * a "this morning" task announced at 10:00 is not an all-day one. Period items
+ * print their bucket; a plain day task keeps 全天, since it really is the whole
+ * day. Exact-time items keep the countdown, where a negative value means the
+ * anchor has already passed and the honest label is 现在.
+ */
 function timeLabel(item: ReminderItem): string {
-  if (item.allDay) return '全天';
+  if (item.allDay) return item.period === null ? '全天' : PERIOD_LABEL[item.period];
   if (item.minutesUntil <= 0) return '现在';
   if (item.minutesUntil === 1) return '1 分钟后';
   return `${item.minutesUntil} 分钟后`;
@@ -38,7 +53,7 @@ function timeLabel(item: ReminderItem): string {
 /**
  * Pure description of the toast for one reminder: title is always the app
  * name, body carries the task/event title plus the same time wording the
- * in-app banner uses (现在 / N 分钟后 / 全天).
+ * in-app banner uses (现在 / N 分钟后 / 全天 / 上午等).
  */
 export function formatReminderNotification(item: ReminderItem): ReminderNotification {
   return {

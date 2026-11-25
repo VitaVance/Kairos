@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Instant } from '@todolist/core';
+import type { Instant, LocalDate } from '@todolist/core';
 import type { ReminderItem } from '../src/reminders/ReminderScheduler.js';
 import { reminderKey } from '../src/reminders/ReminderScheduler.js';
 import { formatReminderNotification, selectUnannounced } from '../src/reminders/Notifier.js';
@@ -14,6 +14,8 @@ function item(overrides: Partial<ReminderItem> = {}): ReminderItem {
     dueAt: T('2026-09-06T08:00:00.000Z'),
     minutesUntil: 0,
     allDay: false,
+    period: null,
+    reminderDate: null,
     ...overrides,
   };
 }
@@ -32,6 +34,17 @@ describe('formatReminderNotification', () => {
     const event = item({ kind: 'event', id: 'event-1', title: '站会', minutesUntil: -2 });
     expect(formatReminderNotification(event).body).toBe('日程：站会 · 现在');
     expect(formatReminderNotification(item({ allDay: true })).body).toBe('任务：写周报 · 全天');
+  });
+
+  it('prints the half-day bucket instead of 全天 for period items', () => {
+    const period = (p: 'morning' | 'afternoon' | 'evening', minutesUntil = 0) =>
+      item({ allDay: true, period: p, reminderDate: '2026-09-06' as LocalDate, minutesUntil });
+
+    expect(formatReminderNotification(period('morning')).body).toBe('任务：写周报 · 上午');
+    expect(formatReminderNotification(period('afternoon')).body).toBe('任务：写周报 · 下午');
+    // A late catch-up (anchor already passed) still names the bucket, not 现在:
+    // the user cares which part of the day it was written for.
+    expect(formatReminderNotification(period('evening', -420)).body).toBe('任务：写周报 · 晚上');
   });
 });
 
