@@ -282,11 +282,44 @@ jobs:
             # Group by conventional-commit type. `feat` and `fix` are what a
             # user cares about; the rest is listed for completeness under
             # 维护, collapsed by default so it does not bury the headline items.
+            #
+            # Scopes are translated to Chinese where a mapping exists. Leaving
+            # them as `core`/`adapters` would be accurate but reads as
+            # developer jargon to the person deciding whether to install this.
+            # An unmapped scope falls through unchanged rather than being
+            # dropped, so a new package still appears in the notes.
+            scope_zh() {
+              case "$1" in
+                core) echo "内核" ;;
+                adapters) echo "数据存储" ;;
+                ui) echo "界面组件" ;;
+                features) echo "功能与视图" ;;
+                desktop) echo "桌面应用" ;;
+                mobile) echo "移动端" ;;
+                calendar) echo "日历" ;;
+                reminders) echo "提醒" ;;
+                task) echo "任务" ;;
+                quadrant) echo "四象限" ;;
+                release) echo "发布流程" ;;
+                *) echo "$1" ;;
+              esac
+            }
+
             for spec in "feat:新功能" "fix:修复" "perf:性能"; do
               type="${spec%%:*}"; label="${spec##*:}"
-              body="$(git log "$range" --no-merges --pretty=format:"%s" \
-                | grep -E "^${type}(\(.+\))?!?:" \
-                | sed -E "s/^${type}(\(([^)]+)\))?!?: /- **\2** — /; s/- \*\*\\*\\* — /- /" || true)"
+              body=""
+              while IFS= read -r line; do
+                [ -z "$line" ] && continue
+                scope="${line#${type}}"
+                if [[ "$scope" == "("* ]]; then
+                  scope="${scope#(}"; scope="${scope%%)*}"
+                  text="${line#*: }"
+                  body="${body}- **$(scope_zh "$scope")** — ${text}"$'\n'
+                else
+                  text="${line#*: }"
+                  body="${body}- ${text}"$'\n'
+                fi
+              done <<< "$(git log "$range" --no-merges --pretty=format:"%s" | grep -E "^${type}(\(.+\))?!?:" || true)"
               if [ -n "$body" ]; then
                 echo "### ${label}"
                 echo
