@@ -1,0 +1,816 @@
+/* ============================================================================
+   @todolist/ui — component styles
+   Every color comes from a token. Modern CSS used deliberately:
+   - container queries for chips (width-adaptive, not viewport-adaptive)
+   - :has() for parent-state styling
+   - logical properties (inline/block) for RTL-readiness
+   - color-scheme so native controls + scrollbars follow the theme
+   ========================================================================== */
+
+@layer tl.reset, tl.components;
+
+@layer tl.reset {
+  .tl-btn,
+  .tl-icon-btn,
+  .tl-chip,
+  .tl-field__input,
+  .tl-seg__item,
+  .tl-pill__item,
+  .tl-pill__cta {
+    font: inherit;
+    color: inherit;
+  }
+}
+
+@layer tl.components {
+  :root {
+    color-scheme: light;
+  }
+  [data-theme='dark'] {
+    color-scheme: dark;
+  }
+  /* Before theme.ts writes `data-theme` on <html>, follow the OS so the very
+     first paint and native scrollbars are never light-on-dark. A plain CSS
+     media query is the CSP-safe path: the app CSP has no script 'unsafe-inline'. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme]) {
+      color-scheme: dark;
+    }
+  }
+
+  .tl-visually-hidden {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* ---------------- Button ---------------- */
+  .tl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tl-space-2);
+    border: 1px solid transparent;
+    border-radius: var(--tl-radius-md);
+    padding: 0 var(--tl-space-3);
+    block-size: 32px;
+    font-size: var(--tl-font-size-base);
+    font-weight: var(--tl-font-weight-medium);
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      background var(--tl-duration-fast) var(--tl-ease-standard),
+      border-color var(--tl-duration-fast) var(--tl-ease-standard);
+  }
+  .tl-btn--sm {
+    block-size: 26px;
+    padding: 0 var(--tl-space-2);
+    font-size: var(--tl-font-size-sm);
+  }
+  .tl-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .tl-btn:focus-visible,
+  .tl-icon-btn:focus-visible,
+  .tl-chip:focus-visible,
+  .tl-seg__item:focus-visible,
+  .tl-pill__item:focus-visible,
+  .tl-collapse__trigger:focus-visible {
+    outline: 2px solid var(--tl-focus-ring);
+    outline-offset: 2px;
+  }
+  .tl-btn--primary {
+    background: var(--tl-accent);
+    color: var(--tl-accent-contrast);
+  }
+  .tl-btn--primary:hover:not(:disabled) {
+    background: var(--tl-accent-hover);
+  }
+  .tl-btn--secondary {
+    background: var(--tl-surface);
+    border-color: var(--tl-border-strong);
+    color: var(--tl-text);
+  }
+  .tl-btn--secondary:hover:not(:disabled) {
+    background: var(--tl-surface-hover);
+  }
+  .tl-btn--ghost {
+    background: transparent;
+    color: var(--tl-text-secondary);
+  }
+  .tl-btn--ghost:hover:not(:disabled) {
+    background: var(--tl-surface-hover);
+    color: var(--tl-text);
+  }
+  .tl-btn--danger {
+    background: var(--tl-danger-tint);
+    color: var(--tl-danger);
+    border-color: transparent;
+  }
+  .tl-btn--danger:hover:not(:disabled) {
+    background: var(--tl-danger);
+    color: var(--tl-text-inverse);
+  }
+  /* The default palette's red is light; white ink on it is only 3.2:1, while
+     the dark ink used inside the --tl-danger-tint button body is 5.3:1. */
+  :root:not([data-theme='dark']) .tl-btn--danger:hover:not(:disabled) {
+    color: var(--tl-text);
+  }
+  .tl-btn__icon {
+    display: inline-flex;
+  }
+
+  /* ---------------- IconButton ---------------- */
+  .tl-icon-btn {
+    display: grid;
+    place-items: center;
+    inline-size: 30px;
+    block-size: 30px;
+    border: 0;
+    border-radius: var(--tl-radius-md);
+    background: transparent;
+    color: var(--tl-text-secondary);
+    cursor: pointer;
+    transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+  }
+  .tl-icon-btn:hover:not(:disabled) {
+    background: var(--tl-surface-hover);
+    color: var(--tl-text);
+  }
+  .tl-icon-btn--default {
+    border: 1px solid var(--tl-border);
+  }
+
+  /* ---------------- Checkbox ---------------- */
+  /* The visual square stays 15px, but the real <input> is the hit target and
+     grows around it: 32×32 on a fine pointer, 44×44 on any touch-capable
+     device. The wrapper keeps its 16px layout box, so row height is unchanged
+     on desktop while the target clears the 44px guideline on touch. */
+  .tl-checkbox {
+    position: relative;
+    display: inline-grid;
+    /* The wrapper's 16px box is the row's alignment reference; the 15px
+       square inside it inherits that centre, so the extra 1px never shifts
+       the title or the meta column. */
+    place-items: center;
+    inline-size: 16px;
+    block-size: 16px;
+    flex: none;
+    --tl-checkbox-hit: 32px;
+  }
+  .tl-checkbox__input {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    translate: -50% -50%;
+    inline-size: var(--tl-checkbox-hit);
+    block-size: var(--tl-checkbox-hit);
+    margin: 0;
+    opacity: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  @media (any-pointer: coarse) {
+    .tl-checkbox {
+      --tl-checkbox-hit: 44px;
+    }
+  }
+  .tl-checkbox__box {
+    display: grid;
+    place-items: center;
+    inline-size: 15px;
+    block-size: 15px;
+    /* --tl-text-secondary clears 4.5:1 on every palette's surface and hover
+       surface, so the unchecked boundary is visible (WCAG 1.4.11) instead of
+       the near-invisible --tl-border-strong. */
+    border: 1.5px solid var(--tl-text-secondary);
+    border-radius: var(--tl-radius-xs);
+    background: var(--tl-surface);
+    transition:
+      background var(--tl-duration-fast) var(--tl-ease-standard),
+      border-color var(--tl-duration-fast) var(--tl-ease-standard),
+      scale var(--tl-duration-fast) var(--tl-ease-standard);
+    pointer-events: none;
+  }
+  .tl-checkbox:hover .tl-checkbox__input:not(:disabled) + .tl-checkbox__box {
+    border-color: var(--tl-accent-ink);
+  }
+  .tl-checkbox__input:active:not(:disabled) + .tl-checkbox__box {
+    scale: 0.9;
+  }
+  .tl-checkbox__input:checked + .tl-checkbox__box {
+    background: var(--tl-accent);
+    border-color: var(--tl-accent);
+  }
+  .tl-checkbox__input:focus-visible + .tl-checkbox__box {
+    /* --tl-accent-ink is ≥ 4.5:1 on every surface; the translucent
+       --tl-focus-ring would fall under the 3:1 focus-indicator floor. */
+    outline: 2px solid var(--tl-accent-ink);
+    outline-offset: 2px;
+  }
+  .tl-checkbox__input:disabled {
+    cursor: not-allowed;
+  }
+  .tl-checkbox__input:disabled + .tl-checkbox__box {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .tl-checkbox__tick {
+    inline-size: 10px;
+    block-size: 10px;
+    fill: none;
+    stroke: var(--tl-accent-contrast);
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    scale: 0.2;
+    transition:
+      opacity 100ms var(--tl-ease-standard),
+      scale 160ms var(--tl-ease-out);
+  }
+  .tl-checkbox__input:checked + .tl-checkbox__box .tl-checkbox__tick {
+    opacity: 1;
+    scale: 1;
+  }
+  .tl-checkbox__dash {
+    display: none;
+    inline-size: 7px;
+    block-size: 1.8px;
+    border-radius: 1px;
+    background: var(--tl-accent-contrast);
+  }
+  .tl-checkbox__input[aria-checked='mixed'] + .tl-checkbox__box {
+    background: var(--tl-accent);
+    border-color: var(--tl-accent);
+  }
+  .tl-checkbox__input[aria-checked='mixed'] + .tl-checkbox__box .tl-checkbox__tick {
+    opacity: 0;
+  }
+  .tl-checkbox__input[aria-checked='mixed'] + .tl-checkbox__box .tl-checkbox__dash {
+    display: block;
+  }
+  /* Reduced motion: the state change is instant, no press scale, no tick grow. */
+  @media (prefers-reduced-motion: reduce) {
+    .tl-checkbox__box,
+    .tl-checkbox__tick {
+      transition: none;
+    }
+    .tl-checkbox__input:active:not(:disabled) + .tl-checkbox__box {
+      scale: 1;
+    }
+    .tl-checkbox__tick {
+      scale: 1;
+    }
+  }
+
+  /* ---------------- Chip (container-query adaptive) ---------------- */
+  .tl-chip {
+    container-type: inline-size;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    inline-size: 100%;
+    min-inline-size: 0;
+    padding: 2px 6px 2px 7px;
+    border: 0;
+    border-inline-start: 2px solid var(--chip-color);
+    border-radius: var(--tl-radius-sm);
+    background: var(--chip-tint, color-mix(in oklab, var(--chip-color) 10%, var(--tl-tint-base)));
+    color: var(--tl-chip-text);
+    font-size: var(--tl-font-size-xs);
+    line-height: 1.5;
+    text-align: start;
+    cursor: default;
+    overflow: hidden;
+  }
+  button.tl-chip {
+    cursor: pointer;
+  }
+  button.tl-chip:hover {
+    background: var(--chip-tint-solid, color-mix(in oklab, var(--chip-color) 18%, var(--tl-tint-base)));
+  }
+  .tl-chip__title {
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .tl-chip__time {
+    margin-inline-start: auto;
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: clip;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    /* The time label sits on the chip's own tint, not on --tl-surface; tertiary
+       ink falls below 4.5:1 over every palette's tint in dark mode. */
+    color: var(--tl-text-secondary);
+    white-space: nowrap;
+  }
+  .tl-chip__dot {
+    inline-size: 5px;
+    block-size: 5px;
+    border-radius: 50%;
+    background: var(--chip-color);
+    flex: none;
+  }
+  /* When the chip itself is narrow, drop the time rather than crush the title. */
+  @container (max-inline-size: 118px) {
+    .tl-chip__time {
+      display: none;
+    }
+  }
+  @container (max-inline-size: 64px) {
+    .tl-chip__title {
+      font-size: 10px;
+    }
+  }
+  .tl-chip--done .tl-chip__title {
+    text-decoration: line-through;
+    color: var(--tl-text-tertiary);
+  }
+  .tl-chip--allday {
+    background: color-mix(in oklab, var(--chip-color) 7%, var(--tl-tint-base));
+  }
+
+  /* ---------------- Badge ---------------- */
+  .tl-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+    color: var(--badge-color);
+  }
+  .tl-badge__dot {
+    inline-size: 7px;
+    block-size: 7px;
+    border-radius: var(--tl-radius-xs);
+    background: var(--badge-color);
+    flex: none;
+  }
+  .tl-badge__label {
+    letter-spacing: 0.01em;
+  }
+  .tl-badge__count {
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-regular);
+    /* Counts are content: tertiary falls under 4.5:1 on dark surfaces. */
+    color: var(--tl-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-badge--solid {
+    padding: 1px 8px;
+    border-radius: var(--tl-radius-full);
+    background: color-mix(in oklab, var(--badge-color) 12%, var(--tl-tint-base));
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-medium);
+  }
+
+  /* ---------------- Card ---------------- */
+  .tl-card {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    border: 1px solid var(--tl-border);
+    border-radius: var(--tl-radius-xl);
+    background: var(--tl-surface);
+  }
+  .tl-card--padded {
+    padding: var(--tl-space-4);
+  }
+  .tl-card__head {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    margin-block-end: var(--tl-space-3);
+  }
+  .tl-card__title {
+    font-size: var(--tl-font-size-md);
+    font-weight: var(--tl-font-weight-semibold);
+  }
+  .tl-card__actions {
+    margin-inline-start: auto;
+    display: flex;
+    gap: var(--tl-space-1);
+  }
+  .tl-card__body {
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    flex: 1;
+  }
+  .tl-card--interactive {
+    transition:
+      box-shadow var(--tl-duration-base) var(--tl-ease-standard),
+      border-color var(--tl-duration-base) var(--tl-ease-standard);
+  }
+  .tl-card--interactive:hover {
+    border-color: var(--tl-border-strong);
+    box-shadow: var(--tl-shadow-md);
+  }
+
+  /* ---------------- SegmentedControl ---------------- */
+  .tl-seg {
+    display: inline-flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-surface-sunken);
+  }
+  .tl-seg__item {
+    border: 0;
+    border-radius: var(--tl-radius-sm);
+    background: transparent;
+    padding: 0 var(--tl-space-3);
+    block-size: 26px;
+    font-size: var(--tl-font-size-sm);
+    color: var(--tl-text-secondary);
+    cursor: pointer;
+    transition:
+      background var(--tl-duration-fast) var(--tl-ease-standard),
+      color var(--tl-duration-fast) var(--tl-ease-standard);
+  }
+  .tl-seg--sm .tl-seg__item {
+    block-size: 22px;
+    padding: 0 var(--tl-space-2);
+    font-size: var(--tl-font-size-xs);
+  }
+  .tl-seg__item:hover {
+    color: var(--tl-text);
+  }
+  .tl-seg__item--active {
+    background: var(--tl-surface);
+    color: var(--tl-text);
+    box-shadow: var(--tl-shadow-sm);
+    font-weight: var(--tl-font-weight-medium);
+  }
+
+  /* ---------------- ViewSwitcherPill ---------------- */
+  .tl-pill-wrap {
+    position: absolute;
+    inset-block-end: 16px;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    z-index: var(--tl-z-sticky);
+    /* Reserve the pill's own horizontal gutter so it never runs into the
+       side-rail/sidebar at the 960px window minimum. */
+    padding-inline: 8px;
+  }
+  .tl-pill-wrap > * {
+    max-inline-size: 100%;
+  }
+  .tl-pill {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    max-inline-size: 100%;
+    padding: 6px;
+    border-radius: var(--tl-radius-full);
+    background: var(--tl-pill-bg);
+    border: 1px solid var(--tl-pill-border);
+    box-shadow: var(--tl-shadow-float);
+    backdrop-filter: blur(12px);
+    /* At the narrow end eight view buttons + the CTA cannot fit; let the pill
+       scroll sideways instead of spilling past the content column. */
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tl-pill::-webkit-scrollbar {
+    display: none;
+  }
+  .tl-pill > * {
+    flex: none;
+    white-space: nowrap;
+  }
+  .tl-pill__item {
+    border: 0;
+    border-radius: var(--tl-radius-full);
+    background: transparent;
+    /* Derive the muted label from the pill's own ink instead of the static
+       --tl-pill-text-muted: the editorial light pill only reaches 3.8:1 with it. */
+    color: color-mix(in oklab, var(--tl-pill-text) 76%, var(--tl-pill-bg));
+    padding: 0 var(--tl-space-3);
+    block-size: 30px;
+    font-size: var(--tl-font-size-sm);
+    cursor: pointer;
+    transition:
+      background var(--tl-duration-fast) var(--tl-ease-standard),
+      color var(--tl-duration-fast) var(--tl-ease-standard);
+  }
+  .tl-pill__item:hover {
+    background: var(--tl-pill-hover);
+    color: var(--tl-pill-text);
+  }
+  .tl-pill__item--active {
+    background: var(--tl-pill-active);
+    color: var(--tl-pill-text);
+    font-weight: var(--tl-font-weight-medium);
+  }
+  .tl-pill__cta {
+    margin-inline-start: var(--tl-space-1);
+    border: 0;
+    border-radius: var(--tl-radius-full);
+    background: var(--tl-cta-bg);
+    /* --tl-cta-text is the label for the CTA *background*; on the default
+       palette's blue accent that is white at 3.68:1, below AA. --tl-cta-ink is
+       the readable alternative (4.58:1 on #3b82f6), and each palette defines
+       its own pairing in tokens.css. */
+    color: var(--tl-cta-ink);
+    padding: 0 var(--tl-space-4);
+    block-size: 30px;
+    font-size: var(--tl-font-size-sm);
+    font-weight: var(--tl-font-weight-semibold);
+    /* The `font: inherit` reset leaves buttons with the UA's normal line box,
+       which sits the label 1px below centre in a fixed-height pill; an explicit
+       line-height makes it optically centred against the view labels. */
+    line-height: 30px;
+    cursor: pointer;
+  }
+  .tl-pill__cta:hover {
+    background: var(--tl-cta-bg-hover);
+  }
+  .tl-pill__caption {
+    pointer-events: none;
+    margin: 0;
+    font-size: var(--tl-font-size-xs);
+    color: var(--tl-text-tertiary);
+  }
+
+  /* ---------------- EmptyState ---------------- */
+  .tl-empty {
+    display: grid;
+    place-content: center;
+    gap: var(--tl-space-2);
+    padding: var(--tl-space-10) var(--tl-space-4);
+    text-align: center;
+    color: var(--tl-text-tertiary);
+  }
+  .tl-empty--compact {
+    padding: var(--tl-space-6) var(--tl-space-2);
+  }
+  .tl-empty__icon {
+    display: grid;
+    place-items: center;
+    color: var(--tl-text-disabled);
+  }
+  .tl-empty__msg {
+    margin: 0;
+    font-size: var(--tl-font-size-base);
+  }
+  .tl-empty__hint {
+    margin: 0;
+    font-size: var(--tl-font-size-sm);
+    /* A hint is real reading copy, not a disabled control; disabled ink is
+       ~2.1–2.4:1 in dark mode. */
+    color: var(--tl-text-tertiary);
+  }
+
+  /* ---------------- TextField ---------------- */
+  .tl-field {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    padding: 0 var(--tl-space-2);
+    border: 1px solid transparent;
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-surface-subtle);
+    transition:
+      background var(--tl-duration-fast) var(--tl-ease-standard),
+      border-color var(--tl-duration-fast) var(--tl-ease-standard);
+  }
+  .tl-field:hover {
+    background: var(--tl-surface-hover);
+  }
+  .tl-field--focused {
+    background: var(--tl-surface);
+    border-color: var(--tl-accent);
+    box-shadow: 0 0 0 3px var(--tl-accent-tint);
+  }
+  .tl-field__icon {
+    display: inline-flex;
+    color: var(--tl-text-tertiary);
+  }
+  .tl-field__input {
+    flex: 1;
+    min-inline-size: 0;
+    block-size: 30px;
+    border: 0;
+    background: transparent;
+    outline: none;
+    font-size: var(--tl-font-size-base);
+    color: var(--tl-text);
+  }
+  .tl-field__input::placeholder {
+    color: var(--tl-text-tertiary);
+  }
+
+  /* ---------------- Popover ---------------- */
+  .tl-popover {
+    position: fixed;
+    z-index: var(--tl-z-popover);
+    max-block-size: 70vh;
+    overflow: auto;
+    padding: var(--tl-space-2);
+    /* `width` is set inline by Popover.tsx as a single box size. Without
+       border-box the 8px padding + 1px border were added on top, so every
+       popover painted 18px wider than requested and — with `align="end"` —
+       its right edge slid 18px past the trigger that anchors it. */
+    box-sizing: border-box;
+    border: 1px solid var(--tl-border);
+    border-radius: var(--tl-radius-lg);
+    background: var(--tl-surface);
+    box-shadow: var(--tl-shadow-lg);
+  }
+
+  /* ---------------- CollapsibleSection ---------------- */
+  .tl-collapse__trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-1);
+    inline-size: 100%;
+    padding: var(--tl-space-2) 0;
+    border: 0;
+    background: transparent;
+    color: var(--tl-text-secondary);
+    font-size: var(--tl-font-size-sm);
+    cursor: pointer;
+    border-radius: var(--tl-radius-sm);
+  }
+  .tl-collapse__trigger:hover {
+    color: var(--tl-text);
+  }
+  .tl-collapse__chev {
+    transition: rotate var(--tl-duration-fast) var(--tl-ease-standard);
+    rotate: 0deg;
+  }
+  .tl-collapse__chev--closed {
+    rotate: -90deg;
+  }
+  .tl-collapse__title {
+    font-weight: var(--tl-font-weight-medium);
+  }
+  .tl-collapse__count {
+    /* A real count next to the section title; tertiary misses 4.5:1 in dark. */
+    color: var(--tl-text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
+  .tl-collapse__panel {
+    display: grid;
+    gap: 2px;
+  }
+  .tl-collapse__footer {
+    padding-block-start: var(--tl-space-2);
+  }
+
+  /* ---------------- ScrollArea ---------------- */
+  .tl-scroll {
+    min-block-size: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  }
+  .tl-scroll--y {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .tl-scroll--x {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+  .tl-scroll--both {
+    overflow: auto;
+  }
+  .tl-scroll::-webkit-scrollbar {
+    inline-size: 8px;
+    block-size: 8px;
+  }
+  .tl-scroll::-webkit-scrollbar-thumb {
+    background: var(--tl-scrollbar-thumb);
+    border-radius: var(--tl-radius-full);
+  }
+  .tl-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--tl-scrollbar-thumb-hover);
+  }
+  .tl-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+/* ============================================================================
+   Branded native <select>
+   ----------------------------------------------------------------------------
+   `appearance: base-select` exposes the select's internal parts (button,
+   picker list, arrow, checkmark) to CSS while the browser keeps focus
+   management, keyboard handling, IME and screen-reader bindings — which is why
+   this is preferred over a hand-built listbox. Browsers without support ignore
+   it and render their normal OS dropdown, so it degrades to the native control
+   rather than breaking.
+
+   Opting into base-select gives up the OS's own picker (e.g. the iOS wheel
+   picker). That is an accepted trade here: this app targets desktop webviews,
+   and an unstyled white OS list inside a dark app is exactly the defect this
+   fixes.
+   ========================================================================== */
+@layer tl.components {
+  .tl-select {
+    appearance: base-select;
+    /* `base-select` stops the UA sizing the trigger from its longest option, so
+       a short current value ("多日") clipped the wider labels ("多日视图",
+       "年视图", "日程视图") that appear when the control re-opens or when the
+       value changes. Size from the longest CJK label (4 glyphs at 1em each,
+       plus a safety glyph) + the inline padding + room for the ::picker-icon.
+       8.5em ≈ 111px at the 13px body size, which clears "多日视图" with the
+       arrow; callers may still raise it (a full-width field wins). */
+    min-inline-size: 8.5em;
+    /* Keep the current value clear of the UA-placed picker icon. */
+    padding-inline-end: calc(var(--tl-space-3) + 18px);
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  /* The UA positions the icon at the inline-end edge; the padding above reserves
+     its footprint so the label never runs under it. */
+  .tl-select::picker-icon {
+    margin-inline-start: 4px;
+  }
+
+  .tl-select::picker(select) {
+    appearance: base-select;
+    margin-block-start: 4px;
+    padding: 4px;
+    border: 1px solid var(--tl-border);
+    border-radius: var(--tl-radius-md);
+    background: var(--tl-surface-raised);
+    box-shadow: var(--tl-shadow-lg);
+    color: var(--tl-text);
+    font: inherit;
+  }
+
+  .tl-select::picker-icon {
+    color: var(--tl-text-secondary);
+    transition: rotate var(--tl-duration-fast) var(--tl-ease-standard);
+  }
+
+  .tl-select:open::picker-icon {
+    rotate: 180deg;
+  }
+
+  .tl-select option {
+    display: flex;
+    align-items: center;
+    gap: var(--tl-space-2);
+    padding: 6px 10px;
+    border-radius: var(--tl-radius-sm);
+    color: var(--tl-text);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .tl-select option:hover,
+  .tl-select option:focus-visible {
+    background: var(--tl-surface-hover);
+    outline: none;
+  }
+
+  .tl-select option:checked {
+    background: var(--tl-accent-tint);
+    color: var(--tl-accent-ink, var(--tl-accent));
+    font-weight: var(--tl-font-weight-medium);
+  }
+
+  .tl-select option::checkmark {
+    color: var(--tl-accent-ink, var(--tl-accent));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tl-select::picker-icon {
+      transition: none;
+    }
+  }
+}
+
+/* A disabled branded select must *look* disabled. `.tk-input:disabled` styles
+   the calendar's variant, but the bare `.tl-select` had no rule, so a disabled
+   list select in a dark palette still read as interactive. */
+.tl-select:disabled {
+  background: var(--tl-surface-sunken);
+  color: var(--tl-text-disabled);
+  cursor: not-allowed;
+  opacity: 1;
+}
+
+.tl-select:disabled::picker-icon {
+  color: var(--tl-text-disabled);
+}

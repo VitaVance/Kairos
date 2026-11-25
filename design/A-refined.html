@@ -1,0 +1,2192 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION A — "REFINED TICKTICK"
+  Positioning: The same airy pastel workday, rebuilt on a real type scale, a 4px rhythm
+  and a curated 8-hue palette. An evolution of TickTick, not a rebrand.
+
+  What makes it distinct:
+  • Typography does the work — 13px body / 11.5px meta, tabular times, baseline-aligned
+    title bars. Dense information without visual noise.
+  • Color is restrained — the exact 4 semantic quadrant hues plus 8 desaturated list tints;
+    chip text is near-black (#2c2c2e), never colored.
+  • Depth is earned — 1px hairlines everywhere; layered shadow exists only on the floating
+    view pill and on hovered cards.
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Refined TickTick — 桌面端设计方向 A</title>
+<style>
+/* ============================================================================
+   DESIGN TOKENS — Refined TickTick
+   These tokens are the seed of the app's design system. Every value used in the
+   mockup below resolves to one of these (or a layout token in the same block).
+   ========================================================================== */
+:root {
+  /* ---- Canvas & surfaces ------------------------------------------------ */
+  --bg-app:            #f5f5f6;   /* window background                      */
+  --bg-surface:        #ffffff;   /* cards, panels, title bar               */
+  --bg-rail:           #fbfbfc;   /* left icon rail                         */
+  --bg-subtle:         #fafafa;   /* weekday header, quiet fills            */
+  --bg-hover:          #f4f4f5;   /* hover on neutral controls              */
+  --bg-outside:        #fbfbfc;   /* out-of-month calendar cells            */
+  --bg-weekend:        #fcfcfd;   /* weekend calendar cells                 */
+  --hairline:          #ececee;   /* the one and only 1px line              */
+  --hairline-soft:     #f2f2f4;   /* inner grid lines                       */
+  --hairline-strong:   #e3e3e6;   /* device frame edge                      */
+
+  /* ---- Ink -------------------------------------------------------------- */
+  --ink-1:             #1d1d1f;   /* primary text                           */
+  --ink-2:             #6e6e73;   /* secondary text, times                  */
+  --ink-3:             #a1a1a6;   /* tertiary metadata, labels              */
+  --ink-4:             #c7c7cc;   /* disabled / struck-through              */
+  --ink-chip:          #2c2c2e;   /* text on pastel chips — never colored   */
+  --ink-inverse:       #ffffff;
+
+  /* ---- Brand & actions -------------------------------------------------- */
+  --accent:            #3b82f6;   /* calendar today, links, active rail     */
+  --accent-soft:       #eef4ff;   /* active rail / add button fill          */
+  --upgrade:           #ff9500;   /* premium pill CTA                       */
+  --danger:            #ff5252;   /* help badge / destructive accents       */
+
+  /* ---- Eisenhower quadrant semantics (exact reference hues) ------------- */
+  --q1:                #ff5252;   /* 重要且紧急                              */
+  --q1-soft:           #fff0ef;
+  --q2:                #ff9500;   /* 重要不紧急                              */
+  --q2-soft:           #fff6e8;
+  --q3:                #3b82f6;   /* 不重要但紧急                            */
+  --q3-soft:           #eff5ff;
+  --q4:                #10b981;   /* 不重要不紧急                            */
+  --q4-soft:           #ebf9f3;
+
+  /* ---- List hues — a curated, desaturated set of 8 ---------------------- */
+  --hue-blue:          #5b8def;   --hue-blue-bg:   #eef4ff;  /* 工作        */
+  --hue-teal:          #3aa88b;   --hue-teal-bg:   #eaf7f2;  /* 习惯        */
+  --hue-amber:         #d99a3d;   --hue-amber-bg:  #fcf3e2;  /* 生活 / 阅读 */
+  --hue-coral:         #dd7366;   --hue-coral-bg:  #fdefec;  /* 收集箱      */
+  --hue-lilac:         #8b79c9;   --hue-lilac-bg:  #f3effb;  /* 学习        */
+  --hue-rose:          #c56d92;   --hue-rose-bg:   #fbeef3;  /* 家庭        */
+  --hue-sage:          #88a35c;   --hue-sage-bg:   #f1f5e9;  /* 健康        */
+  --hue-sky:           #4a9cc0;   --hue-sky-bg:    #eaf5fa;  /* 会议 / 其他 */
+
+  /* ---- Radii ------------------------------------------------------------ */
+  --radius-frame:      12px;      /* device frame / large cards             */
+  --radius-panel:      10px;      /* calendar panels                        */
+  --radius-row:         8px;      /* task row hover target                  */
+  --radius-chip:        6px;      /* event chips (month + week)             */
+  --radius-control:     7px;      /* nav group, dropdowns                   */
+  --radius-pill:      999px;      /* floating view switcher                 */
+
+  /* ---- Type scale ------------------------------------------------------- */
+  --font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --text-2xs:         10.5px;     /* captions, hour labels                  */
+  --text-xs:          11px;       /* chip time, weekday header              */
+  --text-meta:        11.5px;     /* task metadata, secondary labels        */
+  --text-sm:          12px;       /* chip title, compact controls           */
+  --text-body:        13px;       /* task title, body copy                  */
+  --text-md:          14px;       /* quadrant labels                        */
+  --text-title:       18px;       /* view title                             */
+  --text-display:     26px;       /* page identity only                     */
+
+  /* ---- 4px spacing rhythm ----------------------------------------------- */
+  --sp-1: 4px;  --sp-2: 8px;  --sp-3: 12px;
+  --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
+  --sp-8: 32px; --sp-12: 48px; --sp-14: 56px;
+
+  /* ---- Layout tokens ---------------------------------------------------- */
+  --rail-width:        56px;
+  --titlebar-height:   60px;
+  --content-pad-x:     20px;
+  --content-pad-top:   16px;
+  --content-pad-bottom: 104px;     /* reservation for the floating pill      */
+  --frame-height:      940px;   /* 1680 × 940 mock surface                */
+  --hour-height:       54px;      /* week grid: 08:00 → 21:00 = 13 rows     */
+
+  /* ---- Shadows — only where depth is earned ----------------------------- */
+  --shadow-card-hover: 0 1px 2px rgba(20,20,25,.04),
+                       0 6px 18px -8px rgba(20,20,25,.10);
+  --shadow-pill:       0 1px 2px rgba(0,0,0,.14),
+                       0 10px 28px -10px rgba(0,0,0,.32),
+                       0 30px 60px -24px rgba(0,0,0,.26);
+}
+
+/* ============================================================================
+   BASE
+   ========================================================================== */
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  min-width: 1180px;
+  background: var(--bg-app);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid rgba(59,130,246,.55);
+  outline-offset: 2px;
+}
+svg { display: block; }
+[hidden] { display: none !important; }
+::selection { background: #dbe8ff; }
+
+/* ============================================================================
+   PAGE SHELL — presentation only, outside the product
+   ========================================================================== */
+.page {
+  max-width: 1744px;
+  margin: 0 auto;
+  padding: var(--sp-14) var(--sp-8) 96px;
+}
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  padding-bottom: var(--sp-6);
+  border-bottom: 1px solid var(--hairline);
+}
+.eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.eyebrow .mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--ink-1);
+  color: var(--ink-inverse);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.page-head h1 {
+  margin: var(--sp-3) 0 var(--sp-2);
+  font-size: var(--text-display);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -.025em;
+}
+.lede {
+  margin: 0;
+  max-width: 620px;
+  font-size: var(--text-body);
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.head-meta {
+  flex: none;
+  text-align: right;
+  font-size: var(--text-2xs);
+  line-height: 1.9;
+  color: var(--ink-3);
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+}
+.head-meta strong {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+.showcase { margin-top: var(--sp-14); }
+.section-cap {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  padding: 0 2px;
+}
+.cap-index {
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: .12em;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.section-cap h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.01em;
+  color: var(--ink-1);
+}
+.cap-note { font-size: var(--text-meta); color: var(--ink-3); }
+.cap-meta {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  letter-spacing: .07em;
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   DEVICE FRAME + APP SHELL
+   ========================================================================== */
+.device {
+  position: relative;
+  height: var(--frame-height);
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-frame);
+  overflow: hidden;
+}
+.app {
+  display: grid;
+  grid-template-columns: var(--rail-width) minmax(0, 1fr);
+  height: 100%;
+  background: var(--bg-app);
+}
+.main {
+  position: relative;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--bg-app);
+}
+
+/* ---- Left icon rail ------------------------------------------------------ */
+.rail {
+  background: var(--bg-rail);
+  border-right: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--sp-3) 0;
+  gap: var(--sp-1);
+}
+.rail-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #ded8ce 0%, #c4baab 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: .02em;
+  box-shadow: 0 0 0 1px rgba(20,20,25,.05), 0 0 0 3px var(--bg-rail);
+  margin-bottom: var(--sp-3);
+  flex: none;
+}
+.rail-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  transition: background .15s ease, color .15s ease;
+}
+.rail-btn:hover { background: #f0f0f2; color: var(--ink-1); }
+.rail-btn.is-active { background: var(--accent-soft); color: var(--accent); }
+.rail-btn.rail-help { color: var(--danger); background: rgba(255,82,82,.07); }
+.rail-btn.rail-help:hover { background: rgba(255,82,82,.11); }
+.rail-sep {
+  width: 20px;
+  height: 1px;
+  background: var(--hairline);
+  margin: var(--sp-1) 0;
+  flex: none;
+}
+.rail-spacer { flex: 1; }
+.rail-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+  box-shadow: 0 0 0 2px var(--bg-rail);
+}
+
+/* ---- Title bar ----------------------------------------------------------- */
+.titlebar {
+  height: var(--titlebar-height);
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0 var(--content-pad-x);
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--hairline);
+}
+.tb-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+.tb-title {
+  font-size: var(--text-title);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -.015em;
+  white-space: nowrap;
+}
+.tb-sub {
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  padding-left: 10px;
+  border-left: 1px solid var(--hairline);
+  line-height: 12px;
+}
+.tb-right {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.tb-add {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  transition: background .15s ease, transform .15s ease;
+}
+.tb-add:hover { background: #e2edff; }
+.tb-add:active { transform: scale(.96); }
+.tb-select {
+  height: 28px;
+  padding: 0 9px 0 10px;
+  border-radius: var(--radius-control);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  transition: background .15s ease, color .15s ease;
+}
+.tb-select:hover { background: var(--bg-hover); color: var(--ink-1); }
+.tb-select svg { color: var(--ink-3); }
+.nav-group {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.nav-group button {
+  height: 100%;
+  padding: 0 9px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  transition: background .15s ease, color .15s ease;
+}
+.nav-group button + button { border-left: 1px solid var(--hairline); }
+.nav-group button:hover { background: var(--bg-hover); color: var(--ink-1); }
+.nav-group .nav-today { font-weight: 500; color: var(--ink-1); }
+.nav-group svg { color: var(--ink-3); }
+.tb-more {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control);
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  transition: background .15s ease, color .15s ease;
+}
+.tb-more:hover { background: var(--bg-hover); color: var(--ink-1); }
+
+/* ---- Shared view container ---------------------------------------------- */
+.view {
+  flex: 1;
+  min-height: 0;
+  padding: var(--content-pad-top) var(--content-pad-x) var(--content-pad-bottom);
+  position: relative;
+}
+
+/* ============================================================================
+   VIEW 1 — EISENHOWER MATRIX
+   ========================================================================== */
+.matrix {
+  height: 100%;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  min-height: 0;
+}
+.qcard {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-frame);
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+.qcard:hover {
+  border-color: #e0e0e4;
+  box-shadow: var(--shadow-card-hover);
+}
+.q-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 15px var(--sp-4) 10px;
+}
+.q-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+.q-label {
+  font-size: var(--text-md);
+  font-weight: 600;
+  letter-spacing: -.005em;
+}
+.q-count {
+  margin-left: auto;
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.q-1 .q-badge { background: var(--q1-soft); color: var(--q1); }
+.q-1 .q-label { color: var(--q1); }
+.q-2 .q-badge { background: var(--q2-soft); color: var(--q2); }
+.q-2 .q-label { color: var(--q2); }
+.q-3 .q-badge { background: var(--q3-soft); color: var(--q3); }
+.q-3 .q-label { color: var(--q3); }
+.q-4 .q-badge { background: var(--q4-soft); color: var(--q4); }
+.q-4 .q-label { color: var(--q4); }
+
+.q-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  padding: 2px 10px var(--sp-3);
+  display: flex;
+  flex-direction: column;
+}
+.task-row {
+  flex: none;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-row);
+  transition: background .13s ease;
+}
+.task-row:hover { background: #f8f8f9; }
+.task-check {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  border: 1.5px solid #d4d4d9;
+  border-radius: 50%;
+  background: transparent;
+  color: transparent;
+  display: grid;
+  place-items: center;
+  transition: border-color .13s ease, background .13s ease;
+}
+.task-row:hover .task-check { border-color: var(--accent); }
+.task-check svg { opacity: 0; }
+.task-row.is-done .task-check {
+  background: #d9d9de;
+  border-color: #d9d9de;
+  color: #fff;
+}
+.task-row.is-done .task-check svg { opacity: 1; }
+.task-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-body);
+  color: var(--ink-1);
+  letter-spacing: -.003em;
+}
+.task-row.is-done .task-title {
+  color: var(--ink-4);
+  text-decoration: line-through;
+  text-decoration-color: #d0d0d5;
+}
+.task-meta {
+  margin-left: auto;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.task-time { color: var(--ink-2); }
+.task-list {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+.task-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  display: block;
+  flex: none;
+}
+.add-row {
+  flex: none;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 2px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--radius-row);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  transition: background .13s ease, color .13s ease;
+}
+.add-row:hover { background: #f8f8f9; color: var(--ink-2); }
+.add-row svg { flex: none; }
+
+/* Empty quadrant */
+.q-empty {
+  flex: 1;
+  margin: 0 var(--sp-2) var(--sp-2);
+  border-radius: var(--radius-panel);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  background-image:
+    radial-gradient(circle at 50% 48%, #fff 0 33%, rgba(255,255,255,0) 65%),
+    radial-gradient(#eeeeef 1px, transparent 1.2px);
+  background-size: auto, 20px 20px;
+  background-position: center, center;
+}
+.empty-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #f7f7f8;
+  color: #c7c7cc;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 6px rgba(247,247,248,.65);
+}
+.empty-title {
+  font-size: var(--text-body);
+  color: #b3b3b8;
+  line-height: 1.4;
+}
+.empty-sub {
+  margin-top: -3px;
+  font-size: var(--text-meta);
+  color: #c4c4c9;
+}
+
+/* Completed group inside Q4 */
+.completed {
+  flex: none;
+  margin: 10px var(--sp-2) 0;
+  padding-top: 4px;
+  border-top: 1px solid var(--hairline);
+}
+.completed-toggle {
+  width: 100%;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-meta);
+  color: var(--ink-3);
+  text-align: left;
+  transition: color .13s ease;
+}
+.completed-toggle:hover { color: var(--ink-2); }
+.completed-toggle svg { transition: transform .18s ease; }
+.completed-toggle[aria-expanded="false"] svg { transform: rotate(-90deg); }
+.completed-list { display: flex; flex-direction: column; }
+.crow {
+  height: 20px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-2);
+  font-size: var(--text-sm);
+  color: var(--ink-4);
+  font-variant-numeric: tabular-nums;
+}
+.crow .task-check {
+  width: 14px;
+  height: 14px;
+  background: #ededf0;
+  border-color: #ededf0;
+  color: #fff;
+}
+.crow .crow-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-decoration: line-through;
+  text-decoration-color: #d8d8dc;
+}
+.crow .crow-when {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-xs);
+  color: #c2c2c7;
+  text-decoration: none;
+}
+.more-link {
+  height: 22px;
+  margin-top: 1px;
+  padding: 0 var(--sp-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  align-self: flex-start;
+  font-size: var(--text-meta);
+  color: var(--accent);
+  border-radius: 5px;
+  transition: background .13s ease;
+}
+.more-link:hover { background: var(--accent-soft); }
+
+/* ============================================================================
+   VIEW 2 — MONTH
+   ========================================================================== */
+.month {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+}
+.month-head {
+  flex: none;
+  height: 32px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: center;
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--hairline);
+}
+.month-head span {
+  text-align: center;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: .03em;
+}
+.month-grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(5, minmax(0, 1fr));
+}
+.day {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 6px var(--sp-1);
+  background: var(--bg-surface);
+  border-right: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+}
+.day:nth-child(7n) { border-right: 0; }
+.day:nth-child(n+29) { border-bottom: 0; }
+.day.is-weekend { background: var(--bg-weekend); }
+.day.is-out { background: var(--bg-outside); }
+.day.is-today { background: #f8fbff; }
+.day-top {
+  flex: none;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  padding-left: 2px;
+}
+.day-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.day.is-out .day-num { color: var(--ink-4); font-weight: 400; }
+.day.is-today .day-num {
+  background: var(--accent);
+  color: var(--ink-inverse);
+  font-weight: 600;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.08);
+}
+.chips {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.chip {
+  flex: none;
+  height: 20px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px 0 7px;
+  border-radius: var(--radius-chip);
+  background: var(--tint-bg);
+  border-left: 2px solid var(--tint);
+  color: var(--ink-chip);
+  transition: filter .13s ease;
+}
+.chip:hover { filter: saturate(1.07) brightness(.985); }
+.chip-box {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border: 1px solid var(--tint);
+  border-radius: 2px;
+  opacity: .78;
+}
+.chip-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-sm);
+  line-height: 1;
+  letter-spacing: -.006em;
+}
+.chip-time {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-xs);
+  color: #74747a;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Hue helpers (shared by month chips + week events) ------------------ */
+.tint-blue  { --tint: var(--hue-blue);  --tint-bg: var(--hue-blue-bg); }
+.tint-teal  { --tint: var(--hue-teal);  --tint-bg: var(--hue-teal-bg); }
+.tint-amber { --tint: var(--hue-amber); --tint-bg: var(--hue-amber-bg); }
+.tint-coral { --tint: var(--hue-coral); --tint-bg: var(--hue-coral-bg); }
+.tint-lilac { --tint: var(--hue-lilac); --tint-bg: var(--hue-lilac-bg); }
+.tint-rose  { --tint: var(--hue-rose);  --tint-bg: var(--hue-rose-bg); }
+.tint-sage  { --tint: var(--hue-sage);  --tint-bg: var(--hue-sage-bg); }
+.tint-sky   { --tint: var(--hue-sky);   --tint-bg: var(--hue-sky-bg); }
+
+/* ============================================================================
+   VIEW 3 — WEEK
+   ========================================================================== */
+.week {
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+}
+.week-head {
+  display: grid;
+  grid-template-columns: var(--rail-width) repeat(7, minmax(0, 1fr));
+  height: 52px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--bg-surface);
+}
+.wh-gutter { border-right: 1px solid var(--hairline); }
+.wh {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-right: 1px solid var(--hairline-soft);
+}
+.wh:last-child { border-right: 0; }
+.wh-day {
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  letter-spacing: .03em;
+  line-height: 1;
+}
+.wh-num {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink-1);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.wh.is-today .wh-day { color: var(--accent); font-weight: 500; }
+.wh.is-today .wh-num { background: var(--accent); color: var(--ink-inverse); font-weight: 600; }
+
+.week-body {
+  display: grid;
+  grid-template-columns: var(--rail-width) repeat(7, minmax(0, 1fr));
+  height: calc(var(--hour-height) * 13);
+  background: var(--bg-surface);
+}
+.week-gutter {
+  border-right: 1px solid var(--hairline);
+  background: var(--bg-surface);
+}
+.hour-lbl {
+  height: var(--hour-height);
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--sp-1) var(--sp-2) 0 0;
+  font-size: var(--text-2xs);
+  line-height: 1;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.week-col {
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid var(--hairline-soft);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    #f1f1f3 0,
+    #f1f1f3 1px,
+    transparent 1px,
+    transparent var(--hour-height)
+  );
+}
+.week-col:last-child { border-right: 0; }
+.week-col.is-today { background-color: #f8fbff; }
+
+.event {
+  position: absolute;
+  left: var(--sp-1);
+  right: var(--sp-1);
+  overflow: hidden;
+  padding: 4px 7px;
+  border-left: 2px solid var(--tint);
+  border-radius: var(--radius-chip);
+  background: var(--tint-bg);
+  color: var(--ink-chip);
+  transition: filter .13s ease;
+}
+.event:hover { filter: saturate(1.06) brightness(.985); }
+.event-title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.25;
+  letter-spacing: -.006em;
+}
+.event-time {
+  margin-top: 1px;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  color: #707076;
+  font-variant-numeric: tabular-nums;
+}
+/* 30-minute events: single line, time inline on the right */
+.event.is-short {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+}
+.event.is-short .event-title {
+  min-width: 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1;
+}
+.event.is-short .event-time {
+  margin: 0 0 0 auto;
+  flex: none;
+  font-size: var(--text-2xs);
+  line-height: 1;
+}
+
+.now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 244px;
+  height: 1px;
+  background: rgba(59,130,246,.5);
+  z-index: 3;
+  pointer-events: none;
+}
+.now-line::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px #fff;
+}
+
+/* ============================================================================
+   FLOATING VIEW SWITCHER (persistent)
+   ========================================================================== */
+.pill-wrap {
+  position: absolute;
+  left: 50%;
+  bottom: var(--sp-3);
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  pointer-events: none;
+}
+.view-pill {
+  pointer-events: auto;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 6px 5px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(58,58,60,.93);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: var(--shadow-pill);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.pill-tab {
+  height: 34px;
+  padding: 0 11px;
+  border-radius: var(--radius-pill);
+  color: #c9c9cd;
+  font-size: var(--text-sm);
+  letter-spacing: .01em;
+  white-space: nowrap;
+  transition: background .14s ease, color .14s ease;
+}
+.pill-tab:hover { color: #fff; background: rgba(255,255,255,.06); }
+.pill-tab.is-active {
+  color: #fff;
+  font-weight: 500;
+  background: rgba(255,255,255,.14);
+}
+.upgrade-btn {
+  height: 34px;
+  margin-left: 6px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--upgrade);
+  color: #fff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.14);
+  transition: background .14s ease;
+}
+.upgrade-btn:hover { background: #f08c00; }
+.pill-caption {
+  font-size: var(--text-2xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+  letter-spacing: .01em;
+}
+
+/* ============================================================================
+   MOTION PREFERENCES
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .001ms !important; }
+}
+
+@media (max-width: 1320px) {
+  .page { padding-left: var(--sp-5); padding-right: var(--sp-5); }
+  .cap-note { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ======================================================================
+       PRESENTATION HEADER
+       ==================================================================== -->
+  <header class="page-head">
+    <div>
+      <div class="eyebrow"><span class="mark">A</span> Design direction / refined familiar</div>
+      <h1>Refined TickTick</h1>
+      <p class="lede">保留滴答清单轻盈的粉彩气质，用真实的字阶、4px 节奏与克制的色彩，把熟悉的界面做高一个完成度。</p>
+    </div>
+    <div class="head-meta">
+      <strong>Windows desktop</strong><br>
+      1680 × 940 · 静态高保真样稿<br>
+      2026 · 09 · 今日 9月6日 周三
+    </div>
+  </header>
+
+  <!-- ======================================================================
+       SECTION 01 — 四象限
+       ==================================================================== -->
+  <section class="showcase" aria-label="四象限视图样稿">
+    <div class="section-cap">
+      <span class="cap-index">01</span>
+      <h2>四象限</h2>
+      <span class="cap-note">重要 × 紧急 · 空状态与已完成折叠</span>
+      <span class="cap-meta">VIEW 01 / 1680 × 940</span>
+    </div>
+
+    <div class="device">
+      <div class="app">
+
+        <!-- Rail -->
+        <aside class="rail" aria-label="主导航">
+          <button class="rail-avatar" type="button" aria-label="账户：陈">陈</button>
+
+          <button class="rail-btn" type="button" aria-label="任务">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="3.5"></rect>
+              <path d="M6.6 10.1l2.2 2.2 4.6-4.8"></path>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="日历">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4.5" width="14" height="12.5" rx="3"></rect>
+              <path d="M3 8.5h14M6.5 3v3M13.5 3v3"></path>
+              <path d="M6.5 11.5h.01M10 11.5h.01M13.5 11.5h.01M6.5 14.5h.01M10 14.5h.01"></path>
+            </svg>
+          </button>
+          <button class="rail-btn is-active" type="button" aria-label="四象限" aria-current="page">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="6" height="6" rx="1.6"></rect>
+              <rect x="11" y="3" width="6" height="6" rx="1.6"></rect>
+              <rect x="3" y="11" width="6" height="6" rx="1.6"></rect>
+              <rect x="11" y="11" width="6" height="6" rx="1.6"></rect>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="搜索">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.2"></circle>
+              <path d="M12.9 12.9l3.4 3.4"></path>
+            </svg>
+          </button>
+
+          <div class="rail-sep"></div>
+          <div class="rail-spacer"></div>
+
+          <button class="rail-btn" type="button" aria-label="同步">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15.7 8.3A6 6 0 1 0 16 11.8"></path>
+              <path d="M16 4.7v3.8h-3.8"></path>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="通知">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 3.5a4.6 4.6 0 0 0-4.6 4.6v2.7l-1.2 2.3h11.6l-1.2-2.3V8.1A4.6 4.6 0 0 0 10 3.5z"></path>
+              <path d="M8.3 16a1.8 1.8 0 0 0 3.4 0"></path>
+            </svg>
+            <span class="rail-badge" aria-hidden="true"></span>
+          </button>
+          <button class="rail-btn rail-help" type="button" aria-label="帮助">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="7"></circle>
+              <path d="M8.3 7.8a1.8 1.8 0 1 1 2.5 1.7c-.6.3-.8.7-.8 1.3v.3"></path>
+              <path d="M10 13.8h.01"></path>
+            </svg>
+          </button>
+        </aside>
+
+        <!-- Main -->
+        <main class="main">
+          <header class="titlebar">
+            <div class="tb-heading">
+              <div class="tb-title" role="heading" aria-level="2">四象限</div>
+              <span class="tb-sub">9月6日 周三 · 11 项待办</span>
+            </div>
+            <div class="tb-right">
+              <button class="tb-add" type="button" aria-label="新建任务">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <path d="M10 4.5v11M4.5 10h11"></path>
+                </svg>
+              </button>
+              <button class="tb-select" type="button" aria-label="切换视图：四象限">
+                四象限
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2.2 3.8 5 6.5l2.8-2.7"></path>
+                </svg>
+              </button>
+              <div class="nav-group" role="group" aria-label="日期导航">
+                <button type="button" aria-label="上一周">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6.2 2 3.4 5l2.8 3"></path>
+                  </svg>
+                </button>
+                <button class="nav-today" type="button">今天</button>
+                <button type="button" aria-label="下一周">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3.8 2 6.6 5 3.8 8"></path>
+                  </svg>
+                </button>
+              </div>
+              <button class="tb-more" type="button" aria-label="更多">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="8" r="1.15"></circle>
+                  <circle cx="8" cy="8" r="1.15"></circle>
+                  <circle cx="13" cy="8" r="1.15"></circle>
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="view">
+            <div class="matrix">
+
+              <!-- Q1 -->
+              <section class="qcard q-1" aria-label="重要且紧急">
+                <header class="q-head">
+                  <span class="q-badge" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M9.2 1.8 3.6 8.9h3.7l-.9 5.3 5.9-7.4H8.6l.6-5z"></path>
+                    </svg>
+                  </span>
+                  <h2 class="q-label">重要且紧急</h2>
+                  <span class="q-count">4 项</span>
+                </header>
+                <div class="q-body">
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：制定营销策略">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">制定营销策略</span>
+                    <span class="task-meta">
+                      <span class="task-time">10:30</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-blue)"></i>工作</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：产品评审">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">产品评审</span>
+                    <span class="task-meta">
+                      <span class="task-time">14:00</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-sky)"></i>工作</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：线上会议">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">线上会议</span>
+                    <span class="task-meta">
+                      <span class="task-time">16:00</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-sky)"></i>工作</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：撰写周报">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">撰写周报</span>
+                    <span class="task-meta">
+                      <span class="task-time">18:00</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-blue)"></i>工作</span>
+                    </span>
+                  </div>
+                  <button class="add-row" type="button">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2.5v7M2.5 6h7"></path></svg>
+                    添加任务
+                  </button>
+                </div>
+              </section>
+
+              <!-- Q2 -->
+              <section class="qcard q-2" aria-label="重要不紧急">
+                <header class="q-head">
+                  <span class="q-badge" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="8" cy="8" r="5.6"></circle>
+                      <path d="M8 4.8v3.5l2.4 1.4"></path>
+                    </svg>
+                  </span>
+                  <h2 class="q-label">重要不紧急</h2>
+                  <span class="q-count">4 项</span>
+                </header>
+                <div class="q-body">
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：晨跑">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">晨跑</span>
+                    <span class="task-meta">
+                      <span class="task-time">07:30</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-teal)"></i>习惯</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：部门培训">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">部门培训</span>
+                    <span class="task-meta">
+                      <span class="task-time">15:00</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-lilac)"></i>学习</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：阅读名人传记">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">阅读名人传记</span>
+                    <span class="task-meta">
+                      <span class="task-time">20:00</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-amber)"></i>学习</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：和妈妈逛街">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">和妈妈逛街</span>
+                    <span class="task-meta">
+                      <span class="task-time">周六</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-rose)"></i>家庭</span>
+                    </span>
+                  </div>
+                  <button class="add-row" type="button">
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M6 2.5v7M2.5 6h7"></path></svg>
+                    添加任务
+                  </button>
+                </div>
+              </section>
+
+              <!-- Q3 — empty state -->
+              <section class="qcard q-3" aria-label="不重要但紧急">
+                <header class="q-head">
+                  <span class="q-badge" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M4.2 5.2a3.8 3.8 0 0 1 7.6 0c0 2.1 1.1 3.4 1.1 3.4H3.1s1.1-1.3 1.1-3.4z"></path>
+                      <path d="M6.7 12.4a1.55 1.55 0 0 0 2.6 0"></path>
+                    </svg>
+                  </span>
+                  <h2 class="q-label">不重要但紧急</h2>
+                  <span class="q-count">0 项</span>
+                </header>
+                <div class="q-body">
+                  <div class="q-empty">
+                    <span class="empty-icon" aria-hidden="true">
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M4 10.2l3.5 3.4L16 5.8"></path>
+                      </svg>
+                    </span>
+                    <span class="empty-title">没有任务</span>
+                    <span class="empty-sub">暂时没有被琐事打断</span>
+                  </div>
+                </div>
+              </section>
+
+              <!-- Q4 -->
+              <section class="qcard q-4" aria-label="不重要不紧急">
+                <header class="q-head">
+                  <span class="q-badge" aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M13.8 2.6c-6 .2-9.8 3.1-9.8 7.3 0 1.7 1 3 2.7 3 4.2 0 7.1-3.9 7.1-10.3z"></path>
+                      <path d="M3.1 13.8c1.4-3.2 3.4-5.4 5.8-6.9"></path>
+                    </svg>
+                  </span>
+                  <h2 class="q-label">不重要不紧急</h2>
+                  <span class="q-count">3 项</span>
+                </header>
+                <div class="q-body">
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：拿快递">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">拿快递</span>
+                    <span class="task-meta">
+                      <span class="task-time">17:30</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-coral)"></i>收集箱</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：整理音乐播放列表">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">整理音乐播放列表</span>
+                    <span class="task-meta">
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-coral)"></i>收集箱</span>
+                    </span>
+                  </div>
+                  <div class="task-row">
+                    <button class="task-check" type="button" role="checkbox" aria-checked="false" aria-label="完成：瑜伽课">
+                      <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 8.5l3.2 3.2L13 5"></path></svg>
+                    </button>
+                    <span class="task-title">瑜伽课</span>
+                    <span class="task-meta">
+                      <span class="task-time">19:00</span>
+                      <span class="task-list"><i class="task-dot" style="background:var(--hue-sage)"></i>健康</span>
+                    </span>
+                  </div>
+
+                  <div class="completed">
+                    <button class="completed-toggle" type="button" data-collapse="q4-completed" aria-expanded="true" aria-controls="q4-completed">
+                      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M2.2 3.8 5 6.5l2.8-2.7"></path>
+                      </svg>
+                      已完成 5
+                    </button>
+                    <div class="completed-list" id="q4-completed">
+                      <div class="crow">
+                        <span class="task-check" aria-hidden="true"><svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"></path></svg></span>
+                        <span class="crow-title">给绿植浇水</span>
+                        <span class="crow-when">昨天</span>
+                      </div>
+                      <div class="crow">
+                        <span class="task-check" aria-hidden="true"><svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"></path></svg></span>
+                        <span class="crow-title">回复设计群消息</span>
+                        <span class="crow-when">昨天</span>
+                      </div>
+                      <div class="crow">
+                        <span class="task-check" aria-hidden="true"><svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"></path></svg></span>
+                        <span class="crow-title">整理收件箱</span>
+                        <span class="crow-when">周一</span>
+                      </div>
+                      <div class="crow">
+                        <span class="task-check" aria-hidden="true"><svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"></path></svg></span>
+                        <span class="crow-title">预约体检</span>
+                        <span class="crow-when">周一</span>
+                      </div>
+                      <div class="crow">
+                        <span class="task-check" aria-hidden="true"><svg width="8" height="8" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.2 3.2L13 5"></path></svg></span>
+                        <span class="crow-title">下载周报模板</span>
+                        <span class="crow-when">9月3日</span>
+                      </div>
+                      <button class="more-link" type="button">
+                        查看更多
+                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <path d="M3.8 2 6.6 5 3.8 8"></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+            </div>
+          </div>
+
+          <!-- Persistent floating pill -->
+          <div class="pill-wrap">
+            <div class="view-pill" role="tablist" aria-label="日历视图切换">
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">年视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">月视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">周视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">日视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">日程视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">多日视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">多周视图</button>
+              <button class="upgrade-btn" type="button">立即升级</button>
+            </div>
+            <div class="pill-caption">会员专享功能，示例数据仅供参考</div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       SECTION 02 — 月视图
+       ==================================================================== -->
+  <section class="showcase" aria-label="月视图样稿">
+    <div class="section-cap">
+      <span class="cap-index">02</span>
+      <h2>月视图</h2>
+      <span class="cap-note">7 列 5 周 · 8 组去饱和色签</span>
+      <span class="cap-meta">VIEW 02 / 1680 × 940</span>
+    </div>
+
+    <div class="device">
+      <div class="app">
+
+        <aside class="rail" aria-label="主导航">
+          <button class="rail-avatar" type="button" aria-label="账户：陈">陈</button>
+          <button class="rail-btn" type="button" aria-label="任务">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="3.5"></rect>
+              <path d="M6.6 10.1l2.2 2.2 4.6-4.8"></path>
+            </svg>
+          </button>
+          <button class="rail-btn is-active" type="button" aria-label="日历" aria-current="page">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4.5" width="14" height="12.5" rx="3"></rect>
+              <path d="M3 8.5h14M6.5 3v3M13.5 3v3"></path>
+              <path d="M6.5 11.5h.01M10 11.5h.01M13.5 11.5h.01M6.5 14.5h.01M10 14.5h.01"></path>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="四象限">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="6" height="6" rx="1.6"></rect>
+              <rect x="11" y="3" width="6" height="6" rx="1.6"></rect>
+              <rect x="3" y="11" width="6" height="6" rx="1.6"></rect>
+              <rect x="11" y="11" width="6" height="6" rx="1.6"></rect>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="搜索">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.2"></circle>
+              <path d="M12.9 12.9l3.4 3.4"></path>
+            </svg>
+          </button>
+          <div class="rail-sep"></div>
+          <div class="rail-spacer"></div>
+          <button class="rail-btn" type="button" aria-label="同步">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15.7 8.3A6 6 0 1 0 16 11.8"></path>
+              <path d="M16 4.7v3.8h-3.8"></path>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="通知">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 3.5a4.6 4.6 0 0 0-4.6 4.6v2.7l-1.2 2.3h11.6l-1.2-2.3V8.1A4.6 4.6 0 0 0 10 3.5z"></path>
+              <path d="M8.3 16a1.8 1.8 0 0 0 3.4 0"></path>
+            </svg>
+            <span class="rail-badge" aria-hidden="true"></span>
+          </button>
+          <button class="rail-btn rail-help" type="button" aria-label="帮助">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="7"></circle>
+              <path d="M8.3 7.8a1.8 1.8 0 1 1 2.5 1.7c-.6.3-.8.7-.8 1.3v.3"></path>
+              <path d="M10 13.8h.01"></path>
+            </svg>
+          </button>
+        </aside>
+
+        <main class="main">
+          <header class="titlebar">
+            <div class="tb-heading">
+              <div class="tb-title" role="heading" aria-level="2">9月</div>
+              <span class="tb-sub">2026年 · 今天 9月6日 周三</span>
+            </div>
+            <div class="tb-right">
+              <button class="tb-add" type="button" aria-label="新建日程">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <path d="M10 4.5v11M4.5 10h11"></path>
+                </svg>
+              </button>
+              <button class="tb-select" type="button" aria-label="切换视图：月">
+                月
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2.2 3.8 5 6.5l2.8-2.7"></path>
+                </svg>
+              </button>
+              <div class="nav-group" role="group" aria-label="日期导航">
+                <button type="button" aria-label="上个月">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6.2 2 3.4 5l2.8 3"></path>
+                  </svg>
+                </button>
+                <button class="nav-today" type="button">今天</button>
+                <button type="button" aria-label="下个月">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3.8 2 6.6 5 3.8 8"></path>
+                  </svg>
+                </button>
+              </div>
+              <button class="tb-more" type="button" aria-label="更多">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="8" r="1.15"></circle>
+                  <circle cx="8" cy="8" r="1.15"></circle>
+                  <circle cx="13" cy="8" r="1.15"></circle>
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="view">
+            <div class="month">
+              <div class="month-head" aria-hidden="true">
+                <span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span>
+              </div>
+
+              <div class="month-grid">
+
+                <!-- Week 1 · 8/28 – 9/3 -->
+                <div class="day is-out"><div class="day-top"><span class="day-num">28</span></div></div>
+                <div class="day is-out"><div class="day-top"><span class="day-num">29</span></div></div>
+                <div class="day is-out"><div class="day-top"><span class="day-num">30</span></div></div>
+                <div class="day is-out"><div class="day-top"><span class="day-num">31</span></div></div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">1</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">10:30</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">15:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">2</span></div>
+                  <div class="chips">
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">14:00</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">19:30</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">3</span></div>
+                  <div class="chips">
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">11:00</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">16:00</span></div>
+                  </div>
+                </div>
+
+                <!-- Week 2 · 9/4 – 9/10 -->
+                <div class="day">
+                  <div class="day-top"><span class="day-num">4</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">08:30</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">14:00</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">19:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">5</span></div>
+                  <div class="chips">
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">15:30</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">18:30</span></div>
+                  </div>
+                </div>
+                <div class="day is-today">
+                  <div class="day-top"><span class="day-num">6</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">07:30</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">09:30</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">11:00</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">16:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">17:30</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">7</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">08:30</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">13:30</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">16:30</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">8</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">13:00</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">15:00</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">19:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">9</span></div>
+                  <div class="chips">
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">14:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">整理音乐播放列表</span><span class="chip-time">16:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">10</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">15:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">整理音乐播放列表</span><span class="chip-time">18:30</span></div>
+                  </div>
+                </div>
+
+                <!-- Week 3 · 9/11 – 9/17 -->
+                <div class="day">
+                  <div class="day-top"><span class="day-num">11</span></div>
+                  <div class="chips">
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">11:00</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">15:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">18:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">12</span></div>
+                  <div class="chips">
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">10:30</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">15:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">13</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">16:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">14</span></div>
+                  <div class="chips">
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">13:30</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">19:30</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">15</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">08:30</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">14:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">18:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">16</span></div>
+                  <div class="chips">
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">11:30</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">16:00</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">19:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">17</span></div>
+                  <div class="chips">
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">13:00</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">15:30</span></div>
+                  </div>
+                </div>
+
+                <!-- Week 4 · 9/18 – 9/24 -->
+                <div class="day">
+                  <div class="day-top"><span class="day-num">18</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">08:00</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">14:30</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">整理音乐播放列表</span><span class="chip-time">19:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">19</span></div>
+                  <div class="chips">
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">11:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">15:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">20</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:30</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">16:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">整理音乐播放列表</span><span class="chip-time">20:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">21</span></div>
+                  <div class="chips">
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">13:00</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">17:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">22</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">08:30</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">11:00</span></div>
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">15:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">23</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">10:30</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">14:00</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">19:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">24</span></div>
+                  <div class="chips">
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">13:00</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">16:00</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">20:00</span></div>
+                  </div>
+                </div>
+
+                <!-- Week 5 · 9/25 – 10/1 -->
+                <div class="day">
+                  <div class="day-top"><span class="day-num">25</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">11:30</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">15:00</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">18:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">26</span></div>
+                  <div class="chips">
+                    <div class="chip tint-rose"><span class="chip-box"></span><span class="chip-title">和妈妈逛街</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">拿快递</span><span class="chip-time">14:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">27</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-coral"><span class="chip-box"></span><span class="chip-title">整理音乐播放列表</span><span class="chip-time">16:30</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">28</span></div>
+                  <div class="chips">
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">10:00</span></div>
+                    <div class="chip tint-lilac"><span class="chip-box"></span><span class="chip-title">部门培训</span><span class="chip-time">13:30</span></div>
+                    <div class="chip tint-sky"><span class="chip-box"></span><span class="chip-title">线上会议</span><span class="chip-time">17:00</span></div>
+                  </div>
+                </div>
+                <div class="day">
+                  <div class="day-top"><span class="day-num">29</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">08:30</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">制定营销策略</span><span class="chip-time">11:00</span></div>
+                    <div class="chip tint-sage"><span class="chip-box"></span><span class="chip-title">瑜伽课</span><span class="chip-time">18:30</span></div>
+                  </div>
+                </div>
+                <div class="day is-weekend">
+                  <div class="day-top"><span class="day-num">30</span></div>
+                  <div class="chips">
+                    <div class="chip tint-teal"><span class="chip-box"></span><span class="chip-title">晨跑</span><span class="chip-time">09:00</span></div>
+                    <div class="chip tint-blue"><span class="chip-box"></span><span class="chip-title">产品评审</span><span class="chip-time">14:00</span></div>
+                    <div class="chip tint-amber"><span class="chip-box"></span><span class="chip-title">阅读名人传记</span><span class="chip-time">19:00</span></div>
+                  </div>
+                </div>
+                <div class="day is-out is-weekend">
+                  <div class="day-top"><span class="day-num">1</span></div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="pill-wrap">
+            <div class="view-pill" role="tablist" aria-label="日历视图切换">
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">年视图</button>
+              <button class="pill-tab is-active" type="button" role="tab" aria-selected="true">月视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">周视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">日视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">日程视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">多日视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">多周视图</button>
+              <button class="upgrade-btn" type="button">立即升级</button>
+            </div>
+            <div class="pill-caption">会员专享功能，示例数据仅供参考</div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+  <!-- ======================================================================
+       SECTION 03 — 周视图
+       ==================================================================== -->
+  <section class="showcase" aria-label="周视图样稿">
+    <div class="section-cap">
+      <span class="cap-index">03</span>
+      <h2>周视图</h2>
+      <span class="cap-note">08:00–21:00 · 绝对定位时间块</span>
+      <span class="cap-meta">VIEW 03 / 1680 × 940</span>
+    </div>
+
+    <div class="device">
+      <div class="app">
+
+        <aside class="rail" aria-label="主导航">
+          <button class="rail-avatar" type="button" aria-label="账户：陈">陈</button>
+          <button class="rail-btn" type="button" aria-label="任务">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3.25" y="3.25" width="13.5" height="13.5" rx="3.5"></rect>
+              <path d="M6.6 10.1l2.2 2.2 4.6-4.8"></path>
+            </svg>
+          </button>
+          <button class="rail-btn is-active" type="button" aria-label="日历" aria-current="page">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="4.5" width="14" height="12.5" rx="3"></rect>
+              <path d="M3 8.5h14M6.5 3v3M13.5 3v3"></path>
+              <path d="M6.5 11.5h.01M10 11.5h.01M13.5 11.5h.01M6.5 14.5h.01M10 14.5h.01"></path>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="四象限">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="6" height="6" rx="1.6"></rect>
+              <rect x="11" y="3" width="6" height="6" rx="1.6"></rect>
+              <rect x="3" y="11" width="6" height="6" rx="1.6"></rect>
+              <rect x="11" y="11" width="6" height="6" rx="1.6"></rect>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="搜索">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+              <circle cx="9" cy="9" r="5.2"></circle>
+              <path d="M12.9 12.9l3.4 3.4"></path>
+            </svg>
+          </button>
+          <div class="rail-sep"></div>
+          <div class="rail-spacer"></div>
+          <button class="rail-btn" type="button" aria-label="同步">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M15.7 8.3A6 6 0 1 0 16 11.8"></path>
+              <path d="M16 4.7v3.8h-3.8"></path>
+            </svg>
+          </button>
+          <button class="rail-btn" type="button" aria-label="通知">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M10 3.5a4.6 4.6 0 0 0-4.6 4.6v2.7l-1.2 2.3h11.6l-1.2-2.3V8.1A4.6 4.6 0 0 0 10 3.5z"></path>
+              <path d="M8.3 16a1.8 1.8 0 0 0 3.4 0"></path>
+            </svg>
+            <span class="rail-badge" aria-hidden="true"></span>
+          </button>
+          <button class="rail-btn rail-help" type="button" aria-label="帮助">
+            <svg width="19" height="19" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="10" cy="10" r="7"></circle>
+              <path d="M8.3 7.8a1.8 1.8 0 1 1 2.5 1.7c-.6.3-.8.7-.8 1.3v.3"></path>
+              <path d="M10 13.8h.01"></path>
+            </svg>
+          </button>
+        </aside>
+
+        <main class="main">
+          <header class="titlebar">
+            <div class="tb-heading">
+              <div class="tb-title" role="heading" aria-level="2">9月</div>
+              <span class="tb-sub">9月4日 – 9月10日 · 本周 24 项</span>
+            </div>
+            <div class="tb-right">
+              <button class="tb-add" type="button" aria-label="新建日程">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                  <path d="M10 4.5v11M4.5 10h11"></path>
+                </svg>
+              </button>
+              <button class="tb-select" type="button" aria-label="切换视图：周">
+                周
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M2.2 3.8 5 6.5l2.8-2.7"></path>
+                </svg>
+              </button>
+              <div class="nav-group" role="group" aria-label="日期导航">
+                <button type="button" aria-label="上一周">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M6.2 2 3.4 5l2.8 3"></path>
+                  </svg>
+                </button>
+                <button class="nav-today" type="button">今天</button>
+                <button type="button" aria-label="下一周">
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3.8 2 6.6 5 3.8 8"></path>
+                  </svg>
+                </button>
+              </div>
+              <button class="tb-more" type="button" aria-label="更多">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="8" r="1.15"></circle>
+                  <circle cx="8" cy="8" r="1.15"></circle>
+                  <circle cx="13" cy="8" r="1.15"></circle>
+                </svg>
+              </button>
+            </div>
+          </header>
+
+          <div class="view">
+            <div class="week">
+              <div class="week-head">
+                <div class="wh-gutter"></div>
+                <div class="wh"><span class="wh-day">周一</span><span class="wh-num">4</span></div>
+                <div class="wh"><span class="wh-day">周二</span><span class="wh-num">5</span></div>
+                <div class="wh is-today"><span class="wh-day">周三</span><span class="wh-num">6</span></div>
+                <div class="wh"><span class="wh-day">周四</span><span class="wh-num">7</span></div>
+                <div class="wh"><span class="wh-day">周五</span><span class="wh-num">8</span></div>
+                <div class="wh"><span class="wh-day">周六</span><span class="wh-num">9</span></div>
+                <div class="wh"><span class="wh-day">周日</span><span class="wh-num">10</span></div>
+              </div>
+
+              <div class="week-body">
+                <div class="week-gutter" aria-hidden="true">
+                  <div class="hour-lbl">08:00</div>
+                  <div class="hour-lbl">09:00</div>
+                  <div class="hour-lbl">10:00</div>
+                  <div class="hour-lbl">11:00</div>
+                  <div class="hour-lbl">正午</div>
+                  <div class="hour-lbl">13:00</div>
+                  <div class="hour-lbl">14:00</div>
+                  <div class="hour-lbl">15:00</div>
+                  <div class="hour-lbl">16:00</div>
+                  <div class="hour-lbl">17:00</div>
+                  <div class="hour-lbl">18:00</div>
+                  <div class="hour-lbl">19:00</div>
+                  <div class="hour-lbl">20:00</div>
+                </div>
+
+                <!-- Monday 4 -->
+                <div class="week-col">
+                  <div class="event tint-teal is-short" style="top:28px;height:25px">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">08:30 – 09:00</div>
+                  </div>
+                  <div class="event tint-blue" style="top:109px;height:52px">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">10:00 – 11:00</div>
+                  </div>
+                  <div class="event tint-lilac" style="top:325px;height:52px">
+                    <div class="event-title">部门培训</div>
+                    <div class="event-time">14:00 – 15:00</div>
+                  </div>
+                  <div class="event tint-amber" style="top:595px;height:52px">
+                    <div class="event-title">阅读名人传记</div>
+                    <div class="event-time">19:00 – 20:00</div>
+                  </div>
+                </div>
+
+                <!-- Tuesday 5 -->
+                <div class="week-col">
+                  <div class="event tint-sky" style="top:109px;height:39px">
+                    <div class="event-title">线上会议</div>
+                    <div class="event-time">10:00 – 10:45</div>
+                  </div>
+                  <div class="event tint-coral is-short" style="top:406px;height:25px">
+                    <div class="event-title">拿快递</div>
+                    <div class="event-time">15:30 – 16:00</div>
+                  </div>
+                  <div class="event tint-sage" style="top:568px;height:52px">
+                    <div class="event-title">瑜伽课</div>
+                    <div class="event-time">18:30 – 19:30</div>
+                  </div>
+                </div>
+
+                <!-- Wednesday 6 · today -->
+                <div class="week-col is-today">
+                  <div class="now-line" aria-hidden="true"></div>
+                  <div class="event tint-teal is-short" style="top:1px;height:25px">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">08:00 – 08:30</div>
+                  </div>
+                  <div class="event tint-blue" style="top:82px;height:52px">
+                    <div class="event-title">制定营销策略</div>
+                    <div class="event-time">09:30 – 10:30</div>
+                  </div>
+                  <div class="event tint-blue" style="top:163px;height:52px">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">11:00 – 12:00</div>
+                  </div>
+                  <div class="event tint-sky" style="top:433px;height:52px">
+                    <div class="event-title">线上会议</div>
+                    <div class="event-time">16:00 – 17:00</div>
+                  </div>
+                  <div class="event tint-coral is-short" style="top:514px;height:25px">
+                    <div class="event-title">拿快递</div>
+                    <div class="event-time">17:30 – 18:00</div>
+                  </div>
+                  <div class="event tint-coral is-short" style="top:622px;height:25px">
+                    <div class="event-title">整理音乐播放列表</div>
+                    <div class="event-time">19:30 – 20:00</div>
+                  </div>
+                </div>
+
+                <!-- Thursday 7 -->
+                <div class="week-col">
+                  <div class="event tint-teal" style="top:28px;height:39px">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">08:30 – 09:15</div>
+                  </div>
+                  <div class="event tint-blue" style="top:109px;height:52px">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">10:00 – 11:00</div>
+                  </div>
+                  <div class="event tint-lilac" style="top:298px;height:52px">
+                    <div class="event-title">部门培训</div>
+                    <div class="event-time">13:30 – 14:30</div>
+                  </div>
+                  <div class="event tint-sky" style="top:460px;height:39px">
+                    <div class="event-title">线上会议</div>
+                    <div class="event-time">16:30 – 17:15</div>
+                  </div>
+                </div>
+
+                <!-- Friday 8 -->
+                <div class="week-col">
+                  <div class="event tint-teal" style="top:55px;height:39px">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">09:00 – 09:45</div>
+                  </div>
+                  <div class="event tint-blue" style="top:271px;height:52px">
+                    <div class="event-title">产品评审</div>
+                    <div class="event-time">13:00 – 14:00</div>
+                  </div>
+                  <div class="event tint-sage" style="top:379px;height:52px">
+                    <div class="event-title">瑜伽课</div>
+                    <div class="event-time">15:00 – 16:00</div>
+                  </div>
+                  <div class="event tint-amber" style="top:595px;height:52px">
+                    <div class="event-title">阅读名人传记</div>
+                    <div class="event-time">19:00 – 20:00</div>
+                  </div>
+                </div>
+
+                <!-- Saturday 9 -->
+                <div class="week-col">
+                  <div class="event tint-rose" style="top:109px;height:79px">
+                    <div class="event-title">和妈妈逛街</div>
+                    <div class="event-time">10:00 – 11:30</div>
+                  </div>
+                  <div class="event tint-coral" style="top:325px;height:39px">
+                    <div class="event-title">拿快递</div>
+                    <div class="event-time">14:00 – 14:45</div>
+                  </div>
+                  <div class="event tint-coral" style="top:433px;height:52px">
+                    <div class="event-title">整理音乐播放列表</div>
+                    <div class="event-time">16:00 – 17:00</div>
+                  </div>
+                </div>
+
+                <!-- Sunday 10 -->
+                <div class="week-col">
+                  <div class="event tint-teal" style="top:55px;height:52px">
+                    <div class="event-title">晨跑</div>
+                    <div class="event-time">09:00 – 10:00</div>
+                  </div>
+                  <div class="event tint-rose" style="top:379px;height:79px">
+                    <div class="event-title">和妈妈逛街</div>
+                    <div class="event-time">15:00 – 16:30</div>
+                  </div>
+                  <div class="event tint-coral" style="top:568px;height:52px">
+                    <div class="event-title">整理音乐播放列表</div>
+                    <div class="event-time">18:30 – 19:30</div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <div class="pill-wrap">
+            <div class="view-pill" role="tablist" aria-label="日历视图切换">
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">年视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">月视图</button>
+              <button class="pill-tab is-active" type="button" role="tab" aria-selected="true">周视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">日视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">日程视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">多日视图</button>
+              <button class="pill-tab" type="button" role="tab" aria-selected="false">多周视图</button>
+              <button class="upgrade-btn" type="button">立即升级</button>
+            </div>
+            <div class="pill-caption">会员专享功能，示例数据仅供参考</div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // Demo-only interactions: view pill, task check-off, completed-section collapse.
+  document.querySelectorAll('.view-pill').forEach(function (pill) {
+    pill.addEventListener('click', function (event) {
+      var tab = event.target.closest('.pill-tab');
+      if (!tab || !pill.contains(tab)) return;
+      pill.querySelectorAll('.pill-tab').forEach(function (item) {
+        item.classList.remove('is-active');
+        item.setAttribute('aria-selected', 'false');
+      });
+      tab.classList.add('is-active');
+      tab.setAttribute('aria-selected', 'true');
+    });
+  });
+
+  document.querySelectorAll('.task-row .task-check').forEach(function (check) {
+    check.addEventListener('click', function () {
+      var row = check.closest('.task-row');
+      if (!row) return;
+      row.classList.toggle('is-done');
+      check.setAttribute('aria-checked', row.classList.contains('is-done') ? 'true' : 'false');
+    });
+  });
+
+  document.querySelectorAll('[data-collapse]').forEach(function (toggle) {
+    toggle.addEventListener('click', function () {
+      var target = document.getElementById(toggle.getAttribute('data-collapse'));
+      if (!target) return;
+      var willExpand = target.hasAttribute('hidden');
+      if (willExpand) {
+        target.removeAttribute('hidden');
+      } else {
+        target.setAttribute('hidden', '');
+      }
+      toggle.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
+    });
+  });
+</script>
+</body>
+</html>

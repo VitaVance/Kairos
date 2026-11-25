@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>设计方向对比</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #111114;
+        --fg: #f2f2f4;
+        --muted: #8b8b95;
+        --line: #26262c;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font: 14px/1.6 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+      }
+      header {
+        padding: 28px 32px 20px;
+        border-bottom: 1px solid var(--line);
+      }
+      h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.01em; }
+      p { margin: 0; color: var(--muted); font-size: 13px; }
+      main {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        padding: 24px 32px 48px;
+        align-items: start;
+      }
+      @media (max-width: 1100px) {
+        main { grid-template-columns: 1fr; }
+      }
+      section {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #1a1a1f;
+      }
+      .head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .tag { color: var(--muted); font-size: 12px; }
+      .name { font-weight: 650; font-size: 14px; }
+      .note { margin-left: auto; color: var(--muted); font-size: 12px; }
+      .body { position: relative; background: #fff; }
+      .body iframe {
+        width: 1400px;
+        height: 2400px;
+        border: 0;
+        transform: scale(var(--s, 0.36));
+        transform-origin: 0 0;
+      }
+      .missing {
+        display: grid;
+        place-content: center;
+        gap: 6px;
+        height: 320px;
+        color: #9a9aa4;
+        text-align: center;
+        font-size: 13px;
+      }
+      .missing code { color: #d3d3da; }
+      a { color: #8ab4ff; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>待办 + 日历 · 设计方向对比</h1>
+      <p>三份独立 HTML，同一份功能与数据。鼠标滚轮在缩略图内可滚动；点击标题在新标签页打开全尺寸。</p>
+    </header>
+    <main id="grid"></main>
+    <script>
+      const directions = [
+        { file: 'A-refined.html', tag: 'A', name: 'Refined TickTick', note: '演进 · 空气感 + 精修' },
+        { file: 'B-pro-tool.html', tag: 'B', name: 'Pro Tool', note: '密度 · 单强调色' },
+        { file: 'C-warm-editorial.html', tag: 'C', name: 'Warm Editorial', note: '纸墨 · 衬线 + 暖调' },
+      ];
+      const grid = document.getElementById('grid');
+      for (const d of directions) {
+        const section = document.createElement('section');
+        section.innerHTML = `
+          <div class="head">
+            <span class="tag">${d.tag}</span>
+            <a class="name" href="${d.file}" target="_blank" rel="noopener">${d.name}</a>
+            <span class="note">${d.note}</span>
+          </div>
+          <div class="body"></div>`;
+        const body = section.querySelector('.body');
+        const probe = new Image();
+        // Probe by fetching — a missing file still returns 200 for file:// in some
+        // browsers, so fall back to the iframe error path instead.
+        const frame = document.createElement('iframe');
+        frame.src = d.file;
+        frame.loading = 'lazy';
+        frame.title = d.name;
+        frame.addEventListener('error', () => {
+          body.innerHTML = `<div class="missing"><div>尚未生成</div><code>${d.file}</code></div>`;
+        });
+        // Detect "page loaded but it's a 404 page" by checking the doc text when same-origin.
+        frame.addEventListener('load', () => {
+          try {
+            const doc = frame.contentDocument;
+            if (!doc || !doc.body || doc.body.childElementCount === 0) {
+              body.innerHTML = `<div class="missing"><div>尚未生成</div><code>${d.file}</code></div>`;
+            }
+          } catch {
+            /* cross-origin — leave it */
+          }
+        });
+        body.appendChild(frame);
+        grid.appendChild(section);
+      }
+    </script>
+  </body>
+</html>
