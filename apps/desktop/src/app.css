@@ -100,6 +100,14 @@ body {
   padding: 12px 0;
   background: var(--tl-surface);
   border-right: 1px solid var(--tl-border);
+  /* The rail's tooltips hang past its 56px edge. Without a stacking context of
+     its own the tip is painted under the sidebar that follows it, so the label
+     was covered by whichever list row happened to sit at the same height. */
+  position: relative;
+  /* --tl-z-popover (300), not --tl-z-raised (1): the list sidebar is a flex
+     sibling later in the DOM, so a z-index of 1 ties with it and loses on source
+     order. A tooltip must sit above every panel it overlaps. */
+  z-index: var(--tl-z-popover);
 }
 
 .side-rail__avatar {
@@ -141,7 +149,10 @@ body {
 }
 
 .side-rail__item:hover {
-  background: var(--tl-surface-raised);
+  /* --tl-surface-hover, not --tl-surface-raised. In refined and protool light
+     the raised surface equals the rail's own surface, so hover measured 1.00:1
+     — the rail appeared to ignore the pointer entirely. */
+  background: var(--tl-surface-hover);
   color: var(--tl-text);
 }
 
@@ -333,4 +344,68 @@ body {
    bar's title does not jump 4px left of the cards below it. */
 [data-palette='protool'] .app-content {
   padding: 8px var(--sh-gutter-x) 88px;
+}
+
+/* ---------------------------------------------------------------------------
+   Rail tooltip
+   A CSS-only tooltip on the slot, so it does not join the layout of the rail
+   and does not need the Popover component (which is dialog semantics and steals
+   focus). Rendered to the inline-end: a rail is a vertical column, so a tip
+   placed above or below would cover the neighbouring 36px square and swallow
+   its click.
+   --------------------------------------------------------------------------- */
+.side-rail__slot {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.side-rail__tip {
+  position: absolute;
+  /* +12px, not +8: at 8 the tip's left edge touched the rail's hairline and read
+     as part of the sidebar list rather than as a floating label. */
+  inset-inline-start: calc(100% + var(--tl-space-3));
+  inset-block-start: 50%;
+  translate: 0 -50%;
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-dense) var(--tl-space-2);
+  /* --tl-border-strong, not --tl-border: the tip floats over a white sidebar, so
+     a hairline leaves it edgeless and it merged into the rows behind it. */
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-lg);
+  font-size: var(--tl-font-size-xs);
+  line-height: 1.2;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--tl-duration-fast) var(--tl-ease-standard),
+    visibility var(--tl-duration-fast);
+}
+
+.side-rail__tip[data-open='true'] {
+  opacity: 1;
+  visibility: visible;
+}
+
+.side-rail__tip kbd {
+  padding: 0 var(--tl-space-dense);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-xs);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-xs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-rail__tip {
+    transition: none;
+  }
 }

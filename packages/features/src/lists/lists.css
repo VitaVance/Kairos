@@ -25,7 +25,7 @@
 .list-sidebar__quick {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--tl-space-hairline);
   margin-block-end: var(--tl-space-2);
 }
 
@@ -34,7 +34,7 @@
   align-items: center;
   gap: var(--tl-space-2);
   inline-size: 100%;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   padding: 0 var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -92,25 +92,27 @@
 }
 
 .list-sidebar__heading {
+  /* Sentence case at the xs role, matching the detail panel's section labels. */
   flex: 1;
   font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-semibold);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--tl-text-secondary);
 }
 
 .list-sidebar__head .tl-icon-btn {
   /* 28px, up from 24: the add-list control now holds a larger glyph and the
      old 24px square was at the pointer-minimum edge. */
-  inline-size: 28px;
-  block-size: 28px;
+  inline-size: var(--tl-control-h-sm);
+  block-size: var(--tl-control-h-sm);
 }
 
 /* ---------------- Lists ---------------- */
 .list-sidebar__lists {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--tl-space-hairline);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -149,7 +151,7 @@
   align-items: center;
   gap: var(--tl-space-2);
   min-inline-size: 0;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   padding: 0 var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -198,8 +200,8 @@
 .list-sidebar__more {
   /* 28px, up from 26: it is a hover-revealed icon button; 26px was under the
      row's 30px and the pointer floor of the other controls. */
-  inline-size: 28px;
-  block-size: 28px;
+  inline-size: var(--tl-control-h-sm);
+  block-size: var(--tl-control-h-sm);
   opacity: 0;
   transition: opacity var(--tl-duration-fast) var(--tl-ease-standard);
 }
@@ -236,7 +238,7 @@
   display: flex;
   align-items: center;
   inline-size: 100%;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   padding: 0 var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -313,7 +315,7 @@
 
 /* ---------------- Delete confirmation (two-step) ---------------- */
 .list-sidebar__confirm {
-  margin: 2px var(--tl-space-1) var(--tl-space-2);
+  margin: var(--tl-space-dense) var(--tl-space-1) var(--tl-space-2);
   padding: var(--tl-space-2);
   border: 1px solid var(--tl-danger);
   border-radius: var(--tl-radius-md);
@@ -336,7 +338,7 @@
 .list-sidebar__danger {
   /* 28px, matching .tl-btn--sm: a text-button this small was pinching its
      13px label. */
-  block-size: 28px;
+  block-size: var(--tl-control-h-sm);
   padding: 0 var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -376,7 +378,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding-inline: 2px;
+  padding-inline: var(--tl-space-dense);
 }
 
 .list-editor__actions {

@@ -80,6 +80,7 @@ describe('optimistic toggle contract', () => {
 function completionPort(rows: Task[]) {
   const calls: string[] = [];
   const byId = new Map(rows.map((row) => [row.id, row]));
+  let spawned = 0;
   const port: CompletionPort = {
     async listAll() {
       return [...byId.values()];
@@ -96,7 +97,31 @@ function completionPort(rows: Task[]) {
       byId.delete(id);
     },
   };
-  return { port, calls, byId };
+  /**
+   * Same surface, but a completion of a recurring row spawns a fresh open row
+   * (new id every time), like the real `TaskService`. The two fakes are kept
+   * apart so the in-place contract above stays provable on its own.
+   */
+  const detachingPort: CompletionPort = {
+    async listAll() {
+      return [...byId.values()];
+    },
+    async toggleDone(id: TaskId) {
+      calls.push(`toggle:${id}`);
+      const current = byId.get(id)!;
+      const next: Task = { ...current, status: current.status === 'done' ? 'open' : 'done' };
+      byId.set(id, next);
+      if (next.status !== 'done' || next.recurrence === null) return { task: next, next: null };
+      const row = task({ id: `spawn-${++spawned}` as TaskId, dueDate: '2026-09-18' as Task['dueDate'] });
+      byId.set(row.id, row);
+      return { task: next, next: row };
+    },
+    async remove(id: TaskId) {
+      calls.push(`remove:${id}`);
+      byId.delete(id);
+    },
+  };
+  return { port, detachingPort, calls, byId };
 }
 
 describe('undoCompletion', () => {
@@ -129,6 +154,73 @@ describe('undoCompletion', () => {
 
     expect(calls).toEqual(['toggle:done-1']);
   });
+
+  it('leaves a spawned row the user has renamed or rescheduled', async () => {
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const spawned = task({ id: 'next-1' as TaskId, title: '每周五：复盘一周' });
+    const edited = { ...task({ id: 'next-1' as TaskId }), title: '复盘（新名字）' };
+    const { port, calls, byId } = completionPort([done, edited]);
+
+    await undoCompletion(port, { task: done, next: spawned });
+
+    expect(calls).toEqual(['toggle:done-1']);
+    expect(byId.has('next-1' as TaskId)).toBe(true);
+  });
+
+  it('leaves a spawned row whose time of day the user changed', async () => {
+    // The detail panel edits `dueAt` in place; the date and title stay put, so
+    // a title+date guard would delete the user's edit.
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const spawned = task({
+      id: 'next-1' as TaskId,
+      dueDate: '2026-09-18' as Task['dueDate'],
+      dueAt: '2026-09-18T01:00:00.000Z' as Instant,
+    });
+    const edited = { ...spawned, dueAt: '2026-09-18T02:00:00.000Z' as Instant };
+    const { port, calls, byId } = completionPort([done, edited]);
+
+    await undoCompletion(port, { task: done, next: spawned });
+
+    expect(calls).toEqual(['toggle:done-1']);
+    expect(byId.get('next-1' as TaskId)).toBe(edited);
+  });
+
+  it('leaves a spawned row moved to another list or given notes', async () => {
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const spawned = task({ id: 'next-1' as TaskId, important: true, urgent: true });
+    for (const edit of [
+      { listId: 'other' as Task['listId'] },
+      { notes: '带上发票' },
+      { important: false },
+      { urgent: false },
+      { duePeriod: 'evening' as const },
+      { recurrence: { frequency: 'monthly' as const, interval: 1, monthDay: 9 } },
+    ]) {
+      const edited = { ...spawned, ...edit };
+      const { port, calls } = completionPort([done, edited]);
+      await undoCompletion(port, { task: done, next: spawned });
+      expect(calls, JSON.stringify(edit)).toEqual(['toggle:done-1']);
+    }
+  });
+
+  it('deletes the occurrence when only the rule serialization differs', async () => {
+    // Two rules that mean the same thing must compare equal, or a harmless
+    // re-save of the rule would block the delete forever.
+    const done = task({ id: 'done-1' as TaskId, status: 'done' });
+    const spawned = task({
+      id: 'next-1' as TaskId,
+      recurrence: { frequency: 'weekly', interval: 1, weekdays: [4 as const, 1 as const] },
+    });
+    const resaved = {
+      ...spawned,
+      recurrence: { frequency: 'weekly' as const, interval: 1, weekdays: [1 as const, 4 as const] },
+    };
+    const { port, calls } = completionPort([done, resaved]);
+
+    await undoCompletion(port, { task: done, next: spawned });
+
+    expect(calls).toEqual(['remove:next-1', 'toggle:done-1']);
+  });
 });
 
 describe('redoCompletion', () => {
@@ -139,5 +231,50 @@ describe('redoCompletion', () => {
     await redoCompletion(port, { task: done, next: null });
 
     expect(calls).toEqual(['toggle:done-1']);
+  });
+
+  it('returns the write it performed, with any newly spawned row', async () => {
+    // A redo runs from the state undo left behind: the row is open again.
+    const reopened = task({
+      id: 'done-1' as TaskId,
+      recurrence: { frequency: 'weekly', interval: 1, weekdays: [4] },
+    });
+    const { detachingPort } = completionPort([reopened]);
+
+    const replayed = await redoCompletion(detachingPort, { task: reopened, next: null });
+
+    expect(replayed.task.status).toBe('done');
+    expect(replayed.next?.id).toBe('spawn-1');
+  });
+});
+
+describe('undo/redo round trip on a recurring completion', () => {
+  it('undo → redo → undo deletes the row the redo spawned, leaving one open copy', async () => {
+    const original = task({
+      id: 'task-1' as TaskId,
+      recurrence: { frequency: 'weekly', interval: 1, weekdays: [4] },
+    });
+    const { detachingPort, byId } = completionPort([original]);
+    const open = () => [...byId.values()].filter((row) => row.status === 'open');
+
+    // The user's click: the completed row, plus the occurrence it spawned.
+    const first = await detachingPort.toggleDone(original.id);
+    expect(open().map((row) => row.id)).toEqual(['spawn-1']);
+
+    // Undo → redo → undo. Each step must hand back what *it* wrote; replaying
+    // the original `first` on the second undo would look for `spawn-1` (already
+    // deleted) and leave the redo's `spawn-2` behind as a second open copy.
+    let recorded = first;
+    recorded = await undoCompletion(detachingPort, recorded);
+    expect(open().map((row) => row.id)).toEqual(['task-1']);
+
+    recorded = await redoCompletion(detachingPort, recorded);
+    expect(recorded.next?.id).toBe('spawn-2');
+    expect(open().map((row) => row.id)).toEqual(['spawn-2']);
+
+    recorded = await undoCompletion(detachingPort, recorded);
+    // Back to exactly the state before the click: one open row, no leftovers.
+    expect([...byId.keys()]).toEqual(['task-1']);
+    expect(open().map((row) => row.id)).toEqual(['task-1']);
   });
 });

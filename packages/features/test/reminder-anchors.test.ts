@@ -136,9 +136,9 @@ describe('day tasks', () => {
     expect(state.tick(at(DAY, '15:00'))).toHaveLength(1);
 
     // A task left behind on DAY stays silent on DAY+1 — it is simply overdue;
-    // re-announcing it would nag. The recurrence path (rollForward) is what
-    // moves dueDate/dueAt to the next occurrence, and that must remind again.
-    // The date-based key is what makes the next occurrence a *new* reminder.
+    // re-announcing it would nag. Completing a recurring task creates the next
+    // occurrence as a new row, and that must remind again. The date-based key
+    // is what makes the next occurrence a *new* reminder.
     state.setSources(
       [dayTask({ dueDate: NEXT_DAY, dueAt: startOfDay(NEXT_DAY) })],
       [],

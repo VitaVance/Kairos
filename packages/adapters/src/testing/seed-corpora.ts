@@ -109,7 +109,7 @@ const en: DemoCorpus = {
     },
     recurring: {
       title: 'Every Friday: review the week',
-      notes: 'Set to “repeat weekly”. Completing this one schedules the next for the following Friday.',
+      notes: 'Set to “repeat weekly”. Completing this one ticks it and creates next Friday’s as a new task.',
     },
     dentist: {
       title: 'Book the dentist',
@@ -192,7 +192,7 @@ const zhCN: DemoCorpus = {
     },
     recurring: {
       title: '每周五：复盘一周',
-      notes: '设置里选了「每周重复」。完成这一次后，会自动排到下一个周五。',
+      notes: '设置里选了「每周重复」。完成这一次会打上完成勾，并自动新建下周五那一条。',
     },
     dentist: {
       title: '预约牙医',

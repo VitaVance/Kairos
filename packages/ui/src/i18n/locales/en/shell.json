@@ -98,7 +98,7 @@
       "offline": "Offline (local file)"
     },
     "online": {
-      "intro": "Kairos checks its release page for a newer version.",
+      "intro": "Kairos checks its release page for a newer version. Only the version manifest is downloaded — your tasks never leave this machine.",
       "privacy": "Only the version manifest is downloaded — your tasks never leave this machine.",
       "notConfigured": "Updates are unavailable in this build."
     },
@@ -126,7 +126,9 @@
       "invalidVersion": "Cannot compare versions: the manifest version is not in a recognised format.",
       "available": "A new version is available. Download it from the release page and install over this one.",
       "upToDate": "You are on the latest version.",
-      "releaseUrlLabel": "Release page (copy into a browser)"
-    }
+      "releaseUrlLabel": "Release page (copy into a browser)",
+      "goToDownload": "Open release page"
+    },
+    "checkAgain": "Check again"
   }
 }

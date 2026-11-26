@@ -36,7 +36,7 @@
     "repeatUntilLabel": "Until",
     "repeatUntilPlaceholder": "No end",
     "repeatUntilAria": "Repeat end date",
-    "repeatAutoAdvance": "Checking this off moves it to its next occurrence.",
+    "repeatAutoAdvance": "Checking this off completes it and creates the next one.",
     "quadrantAria": "Move to quadrant",
     "listAria": "Task list",
     "notesAria": "Notes",

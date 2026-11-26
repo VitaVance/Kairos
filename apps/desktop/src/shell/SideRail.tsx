@@ -1,6 +1,7 @@
 import type { ViewKind } from '@todolist/features';
-import { IconButton, useTranslation } from '@todolist/ui';
-import { ArchiveIcon, CalendarIcon, GridIcon, HelpIcon, InboxIcon, RefreshIcon, SearchIcon } from './icons';
+import { useTranslation } from '@todolist/ui';
+import { RailButton } from './RailButton';
+import { ArchiveIcon, CalendarIcon, GearIcon, GridIcon, InboxIcon, RefreshIcon, SearchIcon } from './icons';
 
 export interface SideRailProps {
   /** The view actually on screen — the highlight is derived from it, never stored. */
@@ -26,8 +27,10 @@ export interface SideRailProps {
   onOpenTransfer?: () => void;
   /** Opens the manual update check. */
   onOpenUpdate?: () => void;
-  /** Opens the keyboard shortcut reference. */
-  onOpenHelp?: () => void;
+  /** Opens the settings dialog (gear at the foot of the rail). */
+  onOpenSettings?: () => void;
+  /** True while the settings dialog is on screen. */
+  settingsOpen?: boolean;
 }
 
 /** Calendar views whose name is worth appending to the rail's calendar label. */
@@ -66,7 +69,8 @@ export function SideRail({
   onOpenSearch,
   onOpenTransfer,
   onOpenUpdate,
-  onOpenHelp,
+  onOpenSettings,
+  settingsOpen = false,
 }: SideRailProps) {
   const { t } = useTranslation('shell');
   const onQuadrant = view === 'quadrant' && !taskListActive;
@@ -85,54 +89,54 @@ export function SideRail({
       </div>
 
       <div className="side-rail__group">
-        <button
-          type="button"
-          className={`side-rail__item${onTaskList ? ' side-rail__item--active' : ''}`}
-          aria-label={t('nav.tasks')}
-          aria-current={onTaskList ? 'page' : undefined}
+        <RailButton
+          label={t('nav.tasks')}
+          active={onTaskList}
           onClick={() => {
             if (onOpenTaskList) onOpenTaskList();
             else onSelectView('quadrant');
           }}
         >
           <InboxIcon />
-        </button>
-        <button
-          type="button"
-          className={`side-rail__item${onCalendar ? ' side-rail__item--active' : ''}`}
-          aria-label={calendarLabel}
-          aria-current={onCalendar ? 'page' : undefined}
+        </RailButton>
+        <RailButton
+          label={calendarLabel}
+          active={onCalendar}
           onClick={() => onSelectView('month')}
         >
           <CalendarIcon />
-        </button>
-        <button
-          type="button"
-          className={`side-rail__item${onQuadrant ? ' side-rail__item--active' : ''}`}
-          aria-label={t('nav.quadrant')}
-          aria-current={onQuadrant ? 'page' : undefined}
+        </RailButton>
+        <RailButton
+          label={t('nav.quadrant')}
+          active={onQuadrant}
           onClick={() => {
             if (onOpenQuadrants) onOpenQuadrants();
             else onSelectView('quadrant');
           }}
         >
           <GridIcon />
-        </button>
-        <button type="button" className="side-rail__item" aria-label={t('nav.search')} onClick={onOpenSearch}>
+        </RailButton>
+        <RailButton label={t('nav.search')} shortcut="Ctrl+K" onClick={onOpenSearch}>
           <SearchIcon />
-        </button>
+        </RailButton>
       </div>
 
       <div className="side-rail__group side-rail__group--bottom">
-        <IconButton label={t('nav.backup')} variant="quiet" onClick={onOpenTransfer}>
+        <RailButton label={t('nav.backup')} onClick={onOpenTransfer}>
           <ArchiveIcon />
-        </IconButton>
-        <IconButton label={t('nav.checkUpdates')} variant="quiet" onClick={onOpenUpdate}>
+        </RailButton>
+        <RailButton label={t('nav.checkUpdates')} onClick={onOpenUpdate}>
           <RefreshIcon />
-        </IconButton>
-        <IconButton label={t('nav.shortcuts')} variant="quiet" className="side-rail__help" onClick={onOpenHelp}>
-          <HelpIcon />
-        </IconButton>
+        </RailButton>
+        <RailButton
+          label={t('settings.open')}
+          className="side-rail__settings"
+          aria-haspopup="dialog"
+          aria-expanded={settingsOpen}
+          onClick={onOpenSettings}
+        >
+          <GearIcon />
+        </RailButton>
       </div>
     </nav>
   );

@@ -37,13 +37,13 @@
     },
     "reset": {
       "heading": "Delete all data",
-      "hint": "The sample data is only there to make the features visible at a glance. To start with your own content, clear it first. This deletes every task, list and event, including the ones you added yourself; it cannot be undone. If you want a copy, export a JSON backup above first.",
+      "hint": "Clear the sample data before you start adding your own.",
       "trigger": "Delete all data…",
-      "confirm": "This deletes every task, list and event and cannot be undone. The sample data will not come back; you can start recording your own schedule right away.",
+      "confirm": "This cannot be undone, and the sample data will not come back. Everything below is deleted, including anything you added yourself.",
       "confirmAction": "Delete everything",
       "busy": "Deleting…",
       "alertLabel": "Delete all data?",
-      "loss": "About to delete: {{tasks}} · {{lists}} · {{events}}. Export a JSON backup first just in case."
+      "loss": "Deletes {{tasks}} · {{lists}} · {{events}}"
     },
     "labels": {
       "tasks": "Tasks",
@@ -145,7 +145,9 @@
   },
   "toast": {
     "completed": "Completed “{{title}}”",
-    "reopened": "Reopened “{{title}}”"
+    "reopened": "Reopened “{{title}}”",
+    "completedAndRepeats": "Completed “{{title}}” · next on {{date}}",
+    "stopRepeating": "Stop repeating"
   },
   "views": {
     "quadrant": "Quadrants",
@@ -169,6 +171,7 @@
     "week": "Week view",
     "day": "Day view",
     "agenda": "Agenda view",
+    "settings": "Settings",
     "close": "Close dialog"
   }
 }

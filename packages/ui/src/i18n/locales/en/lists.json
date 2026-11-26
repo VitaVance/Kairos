@@ -72,6 +72,7 @@
     "moved": "Moved to “{{quadrant}}”",
     "untitledTask": "Task",
     "completed": "Completed",
+    "completedRecent": "Showing the latest {{shown}} of {{total}}",
     "inbox": "Inbox"
   },
   "row": {

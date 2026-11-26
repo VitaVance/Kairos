@@ -122,18 +122,25 @@ export class TaskService {
       ) {
         const nextDate = nextOccurrenceDate(task, now);
         if (nextDate !== null) {
+          // Dedupe first: re-completing after an untick must not spawn a second
+          // copy of the same occurrence. The row created the first time is still
+          // open and is the series' next instance. Returning `next: null` also
+          // keeps undo honest — it must not delete a row this completion did not
+          // make. Checked before the status write so a no-op completion costs one
+          // read instead of a needless update.
+          if (await this.hasOpenOccurrence(task, nextDate)) {
+            const done = await this.deps.uow.tasks.update(
+              id,
+              { status: 'done', completedAt: now },
+              now,
+            );
+            return { task: done, next: null };
+          }
           const done = await this.deps.uow.tasks.update(
             id,
             { status: 'done', completedAt: now },
             now,
           );
-          // Re-completing after an untick must not spawn a second copy of the
-          // same occurrence: the row created the first time is still open and
-          // is the series' next instance. Returning `next: null` also keeps
-          // undo honest — it must not delete a row this completion did not make.
-          if (await this.hasOpenOccurrence(task, nextDate)) {
-            return { task: done, next: null };
-          }
           const next = await this.deps.uow.tasks.create(seedNextOccurrence(task, nextDate), now);
           return { task: done, next };
         }

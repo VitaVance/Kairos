@@ -36,7 +36,7 @@
     "repeatUntilLabel": "直到",
     "repeatUntilPlaceholder": "不结束",
     "repeatUntilAria": "重复结束日期",
-    "repeatAutoAdvance": "勾选完成时会自动推进到下一次。",
+    "repeatAutoAdvance": "勾选完成会打勾，并自动新建下一条。",
     "quadrantAria": "移动到象限",
     "listAria": "任务所属清单",
     "notesAria": "备注",

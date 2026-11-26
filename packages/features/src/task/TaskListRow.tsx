@@ -4,14 +4,14 @@ import type { LocalDate, Task, TaskId } from '@todolist/core';
 import { Checkbox, useTranslation } from '@todolist/ui';
 import { formatDue } from './due-label';
 import type { ClickNode } from './row-click';
-import { shouldToggleRow } from './row-click';
+import { shouldActivateRow } from './row-click';
 
 export interface TaskListRowProps {
   task: Task;
   today: LocalDate;
-  /** Chevron click — the parent opens the detail panel. */
+  /** Row-body click and the chevron both open the detail panel. */
   onOpen: (id: TaskId) => void;
-  /** Row-body click and checkbox — the parent routes it through `useTasks().toggleDone`. */
+  /** Checkbox only — completing is the one destructive gesture on the row. */
   onToggle: (id: TaskId, source: 'checkbox' | 'row') => void;
   /** Confirmed delete — only called on the second click. */
   onDelete: (id: TaskId) => void;
@@ -23,12 +23,12 @@ export interface TaskListRowProps {
  * One task row for flat lists. Presentational + local confirm state only:
  * the parent owns the mutations so every row shares one reload cycle.
  *
- * Interaction model (shared with `QuadrantRow`): clicking anywhere on the row
- * that is not a control completes the task — the large, no-aiming target the
- * request asked for. Editing moved to a dedicated chevron button at the end of
- * the row, mirroring the dedicated drag handle in `QuadrantRow`: one surface,
- * one job. The checkbox still handles itself so a precise click does not
- * toggle twice through the row handler.
+ * Interaction model (shared with `QuadrantRow`): the row body *opens* the
+ * task; only the checkbox completes it. Completing is the one gesture here
+ * that can create a second row (a recurring task spawns its next
+ * occurrence) and it was previously reachable by any stray click on the
+ * title — the row you meant to read became the row you finished. Opening is
+ * reversible, so it gets the large target.
  */
 export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = false }: TaskListRowProps) {
   const { t } = useTranslation('task');
@@ -47,10 +47,10 @@ export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = f
   const handleRowClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // The checkbox, chevron and delete button (and any link inside the title)
     // own their clicks; the row only acts on the leftover body area.
-    if (!shouldToggleRow(event.target as unknown as ClickNode, event.currentTarget as unknown as ClickNode)) {
+    if (!shouldActivateRow(event.target as unknown as ClickNode, event.currentTarget as unknown as ClickNode)) {
       return;
     }
-    onToggle(task.id, 'row');
+    onOpen(task.id);
   };
 
   return (
@@ -96,9 +96,10 @@ export function TaskListRow({ task, today, onOpen, onToggle, onDelete, fresh = f
         {confirming ? t('row.confirm') : tCommon('buttons.delete')}
       </button>
 
-      {/* Editing lives on this chevron, not the title text: the title is part
-          of the row body that completes. The label names the action so it is
-          reachable by screen reader and not a mystery glyph. */}
+      {/* The chevron stays as an explicit, labelled affordance even though the
+          row body now opens the task too: the label is what a screen reader
+          announces, and a visible affordance keeps "this opens" discoverable
+          without hovering the whole row. */}
       <button
         type="button"
         className="tk-row__open"

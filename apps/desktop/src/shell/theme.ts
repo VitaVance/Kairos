@@ -15,6 +15,8 @@
  * tokens.css), which is why 'refined' never needs an attribute.
  */
 
+import { useSyncExternalStore } from 'react';
+
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
@@ -134,4 +136,110 @@ export function applyThemeMode(mode: ThemeMode): void {
   } catch {
     /* non-DOM environment — no-op */
   }
+}
+
+/* ============================================================================
+   Shared appearance store
+   ----------------------------------------------------------------------------
+   Two surfaces now change the theme: the top-bar popover and the 设置 dialog.
+   Before this, each owned its own `useState` seeded from localStorage, and
+   neither could see the other — changing in the dialog would leave the popover
+   showing the old mode until remount. This store is the single source of truth
+   for both. `useAppearance()` mirrors the ThemeToggle contract (choose* applies
+   and persists immediately); the popover and the dialog are just two views of
+   the same state.
+   ========================================================================== */
+
+export interface Appearance {
+  readonly mode: ThemeMode;
+  readonly palette: Palette;
+}
+
+type Listener = () => void;
+
+let appearance: Appearance | null = null;
+const listeners = new Set<Listener>();
+
+/** Mirror the value onto <html> — the two axes are independent. */
+function applyAppearance(next: Appearance): void {
+  applyThemeMode(next.mode);
+  applyPalette(next.palette);
+}
+
+function readInitialAppearance(): Appearance {
+  return { mode: readStoredTheme(), palette: readStoredPalette() };
+}
+
+/** Current appearance, hydrated from storage on first read. */
+export function getAppearance(): Appearance {
+  if (appearance === null) {
+    appearance = readInitialAppearance();
+    applyAppearance(appearance);
+  }
+  return appearance;
+}
+
+function commit(next: Appearance): void {
+  if (
+    appearance !== null &&
+    appearance.mode === next.mode &&
+    appearance.palette === next.palette
+  ) {
+    return;
+  }
+  appearance = next;
+  applyAppearance(appearance);
+  for (const listener of listeners) listener();
+}
+
+export function setThemeMode(mode: ThemeMode): void {
+  storeTheme(mode);
+  commit({ mode, palette: getAppearance().palette });
+}
+
+export function setThemePalette(palette: Palette): void {
+  storePalette(palette);
+  commit({ mode: getAppearance().mode, palette });
+}
+
+function subscribe(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/**
+ * Subscribe to the appearance axes. Applying happens inside the store, so call
+ * it once at boot (a component rendering this hook is enough) and never rely on
+ * an effect in a component that may not be mounted.
+ */
+export function useAppearance(): {
+  mode: ThemeMode;
+  palette: Palette;
+  setMode: (mode: ThemeMode) => void;
+  setPalette: (palette: Palette) => void;
+} {
+  const snapshot = useSyncExternalStore(subscribe, getAppearance, getAppearance);
+  return {
+    mode: snapshot.mode,
+    palette: snapshot.palette,
+    setMode: setThemeMode,
+    setPalette: setThemePalette,
+  };
+}
+
+/**
+ * While following the system, re-resolve `data-theme` when the OS switches.
+ * Idempotent and cheap; safe to call from more than one mounted component.
+ */
+export function watchSystemTheme(): () => void {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return () => undefined;
+  }
+  const mql = window.matchMedia(PREFERS_DARK_QUERY);
+  const onSystemChange = () => {
+    const current = getAppearance();
+    if (current.mode === 'system') applyThemeMode('system');
+  };
+  mql.addEventListener('change', onSystemChange);
+  return () => mql.removeEventListener('change', onSystemChange);
 }

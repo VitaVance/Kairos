@@ -277,7 +277,7 @@ export async function seedDemoData(deps: SeedDeps): Promise<void> {
         allDay: false,
       },
     },
-    // --- a recurring task: completing one instance schedules the next ---------
+    // --- a recurring task: completing one instance ticks this row and creates the next as a new task ---------
     // Monday = 0. Pick this week's upcoming Friday; if today is Friday already,
     // the first instance lands next Friday so the series always starts ahead.
     {

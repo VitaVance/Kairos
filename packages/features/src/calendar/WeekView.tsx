@@ -19,6 +19,8 @@ import {
   weekdayLabels,
 } from './time-math';
 import { useTimeRangeSelection } from './useTimeRangeSelection';
+import { NowLine } from './DayView';
+import type { SlotAnchor } from './QuickEventComposer';
 import './calendar.css';
 
 export interface WeekViewProps {
@@ -29,6 +31,11 @@ export interface WeekViewProps {
   hourHeight?: number;
   /** Click on empty column space → `"HH:MM"` snapped to 15 minutes. */
   onCreateAt?: (date: LocalDate, time: string) => void;
+  /**
+   * Empty-slot click routed to the quick composer, carrying the click point and
+   * the column for focus restore. Takes precedence over `onCreateAt`.
+   */
+  onCreateSlot?: (date: LocalDate, time: string, anchor: SlotAnchor) => void;
   /**
    * Drag across empty column space → `"HH:MM"` start and end, snapped to 15
    * minutes. A press that does not move still goes through `onCreateAt`.
@@ -88,6 +95,7 @@ export function WeekView({
   dayEndHour = 20,
   hourHeight = HOUR_PX,
   onCreateAt,
+  onCreateSlot,
   onCreateRange,
   onOpenEntry,
   onReschedule,
@@ -229,13 +237,23 @@ export function WeekView({
     // A completed range sweep leaves one synthetic click; consume it so the
     // sweep does not also create a zero-duration event.
     if (rangeSelection.consumeClick()) return;
-    if (!onCreateAt) return;
+    if (!onCreateAt && !onCreateSlot) return;
     // Ignore clicks that originated on a block/chip; only empty space creates.
     if ((event.target as HTMLElement).closest('.wv__block')) return;
-    const rect = event.currentTarget.getBoundingClientRect();
+    const col = event.currentTarget;
+    const rect = col.getBoundingClientRect();
     const raw = dayStartMin + (event.clientY - rect.top) / pxPerMinute;
     const clamped = Math.max(0, Math.min(MINUTES_PER_DAY - SNAP_MINUTES, snap(raw)));
-    onCreateAt(day, formatMinutes(clamped));
+    const time = formatMinutes(clamped);
+    if (onCreateSlot) {
+      onCreateSlot(day, time, {
+        x: event.clientX,
+        y: event.clientY,
+        returnFocusTo: col,
+      });
+      return;
+    }
+    onCreateAt?.(day, time);
   }
 
   function onChipClick(entry: CalendarEntry) {
@@ -331,7 +349,7 @@ export function WeekView({
           const lookup = new Map(placed.map((p) => [p.id, p]));
           return (
             <div
-              className={`wv__col${day === today ? ' wv__col--today' : ''}${onCreateAt || onCreateRange ? ' cal-week-col--create' : ''}${onCreateRange ? ' cal-range-col' : ''}`}
+              className={`wv__col${day === today ? ' wv__col--today' : ''}${onCreateAt || onCreateSlot || onCreateRange ? ' cal-week-col--create' : ''}${onCreateRange ? ' cal-range-col' : ''}`}
               key={day}
               onClick={(e) => onColumnClick(e, day)}
               {...(onCreateRange ? rangeSelection.handlers(day) : {})}
@@ -347,6 +365,7 @@ export function WeekView({
                 const width = p ? 100 / p.columns : 100;
                 const left = p ? (p.column * 100) / p.columns : 0;
                 const draggable = Boolean(onReschedule) && !b.entry.allDay;
+                const tall = height >= 46;
                 const dragging =
                   drag !== null &&
                   drag.entry.source === b.entry.source &&
@@ -355,7 +374,7 @@ export function WeekView({
                 return (
                   <div
                     key={id}
-                    className={`wv__block${draggable ? ' cal-week-block--draggable' : ''}${dragging ? ' cal-week-block--dragging' : ''}`}
+                    className={`wv__block cal-block ${tall ? 'cal-block--tall' : 'cal-block--short'}${draggable ? ' cal-week-block--draggable' : ''}${dragging ? ' cal-week-block--dragging' : ''}`}
                     style={{
                       top,
                       height,
@@ -403,6 +422,15 @@ export function WeekView({
                     left: 2,
                     right: 2,
                   }}
+                />
+              ) : null}
+
+              {day === today ? (
+                <NowLine
+                  active
+                  minMinute={dayStartMin}
+                  maxMinute={dayStartMin + totalMinutes}
+                  offsetForMinute={(m) => (m - dayStartMin) * pxPerMinute}
                 />
               ) : null}
             </div>

@@ -1,13 +1,15 @@
-/* Update panel — local manifest check. Tokens only, so it follows every
-   palette (清简 / 专注 / 纸墨) and both light and dark automatically. */
+/* Update panel.
+ *
+ * Shape from design/E-update-panel.html: 400px, no visible title, one status
+ * line, one action pinned to the bottom. Every value below is a token, so the
+ * panel follows the three palettes and both themes without per-skin branches.
+ */
 
-/* The panel is a native <dialog> opened with showModal(): the browser owns the
-   top layer, focus trapping and Escape, and paints the scrim through
-   ::backdrop. Only the surface is styled here — no fixed inset/grid wrapper,
-   which is what the hand-rolled overlay used to provide. */
+/* Native <dialog> opened with showModal(): the browser owns the top layer,
+   focus trapping and Escape; only the surface is styled here. */
 .up-dialog {
-  inline-size: min(520px, calc(100vw - 32px));
-  max-block-size: min(85vh, calc(100vh - 64px));
+  inline-size: min(25rem, calc(100vw - 2rem));
+  max-block-size: min(85vh, calc(100vh - 4rem));
   padding: 0;
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-xl);
@@ -18,15 +20,15 @@
 }
 
 .up-dialog::backdrop {
-  /* --tl-pill-bg stays dark in both themes, so the scrim reads as a scrim. */
-  background: color-mix(in oklab, var(--tl-pill-bg) 52%, transparent);
+  /* The shared scrim. It used a local rgb(0 0 0 / 0.5) because the old
+     --tl-pill-bg was lighter than the panel in dark mode and near-identical to
+     the page in editorial/light; --tl-scrim now encodes exactly that value for
+     every dialog in the app, so this stops being a one-off. */
+  background: var(--tl-scrim);
   overflow: hidden;
   overscroll-behavior: contain;
 }
 
-/* Scroll isolation, per the modal-dialog guide: a wheel/touch that reaches the
-   end of the panel must not chain to the page underneath. `:modal` scopes this
-   to the open state so a closed dialog cannot affect layout. */
 .up-dialog:modal {
   overscroll-behavior: contain;
 }
@@ -39,177 +41,215 @@
   min-block-size: 0;
 }
 
+/* The dialog's accessible name. The rail button already says 「检查更新」, so a
+   visible heading would print the same sentence twice in one card. */
+.up__sr-title {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .up__head {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-block-end: 1px solid var(--tl-border);
+  justify-content: flex-end;
+  padding: var(--tl-space-3) var(--tl-space-3) 0 var(--tl-space-5);
 }
 
-.up__title {
-  margin: 0;
-  font-size: var(--tl-font-size-lg);
-  font-weight: var(--tl-font-weight-semibold);
-  color: var(--tl-text);
-}
-
-.up__body {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 16px;
-  overflow: auto;
-}
-
-.up__intro {
-  margin: 0;
-  font-size: var(--tl-font-size-sm);
-  line-height: var(--tl-line-height-relaxed);
-  color: var(--tl-text-secondary);
-}
-
-/* Update-source switch: online / offline. These buttons had no rule of their
-   own, so they rendered as raw UA `<button>`s — beveled borders, Arial 13.33px,
-   side by side with the app's 12px token type. */
-.up__modes {
-  display: flex;
-  gap: var(--tl-space-1);
-  padding: var(--tl-space-dense);
+/* 28px, not 44: the close is a quiet escape hatch, not a peer of the primary
+   action. Still above the 24px target floor. */
+.up__close {
+  display: grid;
+  place-items: center;
+  inline-size: 1.75rem;
+  block-size: 1.75rem;
+  border: 0;
   border-radius: var(--tl-radius-md);
-  background: var(--tl-surface-sunken);
-}
-
-.up__mode {
-  flex: 1;
-  min-inline-size: 0;
-  block-size: var(--tl-control-h-sm);
-  padding: 0 var(--tl-space-2);
-  overflow: hidden;
-  border: 1px solid transparent;
-  border-radius: var(--tl-radius-sm);
   background: transparent;
-  color: var(--tl-text-secondary);
-  font: inherit;
-  font-size: var(--tl-font-size-sm);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--tl-text-tertiary);
   cursor: pointer;
   transition:
     background var(--tl-duration-fast) var(--tl-ease-standard),
     color var(--tl-duration-fast) var(--tl-ease-standard);
 }
-
-.up__mode:hover {
+.up__close:hover {
+  background: var(--tl-surface-hover);
   color: var(--tl-text);
 }
-
-.up__mode.is-active {
-  background: var(--tl-surface);
-  color: var(--tl-text);
-  font-weight: var(--tl-font-weight-medium);
-  box-shadow: var(--tl-shadow-sm);
-}
-
-.up__mode:focus-visible {
+.up__close:focus-visible {
   outline: 2px solid var(--tl-focus-ring);
-  outline-offset: 1px;
+  outline-offset: 2px;
 }
 
-.up__field {
+.up__body {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-}
-
-.up__label {
-  font-size: var(--tl-font-size-xs);
-  font-weight: var(--tl-font-weight-medium);
-  color: var(--tl-text-secondary);
-}
-
-.up__url {
-  padding: 7px 9px;
-  border: 1px solid var(--tl-border);
-  border-radius: var(--tl-radius-sm);
-  background: var(--tl-surface-sunken);
-  color: var(--tl-text);
-  font-family: var(--tl-font-mono);
-  font-size: var(--tl-font-size-xs);
-}
-
-.up__actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
   gap: var(--tl-space-3);
+  padding: var(--tl-space-1) var(--tl-space-5) var(--tl-space-4);
+  min-block-size: 5rem;
 }
 
-/* The disabled-reason sentence sits beside the button; it explains a
-   non-obvious state, so it should read clearly rather than as a whisper. */
-.up__actions .up__muted {
-  flex: 1;
-  min-inline-size: 0;
-  text-align: end;
-}
-
-.up__result {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  /* 12px keeps the divider off the status line above it; 4px left 「尚未检查」
-     touching the rule. */
-  padding-block-start: 12px;
-  border-block-start: 1px solid var(--tl-border-soft);
-}
-
-.up__muted {
+.up__intro {
   margin: 0;
-  font-size: var(--tl-font-size-sm);
+  max-inline-size: 34ch;
+  font-size: var(--tl-font-size-base);
+  line-height: var(--tl-line-height-relaxed);
   color: var(--tl-text-secondary);
 }
 
-.up__error {
+/* Version, idle state: label + value on one baseline. */
+.up__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tl-space-2);
   margin: 0;
-  font-size: var(--tl-font-size-sm);
+}
+.up__meta-k {
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text-secondary);
+}
+.up__meta-v {
+  font-size: var(--tl-font-size-base);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Version comparison: one line, arrow between. Not a two-row <dl> — the old
+   「清单版本」 row was a developer word (manifest) and, when there was no update,
+   printed the same number twice for the reader to diff. */
+.up__versions {
+  display: flex;
+  align-items: baseline;
+  gap: var(--tl-space-dense-2);
+  font-variant-numeric: tabular-nums;
+}
+.up__versions-from {
+  font-size: var(--tl-font-size-md);
+  color: var(--tl-text-secondary);
+}
+.up__versions-arrow {
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text-tertiary);
+}
+.up__versions-to {
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+  letter-spacing: -0.01em;
+}
+
+/* Status block: icon + title + detail. Used by up-to-date, failed and
+   invalid-version, which all answer "what happened?" in the same shape. */
+.up__status {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--tl-space-2);
+}
+.up__status-icon {
+  margin-block-start: 0.125rem;
+  color: var(--tl-text-tertiary);
+}
+.up__status-icon--ok {
+  color: var(--tl-success-ink);
+}
+.up__status-icon--danger {
   color: var(--tl-danger-ink);
 }
-
-.up__found {
-  margin: 0;
-  font-size: var(--tl-font-size-sm);
-  font-weight: var(--tl-font-weight-medium);
-  color: var(--tl-accent-ink, var(--tl-accent));
+.up__status-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-inline-size: 0;
 }
-
-.up__ok {
+.up__status-title {
   margin: 0;
-  font-size: var(--tl-font-size-sm);
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+.up__status-title--ok {
   color: var(--tl-success-ink);
+}
+.up__status-title--danger {
+  color: var(--tl-danger-ink);
+}
+.up__status-detail {
+  margin: 0;
+  font-size: var(--tl-font-size-base);
+  line-height: 1.5;
+  color: var(--tl-text-secondary);
 }
 
 .up__notes {
   margin: 0;
-  font-size: var(--tl-font-size-sm);
-  line-height: var(--tl-line-height-relaxed);
+  font-size: var(--tl-font-size-base);
+  line-height: 1.55;
   color: var(--tl-text-secondary);
-  white-space: pre-wrap;
+  /* Release notes are unbounded; three lines is enough to decide. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 
-.up__versions {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 4px 12px;
-  margin: 0;
-  font-size: var(--tl-font-size-sm);
+/* Indeterminate progress. No percentage: an HTTP request has no measurable
+   progress, and a fake 60% is a lie dressed as information. */
+.up__progress {
+  display: block;
+  inline-size: 100%;
+  block-size: 2px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-sunken);
+  overflow: hidden;
+  position: relative;
+}
+.up__progress::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inline-size: 32%;
+  border-radius: inherit;
+  /* accent-strong, not accent: on --tl-surface-sunken the raw accent measured
+     3.23:1, barely over the 3:1 non-text floor in refined/light. */
+  background: var(--tl-accent-strong);
+  animation: up-progress 1.1s var(--tl-ease-in-out) infinite;
 }
 
-.up__versions dt {
+@keyframes up-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(320%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* A bar frozen at its origin is more misleading than no bar: the text already
+     says 「正在读取清单…」 and is announced through the live region. */
+  .up__progress {
+    display: none;
+  }
+}
+
+/* One action, always in the same place. */
+.up__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-3);
+  padding: var(--tl-space-3) var(--tl-space-5) var(--tl-space-4);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+.up__foot[hidden] {
+  display: none;
+}
+.up__spacer {
+  flex: 1;
+}
+.up__blocked {
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
-}
-
-.up__versions dd {
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-  color: var(--tl-text);
 }

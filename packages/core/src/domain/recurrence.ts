@@ -134,8 +134,9 @@ export function nextOccurrence(
   rule: Recurrence | null | undefined,
   from: LocalDate,
 ): LocalDate | null {
-  // ... body unchanged below; see `isOccurrenceOf` for the "is this very day
-  // an occurrence" question, which `nextOccurrence` cannot answer.
+  // `nextOccurrence` never returns `from` itself; a rule that starts today is
+  // "the next one after today". Callers that need "is this very day an
+  // occurrence" must compare against the stored date themselves.
   if (!isValidRecurrence(rule)) return null;
   if (!isLocalDateString(from)) return null;
 

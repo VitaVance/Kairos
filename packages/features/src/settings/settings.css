@@ -1,0 +1,488 @@
+/* ============================================================================
+   设置 dialog — two-pane layout (section nav + scrolling pane).
+   Tokens only (var(--tl-*)); both themes and all three palettes come for free.
+   ========================================================================== */
+
+.set-dialog {
+  inline-size: min(780px, calc(100vw - 32px));
+  /* A FIXED height, not `max-block-size`.
+   *
+   * With only a maximum, the dialog sized itself to whichever section was on
+   * screen: 常规 is short, 快捷键 is long, so switching tabs made the whole
+   * window grow and shrink and the nav column jump under the pointer. A dialog
+   * that holds several panes needs one height for all of them; the pane
+   * scrolls inside it instead. The `dvh` clamp keeps it usable on a short
+   * window without ever collapsing to the content. */
+  block-size: min(620px, calc(100dvh - 64px));
+  padding: 0;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-lg);
+  overflow: hidden;
+}
+
+.set-dialog::backdrop {
+  background: var(--tl-scrim);
+}
+
+.set-shell {
+  display: flex;
+  flex-direction: column;
+  /* Fills the dialog's fixed height; the body area below is what scrolls. */
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.set-head {
+  display: flex;
+  align-items: center;
+  /* The title takes the free space so the close control sits at the trailing
+     edge, where every other dialog in the app puts it. */
+  gap: var(--tl-space-3);
+  flex: none;
+  padding: var(--tl-space-4) var(--tl-space-5);
+  border-block-end: 1px solid var(--tl-border);
+}
+
+.set-head .set-title {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* Close control. Quiet at rest, marked on hover/focus — the same shape as the
+   top bar's icon buttons so it does not read as a new kind of affordance. */
+.set-close {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--tl-control-h);
+  block-size: var(--tl-control-h);
+  margin-inline-end: calc(var(--tl-space-2) * -1);
+  padding: 0;
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.set-close:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.set-close:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.set-title {
+  margin: 0;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+/* Two panes: fixed nav column, scrolling content. */
+.set-body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  flex: 1;
+  min-block-size: 0;
+}
+
+/* ---------------- Section nav ---------------- */
+.set-nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-dense);
+  padding: var(--tl-space-3);
+  border-inline-end: 1px solid var(--tl-border);
+  background: var(--tl-surface-subtle);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.set-nav__item {
+  display: block;
+  inline-size: 100%;
+  padding: 8px var(--tl-space-3);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  text-align: start;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.set-nav__item:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+/* A fixed light-mode class, not a colour: the active section keeps the default
+   rest ground while hovered so moving the pointer onto it does not flip the
+   highlight off and on. */
+.set-nav__item.is-active:hover {
+  background: var(--tl-accent-tint);
+}
+
+.set-nav__item.is-active {
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.set-nav__item:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------- Content pane ---------------- */
+.set-pane {
+  padding: var(--tl-space-5);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+}
+
+.set-pane:focus-visible {
+  outline: none;
+}
+
+.set-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-4);
+}
+
+.set-section__title {
+  margin: 0;
+  font-size: var(--tl-font-size-md);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+.set-note {
+  margin: 0;
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-normal);
+}
+
+/* A "grouped rows" block: heading + hairline-separated rows. */
+.set-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.set-group__title {
+  margin: 0 0 var(--tl-space-2);
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text-secondary);
+}
+
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tl-space-4);
+  padding: var(--tl-space-3) 0;
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+
+.set-group > .set-row:last-child {
+  border-block-end: 0;
+}
+
+.set-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--tl-space-2);
+}
+
+.set-row__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-hairline);
+  min-inline-size: 0;
+}
+
+.set-row__label {
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text);
+}
+
+.set-row__hint {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  line-height: var(--tl-line-height-normal);
+}
+
+.set-row__value {
+  flex: none;
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text);
+}
+
+/* Fixed / non-configurable values read as text, not as a control. */
+.set-row__value--fixed {
+  padding: var(--tl-space-dense) var(--tl-space-2);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+}
+
+.set-select {
+  flex: none;
+  block-size: var(--tl-control-h);
+  box-sizing: border-box;
+  padding: 0 var(--tl-space-2);
+  padding-inline-end: calc(var(--tl-space-2) + 18px);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-base);
+  cursor: pointer;
+}
+
+.set-select:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------- Theme mode choice ---------------- */
+.set-choice {
+  display: inline-flex;
+  flex: none;
+  gap: var(--tl-space-dense);
+  padding: var(--tl-space-dense-2);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-sunken);
+}
+
+.set-choice__item {
+  padding: 0 var(--tl-space-3);
+  block-size: 26px;
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.set-choice__item:hover {
+  color: var(--tl-text);
+}
+
+.set-choice__item.is-active {
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-sm);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.set-choice__item:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+/* ---------------- Palette choice ---------------- */
+.set-palettes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--tl-space-2);
+}
+
+.set-palette {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-hairline);
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition:
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.set-palette:hover {
+  border-color: var(--tl-border-strong);
+}
+
+.set-palette.is-active {
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-tint);
+}
+
+.set-palette:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 2px;
+}
+
+.set-palette__name {
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text);
+}
+
+.set-palette.is-active .set-palette__name {
+  color: var(--tl-accent-ink);
+}
+
+.set-palette__hint {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+  line-height: var(--tl-line-height-normal);
+}
+
+/* ---------------- Shortcut rows (read-only) ---------------- */
+/* No hover/pressed styling on purpose: these rows cannot be edited yet, and a
+   hover wash would read as "click to change". Only the kbd chip carries ink. */
+.set-keys {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.set-key {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tl-space-3);
+  padding: var(--tl-space-2) 0;
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+
+.set-key:last-child {
+  border-block-end: 0;
+}
+
+.set-key__label {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--tl-font-size-base);
+  color: var(--tl-text-secondary);
+}
+
+.set-key__kbd {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tl-space-dense);
+  min-inline-size: 24px;
+  padding: var(--tl-space-dense) 6px;
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-xs);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text);
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-tight);
+  white-space: pre;
+}
+
+/* ---------------- About ---------------- */
+.set-about {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding: var(--tl-space-4);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-surface-subtle);
+}
+
+.set-about__name {
+  font-size: var(--tl-font-size-xl);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text);
+}
+
+.set-about__version {
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-secondary);
+}
+
+.set-about__desc {
+  margin: 0;
+  font-size: var(--tl-font-size-base);
+  line-height: var(--tl-line-height-normal);
+  color: var(--tl-text-secondary);
+}
+
+/* ---------------- Narrow: nav becomes a horizontal tab strip ---------------- */
+@media (max-width: 720px) {
+  .set-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .set-nav {
+    flex-direction: row;
+    gap: var(--tl-space-dense);
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-inline-end: 0;
+    border-block-end: 1px solid var(--tl-border);
+  }
+
+  .set-nav__item {
+    inline-size: auto;
+    white-space: nowrap;
+  }
+
+  .set-palettes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .set-dialog[open] {
+    animation: set-in var(--tl-duration-base) var(--tl-ease-out);
+  }
+}
+
+@keyframes set-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}

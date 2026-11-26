@@ -44,7 +44,7 @@
 
 .reminder-banner__kind {
   flex: none;
-  padding: 1px 6px;
+  padding: var(--tl-space-hairline) 6px;
   border-radius: var(--tl-radius-full);
   background: var(--tl-surface);
   color: var(--tl-accent-ink);
@@ -75,7 +75,7 @@
 }
 
 .reminder-banner__btn {
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   min-inline-size: 44px;
   padding: 0 var(--tl-space-3);
   border: 1px solid var(--tl-border-strong);

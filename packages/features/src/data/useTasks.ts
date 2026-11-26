@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Instant, Task, TaskId, ToggleDoneResult } from '@todolist/core';
+import type { Instant, LocalDate, Recurrence, Task, TaskId, ToggleDoneResult } from '@todolist/core';
+import { todayLocal } from '@todolist/core';
 import { useTranslation } from '@todolist/ui';
 import { useAsync } from './useAsync';
 import { useAppServices, useBumpRevision, useRevision } from '../services';
-import { useToast, useUndoOptional } from '../undo/UndoProvider';
+import { formatDueDate } from '../task/due-label';
+import { useToast, useToastAction, useUndoOptional } from '../undo/UndoProvider';
 
 /** How long a row keeps its completion intent flag (≈ the CSS animation). */
 const FRESH_MS = 220;
@@ -32,33 +34,100 @@ export interface CompletionPort {
 }
 
 /**
- * Reverse one completion.
+ * True when `live` is still the row the completion created, untouched.
+ *
+ * Every field a user can edit in the spawned row is compared, not just the two
+ * that move with the series: the detail panel edits time of day, half-day
+ * bucket, list, notes and quadrant in place, and any of those makes the row the
+ * user's own. Recurrence is compared through `recurrenceKey` because two rules
+ * that mean the same thing may not serialize identically.
+ */
+function isUntouchedOccurrence(spawned: Task, live: Task): boolean {
+  return (
+    live.status === 'open' &&
+    live.title === spawned.title &&
+    live.listId === spawned.listId &&
+    live.notes === spawned.notes &&
+    live.important === spawned.important &&
+    live.urgent === spawned.urgent &&
+    live.allDay === spawned.allDay &&
+    live.dueDate === spawned.dueDate &&
+    live.dueAt === spawned.dueAt &&
+    live.duePeriod === spawned.duePeriod &&
+    recurrenceKey(live.recurrence) === recurrenceKey(spawned.recurrence)
+  );
+}
+
+/** Order-insensitive identity for a rule; `null` and no-`until` both collapse. */
+function recurrenceKey(rule: Recurrence | null): string {
+  if (rule === null) return '';
+  const until = rule.until ?? '';
+  switch (rule.frequency) {
+    case 'daily':
+      return `daily|${rule.interval}|${until}`;
+    case 'weekly':
+      return `weekly|${rule.interval}|${[...rule.weekdays].sort((a, b) => a - b).join(',')}|${until}`;
+    case 'monthly':
+      return `monthly|${rule.interval}|${rule.monthDay}|${until}`;
+  }
+}
+
+/**
+ * "12月4日" / "Dec 4" for the next occurrence, through the same formatter every
+ * other surface uses, so the toast cannot drift from the row it describes.
+ */
+function formatShortDate(date: string | null): string {
+  return date === null ? '' : formatDueDate(date as LocalDate, todayLocal());
+}
+
+/**
+ * Reverse one completion and return what the reverse itself wrote.
  *
  * Completing a recurring task detaches the next occurrence into a *new* row,
  * so the inverse is two writes, not one: delete the row the completion
  * created, then reopen the row that was ticked. Deleting first keeps the list
  * from ever showing two open copies of the same series.
  *
- * The spawned row may have been renamed, rescheduled or deleted by the user in
- * the meantime. Only an unchanged id is removable; a deleted one is already
- * gone, and the reopen still happens either way.
+ * Only an *untouched* occurrence is removable. Once the user has edited the
+ * spawned row — time, bucket, list, notes, quadrant, rule — it is their task,
+ * not this completion's output, and deleting it would discard their work. It is
+ * left in place and only the ticked row is reopened; the two rows then sit on
+ * different dates (the completed occurrence and the edited next one), which is
+ * exactly what the user's own edits say happened. Re-running the completion
+ * finds that row again through `hasOpenOccurrence`, so the cycle does not keep
+ * spawning copies.
+ *
+ * The returned result is the reopen's own write, which is what the caller must
+ * keep: a later redo spawns a *different* row with a different id, and only
+ * that id can be removed by the next undo.
  */
-export async function undoCompletion(port: CompletionPort, written: ToggleDoneResult): Promise<void> {
+export async function undoCompletion(
+  port: CompletionPort,
+  written: ToggleDoneResult,
+): Promise<ToggleDoneResult> {
   if (written.next !== null) {
-    const nextId = written.next.id;
-    const stillThere = (await port.listAll()).some((task) => task.id === nextId);
-    if (stillThere) await port.remove(nextId);
+    const spawned = written.next;
+    const live = (await port.listAll()).find((task) => task.id === spawned.id);
+    if (live && isUntouchedOccurrence(spawned, live)) await port.remove(spawned.id);
   }
-  await port.toggleDone(written.task.id);
+  return port.toggleDone(written.task.id);
 }
 
 /**
- * Re-apply one completion. Both directions of `toggleDone` are replayed by
- * re-running it: a done recurring row reopens in place (`next` is null), and an
- * open one ticks and detaches the following occurrence again.
+ * Re-apply one completion and return what the replay wrote.
+ *
+ * Both directions of `toggleDone` are replayed by re-running it: a done
+ * recurring row reopens in place (`next` is null), and an open one ticks and
+ * detaches the following occurrence again. The returned result — not the one
+ * passed in — must feed the next undo: a replay of a recurring completion
+ * spawns a new row, and the stale id from the original completion is by then
+ * gone or belongs to a different row.
  */
-export async function redoCompletion(port: CompletionPort, written: ToggleDoneResult): Promise<void> {
-  await port.toggleDone(written.task.id);
+export async function redoCompletion(
+  port: CompletionPort,
+  written: ToggleDoneResult,
+): Promise<ToggleDoneResult> {
+  return port.toggleDone(written.task.id);
 }
 
 /**
@@ -75,6 +144,7 @@ export function useTasks() {
   const revision = useRevision();
   const bump = useBumpRevision();
   const notify = useToast();
+  const notifyWithAction = useToastAction();
   const undo = useUndoOptional();
   const { t: tMisc } = useTranslation('misc');
 
@@ -181,22 +251,55 @@ export function useTasks() {
           // Every toggle is undoable; only the row-click path announces itself.
           // A recurring completion spawns a second row, so its inverse is
           // "delete that row, reopen this one" rather than another toggle.
+          // `recorded` is the live state of the undo/redo pair: each direction
+          // replaces it with what *it* wrote, so a redo's newly spawned row is
+          // what the next undo removes (the original spawn's id is stale).
+          let recorded = written;
           undo?.push({
             label: goingDone
               ? tMisc('toast.completed', { title })
               : tMisc('toast.reopened', { title }),
             silent: source === 'checkbox',
             undo: async () => {
-              await undoCompletion(tasks, written);
+              recorded = await undoCompletion(tasks, recorded);
               bump();
               state.reload();
             },
             redo: async () => {
-              await redoCompletion(tasks, written);
+              recorded = await redoCompletion(tasks, recorded);
               bump();
               state.reload();
             },
           });
+
+          // A recurring completion is the one tick whose effect is not visible
+          // on the row you clicked: it also creates next week's row. Ending the
+          // series is the question that creates, so the toast offers it — the
+          // alternative is "open the detail panel, find 重复, pick 不重复", which
+          // a user who has decided to stop repeating will not discover.
+          if (goingDone && written.next !== null) {
+            const spawned = written.next;
+            const completedId = written.task.id;
+            notifyWithAction(
+              tMisc('toast.completedAndRepeats', {
+                title,
+                date: formatShortDate(spawned.dueDate),
+              }),
+              {
+                label: tMisc('toast.stopRepeating'),
+                run: async () => {
+                  await mutate(async () => {
+                    // "No next Friday" is two writes: drop the copy this
+                    // completion created, and take the rule off the row it came
+                    // from — otherwise reopening the ticked row and completing
+                    // it again would simply start the series over.
+                    await tasks.remove(spawned.id);
+                    await tasks.setRecurrence(completedId, null);
+                  });
+                },
+              },
+            );
+          }
         } catch (error) {
           console.error('切换完成状态失败', error);
           // Rollback: drop the optimistic row so the pre-toggle status returns.
@@ -211,7 +314,7 @@ export function useTasks() {
         }
       })();
     },
-    [bump, markFresh, notify, state, tasks, tMisc, undo],
+    [bump, markFresh, mutate, notify, notifyWithAction, state, tasks, tMisc, undo],
   );
 
   return { ...state, data, mutate, toggleDone, fresh };

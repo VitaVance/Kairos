@@ -1,14 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconButton, Popover, useTranslation } from '@todolist/ui';
-import {
-  applyPalette,
-  applyThemeMode,
-  PREFERS_DARK_QUERY,
-  readStoredPalette,
-  readStoredTheme,
-  storePalette,
-  storeTheme,
-} from './theme';
+import { useAppearance, watchSystemTheme } from './theme';
 import type { Palette, ThemeMode } from './theme';
 
 /**
@@ -19,6 +11,10 @@ import type { Palette, ThemeMode } from './theme';
  *
  * They compose, so all six combinations work. `system` is resolved before it
  * ever reaches the attribute, and the palette is applied independently of it.
+ *
+ * State lives in the shared appearance store (`theme.ts`), not here: the 设置
+ * dialog is a second surface for the same two axes, and two local `useState`
+ * copies went out of sync the moment one of them changed.
  *
  * Labels come from the `shell:theme` namespace rather than PALETTE_LABEL: the
  * palette names are user-facing copy, and this menu must switch language live
@@ -42,43 +38,12 @@ export interface ThemeToggleProps {
 
 export function ThemeToggle({ onChange }: ThemeToggleProps) {
   const { t } = useTranslation('shell');
-  const [mode, setMode] = useState<ThemeMode>(() => readStoredTheme());
-  const [palette, setPalette] = useState<Palette>(() => readStoredPalette());
+  const { mode, palette, setMode, setPalette } = useAppearance();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
 
-  // Apply on mount and whenever either axis changes.
-  useEffect(() => {
-    applyThemeMode(mode);
-  }, [mode]);
-
-  useEffect(() => {
-    applyPalette(palette);
-  }, [palette]);
-
   // While following the system, react to OS light/dark switches live.
-  useEffect(() => {
-    if (mode !== 'system') return;
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
-    const mql = window.matchMedia(PREFERS_DARK_QUERY);
-    const onSystemChange = () => applyThemeMode('system');
-    mql.addEventListener('change', onSystemChange);
-    return () => mql.removeEventListener('change', onSystemChange);
-  }, [mode]);
-
-  const chooseMode = useCallback(
-    (next: ThemeMode) => {
-      setMode(next);
-      storeTheme(next);
-      onChange?.(next);
-    },
-    [onChange],
-  );
-
-  const choosePalette = useCallback((next: Palette) => {
-    setPalette(next);
-    storePalette(next);
-  }, []);
+  useEffect(() => watchSystemTheme(), []);
 
   return (
     <>
@@ -105,7 +70,10 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
                   type="button"
                   className={`th-menu__chip${mode === value ? ' is-active' : ''}`}
                   aria-pressed={mode === value}
-                  onClick={() => chooseMode(value)}
+                  onClick={() => {
+                    setMode(value);
+                    onChange?.(value);
+                  }}
                 >
                   {t(`theme.mode.${value}`)}
                 </button>
@@ -122,7 +90,7 @@ export function ThemeToggle({ onChange }: ThemeToggleProps) {
                   type="button"
                   className={`th-menu__palette${palette === value ? ' is-active' : ''}`}
                   aria-pressed={palette === value}
-                  onClick={() => choosePalette(value)}
+                  onClick={() => setPalette(value)}
                 >
                   <span className="th-menu__swatch" aria-hidden="true">
                     {PALETTE_SWATCH[value].map((c) => (

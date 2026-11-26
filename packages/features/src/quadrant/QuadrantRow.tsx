@@ -6,7 +6,7 @@ import type { QuadrantKey } from '@todolist/ui';
 import type { LocalDate, TaskId } from '@todolist/core';
 import { listDisplayName } from '@todolist/core';
 import { formatDue } from '../task/due-label';
-import { shouldToggleRow } from '../task/row-click';
+import { shouldActivateRow } from '../task/row-click';
 import type { ClickNode } from '../task/row-click';
 
 /**
@@ -108,14 +108,15 @@ export function QuadrantRow({
 
   const handleRowClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     // Same rule as the flat row: the handle, checkbox and chevron own their
-    // own clicks, so a drag grab or a precise tick never completes the task
-    // a second time.
-    if (!shouldToggleRow(event.target as unknown as ClickNode, event.currentTarget as unknown as ClickNode)) {
+    // own clicks. The body opens the task; only the checkbox completes it.
+    if (!shouldActivateRow(event.target as unknown as ClickNode, event.currentTarget as unknown as ClickNode)) {
       return;
     }
-    // `onToggle` funnels through `useTasks().toggleDone`, which pushes the
-    // labelled undo entry (and its toast) for every completion path.
-    onToggle(task.id, 'row');
+    // With no detail panel mounted (`onOpen` absent, e.g. a bare screen in a
+    // test or a story), the body click falls back to completing — otherwise
+    // the row would have no action at all.
+    if (onOpen) onOpen(task.id);
+    else onToggle(task.id, 'row');
   };
 
   return (
@@ -165,9 +166,9 @@ export function QuadrantRow({
       <span className="qz-row__title">{task.title}</span>
       <span className="qz-row__meta">{meta}</span>
       {onOpen ? (
-        // Editing is a dedicated chevron: the title belongs to the row body
-        // (which completes), so the two actions never compete for one hit
-        // area. Labelled, not a mystery glyph.
+        // Labelled, not a mystery glyph — and it stays even though the row
+        // body now opens the task too, because a visible affordance is what
+        // makes "this row opens" discoverable without hovering.
         <button
           type="button"
           className="qz-row__open"

@@ -1,7 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import type { DuePeriod, LocalDate, Quadrant, Recurrence, Task, TaskList, TaskSchedule, Weekday } from '@todolist/core';
 import { duePrecisionOf, quadrantOf, todayLocal } from '@todolist/core';
-import { Button, Checkbox, SegmentedControl, TextField, currentLanguage, i18n, useTranslation } from '@todolist/ui';
+import {
+  Button,
+  Checkbox,
+  SegmentedControl,
+  TextField,
+  currentLanguage,
+  i18n,
+  isSubmitEnter,
+  useTranslation,
+} from '@todolist/ui';
 import type { QuadrantKey } from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
 import { listLabel } from '../lists/list-label';
@@ -255,8 +264,8 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
     run(() => taskService.setRecurrence(task.id, next), t('detail.errors.saveRecurrence'));
   };
 
-  // Keep the drafts in step with the stored rule (switching frequency, or a
-  // roll-forward, replaces the rule object). An untouched draft is left alone
+  // Keep the drafts in step with the stored rule (switching frequency
+  // replaces the rule object). An untouched draft is left alone
   // so typing in another field never rewrites what the user is editing.
   useEffect(() => {
     setIntervalDraft(String(recurrence?.interval ?? 1));
@@ -404,7 +413,10 @@ export function TaskDetailPanel({ task, lists, onClose }: TaskDetailPanelProps) 
               label={t('detail.editTitle')}
               className="tk-panel__title-field"
               onKeyDown={(e) => {
-                if (e.key === 'Enter') {
+                // An IME-confirming Enter belongs to the input method: blurring
+                // here would commit the half-composed title. Escape is a
+                // deliberate cancel and must still fire mid-composition.
+                if (isSubmitEnter(e)) {
                   e.preventDefault();
                   e.currentTarget.blur();
                 } else if (e.key === 'Escape') {

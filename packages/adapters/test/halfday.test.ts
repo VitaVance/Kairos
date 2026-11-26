@@ -361,7 +361,7 @@ describe('schedule() contract — memory and SQLite', () => {
         }
       });
 
-      it('recurrence roll-forward keeps the period', async () => {
+      it('the spawned next occurrence keeps the period', async () => {
         // Completing detaches the next occurrence as a new row; only the date
         // moves, so the bucket rides along — "every Monday morning" stays a
         // morning when completed.
@@ -390,7 +390,7 @@ describe('schedule() contract — memory and SQLite', () => {
   }
 });
 
-/** The task's dueDate, which rollForward must have moved. */
+/** The task's dueDate, which the detach must have moved on the spawned row. */
 function dateOf(task: Task): string | null {
   return task.dueDate;
 }

@@ -37,13 +37,13 @@
     },
     "reset": {
       "heading": "清空所有数据",
-      "hint": "示例数据只是让功能一眼可见。要从自己的内容开始，就先清空它。这会把全部任务、清单和日程一并删除，也包括你自己添加的；操作无法撤销。需要留底的话，请先在上方「导出 JSON」存一份备份。",
+      "hint": "开始使用自己的内容前，先把示例数据清掉。",
       "trigger": "清空所有数据…",
-      "confirm": "这会删除全部任务、清单和日程，无法撤销。清空后不会再次出现示例数据，可以直接开始记录你自己的日程。",
+      "confirm": "无法撤销，示例数据不会恢复。以下内容将全部删除，包括你自己添加的。",
       "confirmAction": "确认清空",
       "busy": "清空中…",
       "alertLabel": "确认清空所有数据",
-      "loss": "即将删除：{{tasks}} · {{lists}} · {{events}}。建议先「导出 JSON」留一份备份。"
+      "loss": "将删除 {{tasks}} · {{lists}} · {{events}}"
     },
     "labels": {
       "tasks": "任务",
@@ -145,7 +145,9 @@
   },
   "toast": {
     "completed": "已完成「{{title}}」",
-    "reopened": "已重新打开「{{title}}」"
+    "reopened": "已重新打开「{{title}}」",
+    "completedAndRepeats": "已完成「{{title}}」· 下次 {{date}}",
+    "stopRepeating": "结束重复"
   },
   "views": {
     "quadrant": "四象限",
@@ -169,6 +171,7 @@
     "week": "周视图",
     "day": "日视图",
     "agenda": "日程视图",
+    "settings": "设置",
     "close": "关闭对话框"
   }
 }

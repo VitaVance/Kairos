@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { shouldToggleRow } from '../src/task/row-click';
+import { shouldActivateRow } from '../src/task/row-click';
 import type { ClickNode } from '../src/task/row-click';
 
 /**
@@ -23,30 +23,35 @@ function chain(...nodes: ClickNode[]): ClickNode {
   return nodes[0]!;
 }
 
-describe('shouldToggleRow', () => {
-  it('toggles when the click lands on the row itself', () => {
+/**
+ * The predicate itself is gesture-agnostic: it answers "is this click free of
+ * controls?". The rows now route that answer to *open*, and the checkbox owns
+ * completion; these cases pin the routing, not which handler runs.
+ */
+describe('shouldActivateRow', () => {
+  it('activates when the click lands on the row itself', () => {
     const r = node('div');
-    expect(shouldToggleRow(r, r)).toBe(true);
+    expect(shouldActivateRow(r, r)).toBe(true);
   });
 
-  it('toggles for a span (title text) that sits directly in the row', () => {
+  it('activates for a span (title text) that sits directly in the row', () => {
     const r = node('div');
     const title = node('span', {}, r);
-    expect(shouldToggleRow(title, r)).toBe(true);
+    expect(shouldActivateRow(title, r)).toBe(true);
   });
 
-  it('toggles for a decorative child whose whole chain is non-interactive', () => {
+  it('activates for a decorative child whose whole chain is non-interactive', () => {
     const r = node('div');
     const meta = node('span', {}, r);
     const clock = node('svg', {}, meta);
-    expect(shouldToggleRow(clock, r)).toBe(true);
+    expect(shouldActivateRow(clock, r)).toBe(true);
   });
 
-  it('does not toggle when the click starts on the checkbox input', () => {
+  it('yields to the checkbox input so only it completes', () => {
     const r = node('div');
     const wrapper = node('span', { class: 'tl-checkbox' }, r);
     const input = node('input', { type: 'checkbox' }, wrapper);
-    expect(shouldToggleRow(input, r)).toBe(false);
+    expect(shouldActivateRow(input, r)).toBe(false);
   });
 
   it('lets an aria-hidden icon defer to the control that owns it', () => {
@@ -54,75 +59,75 @@ describe('shouldToggleRow', () => {
     const r = node('div');
     const open = node('button', { class: 'tk-row__open' }, r);
     const icon = node('svg', { 'aria-hidden': 'true' }, open);
-    expect(shouldToggleRow(icon, r)).toBe(false);
+    expect(shouldActivateRow(icon, r)).toBe(false);
     // The same icon with no control above it is part of the row body.
     const freeIcon = node('svg', { 'aria-hidden': 'true' }, r);
-    expect(shouldToggleRow(freeIcon, r)).toBe(true);
+    expect(shouldActivateRow(freeIcon, r)).toBe(true);
   });
 
-  it('does not toggle when the click starts on the visible checkbox glyph', () => {
+  it('yields when the click starts on the visible checkbox glyph', () => {
     // The glyph is `pointer-events: none`, so the browser hands this click to
     // the oversized input below; the predicate sees the input either way.
     const r = node('div');
     const wrapper = node('span', { class: 'tl-checkbox' }, r);
     const input = node('input', { type: 'checkbox' }, wrapper);
     const glyph = node('svg', {}, wrapper);
-    expect(shouldToggleRow(input, r)).toBe(false);
+    expect(shouldActivateRow(input, r)).toBe(false);
     // A glyph-targeted click only reaches the row if no control is between.
     // Real DOM resolves it to the input first, so this case does not occur.
-    expect(shouldToggleRow(glyph, r)).toBe(true);
+    expect(shouldActivateRow(glyph, r)).toBe(true);
   });
 
-  it('does not toggle on the chevron button or anything inside it', () => {
+  it('yields to the chevron button or anything inside it', () => {
     const r = node('div');
     const open = node('button', { class: 'tk-row__open' }, r);
     const icon = node('svg', {}, open);
-    expect(shouldToggleRow(open, r)).toBe(false);
-    expect(shouldToggleRow(icon, r)).toBe(false);
+    expect(shouldActivateRow(open, r)).toBe(false);
+    expect(shouldActivateRow(icon, r)).toBe(false);
   });
 
-  it('does not toggle on the drag handle (a button) used by the quadrant row', () => {
+  it('yields to the drag handle (a button) used by the quadrant row', () => {
     const r = node('div');
     const handle = node('button', { class: 'qz-row__handle' }, r);
     const glyph = node('svg', {}, handle);
-    expect(shouldToggleRow(handle, r)).toBe(false);
-    expect(shouldToggleRow(glyph, r)).toBe(false);
+    expect(shouldActivateRow(handle, r)).toBe(false);
+    expect(shouldActivateRow(glyph, r)).toBe(false);
   });
 
-  it('does not toggle on the delete button', () => {
+  it('yields to the delete button', () => {
     const r = node('div');
     const del = node('button', { class: 'tk-row__delete' }, r);
-    expect(shouldToggleRow(del, r)).toBe(false);
+    expect(shouldActivateRow(del, r)).toBe(false);
   });
 
-  it('does not toggle on a link inside the title', () => {
+  it('yields to a link inside the title', () => {
     const r = node('div');
     const title = node('span', {}, r);
     const link = node('a', { href: 'https://example.com' }, title);
     const text = node('span', {}, link);
-    expect(shouldToggleRow(link, r)).toBe(false);
-    expect(shouldToggleRow(text, r)).toBe(false);
+    expect(shouldActivateRow(link, r)).toBe(false);
+    expect(shouldActivateRow(text, r)).toBe(false);
   });
 
   it('honours ARIA-roled controls that are not native elements', () => {
     const r = node('div');
     const custom = node('span', { role: 'button' }, r);
-    expect(shouldToggleRow(custom, r)).toBe(false);
+    expect(shouldActivateRow(custom, r)).toBe(false);
     const editable = node('span', { contenteditable: '' }, r);
-    expect(shouldToggleRow(editable, r)).toBe(false);
+    expect(shouldActivateRow(editable, r)).toBe(false);
   });
 
-  it('allows a contenteditable="false" child to toggle', () => {
+  it('allows a contenteditable="false" child to activate', () => {
     const r = node('div');
     const text = node('span', { contenteditable: 'false' }, r);
-    expect(shouldToggleRow(text, r)).toBe(true);
+    expect(shouldActivateRow(text, r)).toBe(true);
   });
 
   it('refuses when the target is not inside the row (detached / portal)', () => {
     const r = node('div');
     const orphan = node('button', {}, node('div', {}, null));
-    expect(shouldToggleRow(orphan, r)).toBe(false);
-    expect(shouldToggleRow(null, r)).toBe(false);
+    expect(shouldActivateRow(orphan, r)).toBe(false);
+    expect(shouldActivateRow(null, r)).toBe(false);
   });
 
   it('refuses when a control is anywhere between the target and the row', () => {
@@ -131,13 +136,13 @@ describe('shouldToggleRow', () => {
     const r = node('div');
     const btn = node('button', {}, r);
     const span = node('span', {}, btn);
-    expect(shouldToggleRow(span, r)).toBe(false);
+    expect(shouldActivateRow(span, r)).toBe(false);
   });
 
   it('is case-insensitive about tag names', () => {
     const r = node('DIV');
     const input = node('INPUT', {}, r);
-    expect(shouldToggleRow(input, r)).toBe(false);
+    expect(shouldActivateRow(input, r)).toBe(false);
   });
 });
 
@@ -147,6 +152,6 @@ describe('row scaffolding helper', () => {
     const title = node('span');
     chain(r, title);
     expect(title.parentElement).toBe(r);
-    expect(shouldToggleRow(title, r)).toBe(true);
+    expect(shouldActivateRow(title, r)).toBe(true);
   });
 });

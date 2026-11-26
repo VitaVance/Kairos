@@ -18,6 +18,7 @@ import {
   weekdayLabels,
 } from './time-math';
 import { useTimeRangeSelection } from './useTimeRangeSelection';
+import type { SlotAnchor } from './QuickEventComposer';
 import './calendar.css';
 
 export type MultiDaySpan = 3 | 5 | 7;
@@ -34,6 +35,11 @@ export interface MultiDayViewProps {
   hourHeight?: number;
   /** Click on empty column space → `"HH:MM"` snapped to 15 minutes. */
   onCreateAt?: (date: LocalDate, time: string) => void;
+  /**
+   * Empty-slot click routed to the quick composer, carrying the click point and
+   * the column for focus restore. Takes precedence over `onCreateAt`.
+   */
+  onCreateSlot?: (date: LocalDate, time: string, anchor: SlotAnchor) => void;
   /**
    * Drag across empty column space → `"HH:MM"` start and end, snapped to 15
    * minutes. A press that does not move still goes through `onCreateAt`.
@@ -75,6 +81,7 @@ export function MultiDayView({
   dayEndHour = 20,
   hourHeight = HOUR_PX,
   onCreateAt,
+  onCreateSlot,
   onCreateRange,
   onOpenEntry,
   onOpenDay,
@@ -140,13 +147,23 @@ export function MultiDayView({
   function onColumnClick(event: ReactMouseEvent<HTMLDivElement>, day: LocalDate) {
     // A completed range sweep leaves one synthetic click; consume it.
     if (rangeSelection.consumeClick()) return;
-    if (!onCreateAt) return;
+    if (!onCreateAt && !onCreateSlot) return;
     // Clicks that land on a block belong to the block's own handler.
     if ((event.target as HTMLElement).closest('.mdv__block')) return;
-    const rect = event.currentTarget.getBoundingClientRect();
+    const col = event.currentTarget;
+    const rect = col.getBoundingClientRect();
     const raw = dayStartMin + (event.clientY - rect.top) / pxPerMinute;
     const clamped = Math.max(0, Math.min(MINUTES_PER_DAY - SNAP_MINUTES, snap(raw)));
-    onCreateAt(day, formatMinutes(clamped));
+    const time = formatMinutes(clamped);
+    if (onCreateSlot) {
+      onCreateSlot(day, time, {
+        x: event.clientX,
+        y: event.clientY,
+        returnFocusTo: col,
+      });
+      return;
+    }
+    onCreateAt?.(day, time);
   }
 
   // Drag across empty column space → a live range overlay → editor on release.
@@ -267,7 +284,7 @@ export function MultiDayView({
               const lookup = new Map(placed.map((p) => [p.id, p]));
               return (
                 <div
-                  className={`mdv__col${day === today ? ' mdv__col--today' : ''}${onCreateAt || onCreateRange ? ' cal-week-col--create' : ''}${onCreateRange ? ' cal-range-col' : ''}`}
+                  className={`mdv__col${day === today ? ' mdv__col--today' : ''}${onCreateAt || onCreateSlot || onCreateRange ? ' cal-week-col--create' : ''}${onCreateRange ? ' cal-range-col' : ''}`}
                   key={day}
                   onClick={(e) => onColumnClick(e, day)}
                   {...(onCreateRange ? rangeSelection.handlers(day) : {})}
@@ -282,10 +299,11 @@ export function MultiDayView({
                     const height = Math.max(20, (b.end - Math.max(0, b.start)) * pxPerMinute - 2);
                     const width = p ? 100 / p.columns : 100;
                     const left = p ? (p.column * 100) / p.columns : 0;
+                    const tall = height >= 46;
                     return (
                       <div
                         key={id}
-                        className="mdv__block"
+                        className={`mdv__block cal-block ${tall ? 'cal-block--tall' : 'cal-block--short'}`}
                         style={{
                           top,
                           height,

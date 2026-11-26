@@ -98,7 +98,7 @@
       "offline": "离线（本地文件）"
     },
     "online": {
-      "intro": "Kairos 会到发布页检查是否有新版本。",
+      "intro": "Kairos 会到发布页检查是否有新版本。只下载版本信息，你的任务数据不会离开这台电脑。",
       "privacy": "只下载版本信息，你的任务数据不会离开这台电脑。",
       "notConfigured": "此版本暂不支持检查更新。"
     },
@@ -126,7 +126,9 @@
       "invalidVersion": "无法比较版本：清单里的版本号格式不正确。",
       "available": "有新版本可用。请从发布页下载并覆盖安装。",
       "upToDate": "当前已是最新版本。",
-      "releaseUrlLabel": "发布页（可复制到浏览器打开）"
-    }
+      "releaseUrlLabel": "发布页（可复制到浏览器打开）",
+      "goToDownload": "前往下载"
+    },
+    "checkAgain": "再次检查"
   }
 }

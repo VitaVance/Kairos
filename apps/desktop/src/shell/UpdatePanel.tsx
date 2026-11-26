@@ -63,6 +63,28 @@ type Phase =
 export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePanelProps) {
   const { t } = useTranslation('shell');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
+  /**
+   * The installed version, read once so the idle state can show what is running
+   * before anything is checked. The design puts it in the first screen; leaving
+   * it blank until a check completes meant the first thing a user saw was an
+   * empty panel with one button.
+   */
+  const [currentLabel, setCurrentLabel] = useState('—');
+  useEffect(() => {
+    if (!open || checker === null) return;
+    let cancelled = false;
+    void checker
+      .currentVersion()
+      .then((v) => {
+        if (!cancelled) setCurrentLabel(v);
+      })
+      .catch(() => {
+        /* A host that cannot report its own version keeps the dash. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, checker]);
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
   const reasonId = useId();
@@ -152,79 +174,128 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
       onClose={onClose}
     >
       <div className="up__shell">
-        <header className="up__head">
-          <h2 className="up__title" id={titleId}>
-            {t('update.title')}
-          </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            {t('update.close')}
-          </Button>
-        </header>
+        {/* No visible title. The rail button that opens this already says
+            「检查更新」; repeating it as a 17px heading made the same sentence
+            appear twice in one card. The accessible name lives in a visually
+            hidden h2 instead. */}
+        <h2 className="up__sr-title" id={titleId}>
+          {t('update.title')}
+        </h2>
 
-        <div className="up__body">
-          {/* One source, no picker. The endpoint is whatever the build
-              configured in tauri.conf.json; a user-facing "online / offline"
-              toggle only existed to support air-gapped installs and leaked a
-              developer concern into the product. */}
-          <p className="up__intro">
-            {t('update.online.intro')} <strong>{t('update.online.privacy')}</strong>
-          </p>
+        <div className="up__head">
+          <button
+            type="button"
+            className="up__close"
+            aria-label={t('update.close')}
+            title={t('update.close')}
+            onClick={onClose}
+          >
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          </button>
+        </div>
 
-          <div className="up__actions">
+        <div className="up__body" role="status" aria-live="polite">
+          {phase.kind === 'idle' ? (
+            <>
+              <p className="up__meta">
+                <span className="up__meta-k">{t('update.result.currentVersion')}</span>
+                <span className="up__meta-v">{checker === null ? '—' : currentLabel}</span>
+              </p>
+              <p className="up__intro">{t('update.online.intro')}</p>
+            </>
+          ) : phase.kind === 'checking' ? (
+            <>
+              <p className="up__intro">{t('update.result.reading')}</p>
+              {/* Indeterminate, 32px. No percentage: an HTTP request has no
+                  measurable progress and a fake 60% is a lie. `aria-busy` sits
+                  here, never on the live region — it would defer the very
+                  announcement 「正在检查…」 exists to make. */}
+              <span className="up__progress" aria-hidden="true" />
+            </>
+          ) : phase.kind === 'failed' ? (
+            <div className="up__status">
+              <svg className="up__status-icon up__status-icon--danger" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 5v3.5M8 11h.01" />
+              </svg>
+              <div className="up__status-text">
+                <p className="up__status-title up__status-title--danger">
+                  {phase.reason === 'unavailable'
+                    ? t('update.reason.unavailable')
+                    : t(STATUS_KEYS[phase.reason])}
+                </p>
+              </div>
+            </div>
+          ) : phase.availability === 'update-available' ? (
+            <>
+              <div className="up__versions">
+                <span className="up__versions-from">{phase.current}</span>
+                <span className="up__versions-arrow" aria-hidden="true">
+                  →
+                </span>
+                <span className="up__versions-to">{phase.latest}</span>
+              </div>
+              <p className="up__status-title">{t('update.result.available')}</p>
+              {phase.notes === undefined ? null : <p className="up__notes">{phase.notes}</p>}
+            </>
+          ) : phase.availability === 'invalid-version' ? (
+            <div className="up__status">
+              <svg className="up__status-icon up__status-icon--danger" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M8 5v3.5M8 11h.01" />
+              </svg>
+              <div className="up__status-text">
+                <p className="up__status-title up__status-title--danger">
+                  {t('update.result.invalidVersion')}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="up__status">
+              <svg className="up__status-icon up__status-icon--ok" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                <circle cx="8" cy="8" r="6" />
+                <path d="M5.5 8.2l1.8 1.8 3.4-3.6" />
+              </svg>
+              <div className="up__status-text">
+                <p className="up__status-title up__status-title--ok">{t('update.result.upToDate')}</p>
+                <p className="up__status-detail">
+                  {t('update.result.currentVersion')} {phase.current}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* One action, always in the same place. During a check the bar is
+            removed entirely rather than showing a disabled button — a control
+            that can't be pressed only raises "is it stuck?". */}
+        <div className="up__foot" hidden={phase.kind === 'checking'}>
+          <span className="up__spacer" />
+          {phase.kind === 'done' && phase.availability === 'update-available' && phase.releaseUrl ? (
             <Button
               variant="primary"
-              onClick={() => void check()}
-              disabled={!canCheck}
-              {...(blocked === null ? {} : { 'aria-describedby': reasonId })}
+              onClick={() => {
+                if (phase.releaseUrl) window.open(phase.releaseUrl, '_blank', 'noopener,noreferrer');
+              }}
             >
-              {phase.kind === 'checking' ? t('update.checking') : t('update.check')}
+              {t('update.result.goToDownload')}
             </Button>
-            {blocked === null ? null : (
-              <span className="up__muted" id={reasonId}>
-                {t(REASON_KEYS[blocked])}
-              </span>
-            )}
-          </div>
-
-          <div className="up__result" role="status" aria-live="polite">
-            {phase.kind === 'idle' ? (
-              <p className="up__muted">{t('update.result.idle')}</p>
-            ) : phase.kind === 'checking' ? (
-              <p className="up__muted">{t('update.result.reading')}</p>
-            ) : phase.kind === 'failed' ? (
-              <p className="up__error">
-                {phase.reason === 'unavailable'
-                  ? t('update.reason.unavailable')
-                  : t(STATUS_KEYS[phase.reason])}
-              </p>
-            ) : (
-              <>
-                <dl className="up__versions">
-                  <dt>{t('update.result.currentVersion')}</dt>
-                  <dd>{phase.current}</dd>
-                  <dt>{t('update.result.latestVersion')}</dt>
-                  <dd>{phase.latest}</dd>
-                </dl>
-
-                {phase.availability === 'invalid-version' ? (
-                  <p className="up__error">{t('update.result.invalidVersion')}</p>
-                ) : phase.availability === 'update-available' ? (
-                  <p className="up__found">{t('update.result.available')}</p>
-                ) : (
-                  <p className="up__ok">{t('update.result.upToDate')}</p>
-                )}
-
-                {phase.notes === undefined ? null : <p className="up__notes">{phase.notes}</p>}
-
-                {phase.releaseUrl === undefined ? null : (
-                  <label className="up__field">
-                    <span className="up__label">{t('update.result.releaseUrlLabel')}</span>
-                    <input className="up__url" value={phase.releaseUrl} readOnly onFocus={(e) => e.currentTarget.select()} />
-                  </label>
-                )}
-              </>
-            )}
-          </div>
+          ) : phase.kind === 'idle' || phase.kind === 'checking' ? (
+            <Button variant="primary" onClick={() => void check()} disabled={!canCheck} {...(blocked === null ? {} : { 'aria-describedby': reasonId })}>
+              {t('update.check')}
+            </Button>
+          ) : (
+            <Button variant="ghost" onClick={() => void check()} disabled={!canCheck}>
+              {t('update.checkAgain')}
+            </Button>
+          )}
+          {blocked === null ? null : (
+            <span className="up__blocked" id={reasonId}>
+              {t(REASON_KEYS[blocked])}
+            </span>
+          )}
         </div>
       </div>
     </dialog>

@@ -12,7 +12,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--tl-space-2);
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   min-inline-size: 0;
   max-inline-size: 100%;
   padding: 0 var(--tl-space-2);
@@ -90,7 +90,7 @@
   justify-content: center;
   gap: var(--tl-space-1);
   min-inline-size: 0;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   padding: 0 var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -144,7 +144,7 @@
 }
 
 .tk-cal__jump-month {
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   min-inline-size: 0;
   padding-inline: var(--tl-space-1);
   overflow: hidden;
@@ -183,14 +183,14 @@
 .tk-cal__grid {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--tl-space-dense);
 }
 
 .tk-cal__weekdays,
 .tk-cal__week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 2px;
+  gap: var(--tl-space-dense);
 }
 
 .tk-cal__weekday {
@@ -203,7 +203,7 @@
 
 .tk-cal__day {
   /* 36×32 — comfortably above the 32×32 hit-target floor. */
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   min-inline-size: 0;
   border: 1px solid transparent;
   border-radius: var(--tl-radius-sm);
@@ -262,7 +262,7 @@
 
 .tk-cal__chip {
   flex: 1;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-full);
   background: var(--tl-surface-subtle);
@@ -293,7 +293,7 @@
 
 .tk-cal__clear {
   padding: 0 var(--tl-space-2);
-  block-size: 26px;
+  block-size: var(--tl-control-h-sm);
   border: 0;
   border-radius: var(--tl-radius-sm);
   background: transparent;
@@ -342,7 +342,7 @@
 .tk-time__field {
   flex: 1;
   min-inline-size: 0;
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   border: 0;
   background: transparent;
   /* Suppress the UA ring only because the `:focus-visible` rule below supplies
@@ -385,16 +385,16 @@
 .tk-time__col {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--tl-space-dense);
   max-block-size: 224px;
-  padding: 2px;
+  padding: var(--tl-space-dense);
   border-radius: var(--tl-radius-md);
   background: var(--tl-surface-sunken);
 }
 
 .tk-time__cell {
   flex: none;
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   border: 1px solid transparent;
   border-radius: var(--tl-radius-sm);
   background: transparent;

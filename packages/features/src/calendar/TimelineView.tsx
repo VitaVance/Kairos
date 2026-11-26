@@ -12,7 +12,16 @@ export interface TimelineViewProps {
   span?: number;
 }
 
-/** Agenda view: days as sections, entries as a vertical timeline per day. */
+/**
+ * Agenda view: one row per day — a date slab, a start-time gutter, a tick on a
+ * continuous day axis, and the event block.
+ *
+ * The axis is the point of the view: a day's entries hang off one line, so the
+ * shape of the day (a dense morning, a single late slot) reads before any text
+ * does. The block carries the time on its first line and the title beneath it,
+ * which is what makes a block editable-looking at 40px tall; a single-line
+ * strip read as a list row instead of an appointment.
+ */
 export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
   const { t } = useTranslation('calendar');
   // Monday-first, locale-derived; the index `i` matches `eachDay` from a week start.
@@ -37,7 +46,11 @@ export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
 
   return (
     <div className="tv">
-      {loading && !data ? <p className="cal-status" role="status">{t('loading')}</p> : null}
+      {loading && !data ? (
+        <p className="cal-status" role="status">
+          {t('loading')}
+        </p>
+      ) : null}
       {error ? (
         <p className="cal-error" role="alert">
           {t('loadFailed', { message: error.message })}
@@ -48,27 +61,45 @@ export function TimelineView({ cursor, today, span = 7 }: TimelineViewProps) {
         const isToday = day === today;
         return (
           <section className={`tv__day${isToday ? ' tv__day--today' : ''}`} key={day}>
-            <header className="tv__head">
-              <span className={`tv__date${isToday ? ' tv__date--today' : ''}`}>{Number(day.slice(8))}</span>
+            {/* The date slab is one grid cell that spans every entry row, so
+                the numeral stays pinned to the top of its day while the axis
+                and blocks run past it. `aria-hidden` on the visual parts keeps
+                the heading from being read twice by the section's label. */}
+            <h2 className="tv__date-cell">
+              <span className={`tv__date${isToday ? ' tv__date--today' : ''}`}>
+                {Number(day.slice(8))}
+              </span>
               <span className="tv__weekday">{weekdays[i]}</span>
               {isToday ? <span className="tv__badge">{t('today')}</span> : null}
-            </header>
+            </h2>
+
             {entries.length === 0 ? (
               <p className="tv__empty">{t('empty')}</p>
             ) : (
               <ol className="tv__list">
-                {entries.map((e) => (
-                  <li className="tv__item" key={`${e.source}-${e.id}`}>
-                    <span className="tv__axis" aria-hidden="true" />
-                    <time className="tv__time">{entryTimeLabel(e)}</time>
-                    <div
-                      className={`tv__event${e.done ? ' tv__event--done' : ''}`}
-                      style={{ ['--chip-color' as string]: e.color }}
-                    >
-                      <span className="tv__event-title">{e.title}</span>
-                    </div>
-                  </li>
-                ))}
+                {entries.map((e) => {
+                  // Gutter: the start time alone, so the column reads as a
+                  // timetable down the whole day. The full range lives inside
+                  // the block, which is where a reader looks for "how long".
+                  const label = entryTimeLabel(e);
+                  const start = label.includes(' - ') ? label.split(' - ')[0]! : label;
+                  return (
+                    <li className="tv__item" key={`${e.source}-${e.id}`}>
+                      <time className="tv__time" dateTime={e.startAt}>
+                        <span className="tl-visually-hidden">{label}</span>
+                        <span aria-hidden="true">{start}</span>
+                      </time>
+                      <span className="tv__axis" aria-hidden="true" />
+                      <div
+                        className={`tv__event${e.done ? ' tv__event--done' : ''}`}
+                        style={{ ['--chip-color' as string]: e.color }}
+                      >
+                        <span className="tv__event-time">{label}</span>
+                        <span className="tv__event-title">{e.title}</span>
+                      </div>
+                    </li>
+                  );
+                })}
               </ol>
             )}
           </section>

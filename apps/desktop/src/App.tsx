@@ -94,13 +94,22 @@ async function repairRunawayRecurringDates(uow: StorageHandle['uow']): Promise<v
   if (typeof store?.get !== 'function' || typeof store.set !== 'function') return;
   if ((await store.get(RECURRENCE_REPAIR_KEY)) !== null) return;
 
-  const repaired = await new TaskService({ uow, clock, ids }).repairRunawayRecurrences();
-  await store.set(RECURRENCE_REPAIR_KEY, clock.now());
-  if (repaired.length > 0) {
-    console.info(
-      `[repair] 已把 ${repaired.length} 条重复任务的错误日期修正到最近一次:`,
-      repaired.map((task) => `${task.title} → ${task.dueDate}`).join(', '),
-    );
+  try {
+    const repaired = await new TaskService({ uow, clock, ids }).repairRunawayRecurrences();
+    if (repaired.length > 0) {
+      console.info(
+        `[repair] 已把 ${repaired.length} 条重复任务的错误日期修正到最近一次:`,
+        repaired.map((task) => `${task.title} → ${task.dueDate}`).join(', '),
+      );
+    }
+    // Marker after the pass, so a throw leaves it unset and the next boot
+    // retries. The pass is idempotent, so a retry after a marker-write failure
+    // repairs nothing and simply records the marker.
+    await store.set(RECURRENCE_REPAIR_KEY, clock.now());
+  } catch (error) {
+    // A data repair must never brick startup. The bad date stays visible for
+    // one more session, which is strictly better than a boot screen.
+    console.error('[repair] 修正历史日期失败，本次跳过', error);
   }
 }
 

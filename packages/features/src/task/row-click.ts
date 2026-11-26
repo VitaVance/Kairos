@@ -1,12 +1,17 @@
 /**
  * Click routing for task rows.
  *
- * Both list surfaces make the *row body* complete the task (the large,
- * no-aiming target) and put the detail panel behind a dedicated chevron
- * button. A row already hosts a checkbox, a drag handle (quadrant) and a
- * delete button, so a click that starts on one of those must be left to that
- * control — otherwise a checkbox click would toggle twice and a drag handle
- * click would complete the task the user just grabbed.
+ * A row is an *object*, not a checkbox: clicking its body opens the task, and
+ * only the checkbox completes it. The earlier model made the whole row the
+ * completion target ("large, no-aiming area"), but completing is destructive
+ * enough — it can spawn a second row for a recurring task — that a mis-aimed
+ * click near the title should not be able to do it. Opening is reversible and
+ * every other list in this app treats a row as "the thing you open".
+ *
+ * The predicate answers one question: did this click land on a control that
+ * owns its own gesture? A drag handle, the checkbox, the delete button or a
+ * link inside the title all do. The row only acts when the whole chain from
+ * the target up to the row is free of controls.
  *
  * The predicate is DOM-free on purpose: this package has no jsdom, so the
  * tests build plain `ClickNode` chains and assert the routing directly. The
@@ -59,14 +64,13 @@ function isDecorative(node: ClickNode): boolean {
 }
 
 /**
- * Walk from the event target up to the row. The click completes the task only
- * when the whole chain reaches the row without crossing a control.
+ * Walk from the event target up to the row. The row acts only when the whole
+ * chain reaches the row without crossing a control.
  *
  * Returning `false` when the walk leaves the row (a detached target, a click
- * that started in a portal) is deliberate: an unknown origin must never
- * mutate a task.
+ * that started in a portal) is deliberate: an unknown origin must never act.
  */
-export function shouldToggleRow(target: ClickNode | null, row: ClickNode): boolean {
+export function shouldActivateRow(target: ClickNode | null, row: ClickNode): boolean {
   let node = target;
   while (node !== null && node !== row) {
     // A decorative node is skipped rather than treated as a control: whatever

@@ -283,18 +283,20 @@ interface Pair {
 
 const INK_PAIRS: Pair[] = [
   {
-    label: '.up__error',
+    // Renamed when the panel was rebuilt to design/E-update-panel.html: the
+    // error and success lines became the shared .up__status-title modifiers.
+    label: '.up__status-title--danger',
     file: 'apps/desktop/src/shell/update-panel.css',
-    selector: '.up__error',
+    selector: '.up__status-title--danger',
     property: 'color',
     token: '--tl-danger-ink',
     surface: ['--tl-surface'],
     min: 4.5,
   },
   {
-    label: '.up__ok',
+    label: '.up__status-title--ok',
     file: 'apps/desktop/src/shell/update-panel.css',
-    selector: '.up__ok',
+    selector: '.up__status-title--ok',
     property: 'color',
     token: '--tl-success-ink',
     surface: ['--tl-surface'],
@@ -428,6 +430,104 @@ const HOOK_PAIRS: { label: string; selector: string; hookToken: string; sourceTo
     sourceTokens: ['--tl-surface-hover'],
   },
 ];
+
+/**
+ * The floating view switcher, pinned to the *surface ladder* rather than to a
+ * colour.
+ *
+ * Why this is not just another contrast pair: the pill's actual defect was
+ * structural. It used a fixed dark slab (`--tl-pill-bg`), so one control
+ * measured 8.50:1 against the page in refined/light and 1.15:1 in
+ * protool/dark — it was a foreign object in two palettes and a hole in three.
+ * No single contrast assertion catches that, because each individual pair was
+ * "fine" in isolation. What must not regress is that the pill composes the
+ * same three tokens as every other floating surface, and that its two
+ * label/fill pairs clear the text floor everywhere.
+ */
+const PILL_CSS = readRepoFile('packages/ui/src/styles.css');
+
+describe('the view pill sits on the surface ladder', () => {
+  it('builds its ground from surface + border-strong + shadow-lg', () => {
+    expect(declaredValue(PILL_CSS, '.tl-pill', 'background')).toBe('var(--tl-surface)');
+    expect(declaredValue(PILL_CSS, '.tl-pill', 'border')).toBe('1px solid var(--tl-border-strong)');
+    expect(declaredValue(PILL_CSS, '.tl-pill', 'box-shadow')).toBe('var(--tl-shadow-lg)');
+  });
+
+  it('does not reintroduce a fixed slab or a blur over a solid ground', () => {
+    expect(declaredValue(PILL_CSS, '.tl-pill', 'backdrop-filter')).toBeUndefined();
+    // Comments in both files explain *why* the old tokens went away, so strip
+    // them first: what must not come back is a declaration or a `var()` use.
+    for (const dead of ['--tl-pill-bg', '--tl-pill-border', '--tl-pill-text', '--tl-pill-active']) {
+      expect(stripComments(PILL_CSS)).not.toContain(dead);
+      expect(stripComments(TOKENS_CSS)).not.toContain(`${dead}:`);
+    }
+  });
+
+  it('carries the selected state with accent tint, not an inverted fill', () => {
+    const active = declaredValue(PILL_CSS, '.tl-pill__item--active', 'background');
+    expect(active).toContain('var(--tl-accent)');
+    // §2.2: the mix target must be a surface token, never a literal.
+    expect(active).toContain('var(--tl-surface)');
+    expect(active).not.toMatch(/\bwhite\b/);
+    expect(declaredValue(PILL_CSS, '.tl-pill__item--active', 'color')).toBe('var(--tl-accent-ink)');
+  });
+
+  it('clears 4.5:1 for both labels and the CTA in every combination', () => {
+    for (const combo of COMBOS) {
+      const surface = resolveToken(combo.name, '--tl-surface');
+      const accent = resolveToken(combo.name, '--tl-accent');
+
+      // Inactive label on the pill ground.
+      const secondary = contrastRatio(resolveToken(combo.name, '--tl-text-secondary'), surface);
+      expect(secondary, `pill inactive label [${combo.name}] = ${secondary.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+
+      // Selected label on the 12% accent tint over that same ground.
+      const tint = mixOklab(accent, surface, 0.12);
+      const activeInk = contrastRatio(resolveToken(combo.name, '--tl-accent-ink'), tint);
+      expect(activeInk, `pill active label [${combo.name}] = ${activeInk.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+
+      // CTA label on its own fill — the pair that was 3.26:1 before.
+      const ctaInk = contrastRatio(resolveToken(combo.name, '--tl-cta-text'), resolveToken(combo.name, '--tl-cta-bg'));
+      expect(ctaInk, `pill CTA label [${combo.name}] = ${ctaInk.toFixed(2)}:1`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it('uses one scrim for every dialog, and it actually dims the page', () => {
+    const dialogs = [
+      'packages/features/src/calendar/calendar.css',
+      'packages/features/src/settings/settings.css',
+      'packages/features/src/data/data-transfer.css',
+      'packages/features/src/search/search.css',
+      'packages/features/src/shortcuts/shortcuts.css',
+      'apps/desktop/src/shell/update-panel.css',
+    ];
+    for (const file of dialogs) {
+      const css = readRepoFile(file);
+      // A selector *list* can carry a backdrop member (the reduced-motion
+      // reset groups `.dt-panel` with `.dt-panel::backdrop`), so match on the
+      // split list rather than on the whole string.
+      for (const block of ruleBlocks(css)) {
+        const hasBackdrop = block.selector.split(',').some((s) => s.trim().includes('::backdrop'));
+        if (!hasBackdrop) continue;
+        const bg = block.decls.get('background');
+        // Only blocks that set a background are scrims; a grouped block that
+        // just disables animation is not one.
+        if (bg === undefined) continue;
+        expect(bg, `${file} ${block.selector}`).toBe('var(--tl-scrim)');
+      }
+    }
+
+    // The scrim must darken the canvas in the light palettes by a visible step.
+    for (const combo of COMBOS) {
+      if (combo.name.endsWith('/dark')) continue;
+      const scrim = resolveToken(combo.name, '--tl-scrim');
+      const page = resolveToken(combo.name, '--tl-bg');
+      const dimmed = over(scrim, page);
+      const step = contrastRatio(dimmed, page);
+      expect(step, `scrim over ${combo.name} page = ${step.toFixed(2)}:1`).toBeGreaterThanOrEqual(1.5);
+    }
+  });
+});
 
 // ---------------------------------------------------------------- assertions
 
