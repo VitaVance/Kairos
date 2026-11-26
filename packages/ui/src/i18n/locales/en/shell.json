@@ -55,5 +55,78 @@
         "hint": "Paper tone · ochre & indigo"
       }
     }
+  },
+  "settings": {
+    "open": "Settings",
+    "title": "Settings",
+    "close": "Close settings",
+    "sections": {
+      "general": "General",
+      "appearance": "Appearance",
+      "shortcuts": "Shortcuts",
+      "about": "About"
+    },
+    "general": {
+      "language": "Language",
+      "languageHint": "The interface language. Changes apply immediately.",
+      "weekStart": "Week starts on",
+      "weekStartValue": "Monday",
+      "weekStartFixed": "Fixed: calendar weeks are Monday–Sunday and cannot be changed yet."
+    },
+    "appearance": {
+      "theme": "Theme",
+      "palette": "Palette"
+    },
+    "shortcuts": {
+      "notRebindable": "These keys are fixed in this version. Rebinding them is coming in a later update.",
+      "groupCommon": "General",
+      "groupNavigation": "Navigation"
+    },
+    "about": {
+      "version": "Version {{version}}",
+      "description": "A private to-do list and calendar — your tasks and events stay in a single file on your own machine."
+    }
+  },
+  "update": {
+    "title": "Check for updates",
+    "check": "Check for updates",
+    "checking": "Checking…",
+    "close": "Close",
+    "source": {
+      "label": "Update source",
+      "online": "Online (GitHub Releases)",
+      "offline": "Offline (local file)"
+    },
+    "online": {
+      "intro": "Reads version information from the project release page. Only the version manifest is downloaded.",
+      "privacy": "Your task data never leaves this machine.",
+      "notConfigured": "This build has no update source configured. Set plugins.updater.endpoints in tauri.conf.json to your GitHub Releases URL."
+    },
+    "offline": {
+      "intro": "For offline machines, download latest.json from the release page first, then paste its full path below.",
+      "pathLabel": "Manifest file path",
+      "pathPlaceholder": "C:\\Downloads\\latest.json"
+    },
+    "status": {
+      "notConfigured": "No update source configured",
+      "invalidSource": "Invalid source (online must be https://, offline must be an absolute path)",
+      "unreachable": "Could not reach the update source (network unavailable, or file not found)",
+      "invalidManifest": "The update source did not return a valid update manifest"
+    },
+    "reason": {
+      "notConfigured": "This build has no update source configured",
+      "pathRequired": "Enter the manifest file path first",
+      "unavailable": "Update checks are only available in the desktop app"
+    },
+    "result": {
+      "idle": "Not checked yet",
+      "reading": "Reading manifest…",
+      "currentVersion": "Current version",
+      "latestVersion": "Manifest version",
+      "invalidVersion": "Cannot compare versions: the manifest version is not in a recognised format.",
+      "available": "A new version is available. Download it from the release page and install over this one.",
+      "upToDate": "You are on the latest version.",
+      "releaseUrlLabel": "Release page (copy into a browser)"
+    }
   }
 }

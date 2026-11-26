@@ -99,7 +99,13 @@ async function readEndpointManifest(url: string): Promise<UpdateFetchOutcome> {
   if (updater === null) return { status: 'unreachable' };
 
   try {
-    const update = await updater.check({ headers: {}, proxy: undefined });
+    // Without an explicit timeout the plugin's Rust side defaults to `None`,
+    // so a half-dead network can leave this promise pending forever and the
+    // panel stuck on 「正在检查…」. 15 s is long enough for a slow-but-alive
+    // release feed and short enough that a dead one fails while the user is
+    // still looking at the panel; the rejection lands in the `catch` below and
+    // becomes `unreachable`, which the UI renders as a readable failure.
+    const update = await updater.check({ headers: {}, proxy: undefined, timeout: 15_000 });
     // `null` means "up to date"; report our own version so the panel can say so
     // in the same shape as every other outcome.
     if (update === null) {
@@ -114,6 +120,8 @@ async function readEndpointManifest(url: string): Promise<UpdateFetchOutcome> {
   } catch (error: unknown) {
     // A network failure and a bad endpoint are different problems for the user:
     // one means "try later", the other means "the release feed is broken".
+    // A timeout rejects with the plugin's own message; it names no manifest, so
+    // it falls through to `unreachable` — exactly the "try later" the user needs.
     const message = error instanceof Error ? error.message : String(error);
     if (/json|manifest|parse|invalid/i.test(message)) {
       return { status: 'invalid-manifest' };

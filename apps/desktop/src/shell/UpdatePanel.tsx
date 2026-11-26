@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Button, TextField } from '@todolist/ui';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import type { MouseEvent as ReactMouseEvent } from 'react';
+import { Button, TextField, useTranslation } from '@todolist/ui';
 import { evaluateUpdate } from '@todolist/features';
 import type { UpdateChecker, UpdateFetchStatus, UpdateSource } from '@todolist/features';
 import './update-panel.css';
@@ -8,24 +9,35 @@ import './update-panel.css';
  * Check for updates.
  *
  * Two sources, both explicit:
- *   - 在线（默认）— the release feed at the configured GitHub Releases endpoint.
- *     The updater plugin verifies the signature of the downloaded artifact, so a
- *     tampered installer is rejected before it runs.
- *   - 离线        — a `latest.json` the user already has on disk, for air-gapped
- *     machines or testing without a published release.
+ *   - online (default) — the release feed at the configured GitHub Releases
+ *     endpoint. The updater plugin verifies the signature of the downloaded
+ *     artifact, so a tampered installer is rejected before it runs.
+ *   - offline          — a `latest.json` the user already has on disk, for
+ *     air-gapped machines or testing without a published release.
  *
- * Nothing happens until the user clicks 检查更新: there is no timer and no
+ * Nothing happens until the user clicks check: there is no timer and no
  * startup request. Your tasks, lists and events never leave the machine — the
  * only request this app ever makes is a GET for a static version manifest.
+ *
+ * A native `<dialog>` opened with `showModal()` owns focus trapping, Escape and
+ * the top layer, so there is no hand-rolled key listener or focus hand-back.
  */
 
-const STATUS_COPY: Record<UpdateFetchStatus, string> = {
-  'manifest-read': '',
-  'not-configured': '尚未配置更新源',
-  'invalid-source': '更新源无效（在线地址必须是 https://，本地路径必须是绝对路径）',
-  unreachable: '无法连接更新源（网络不可用，或文件不存在）',
-  'invalid-manifest': '更新源返回的内容不是有效的更新清单',
-};
+/** Why a check could not run or finish; rendered through the `update.*` keys. */
+type FailureReason = 'unavailable' | Exclude<UpdateFetchStatus, 'manifest-read'>;
+
+const STATUS_KEYS = {
+  'not-configured': 'update.status.notConfigured',
+  'invalid-source': 'update.status.invalidSource',
+  unreachable: 'update.status.unreachable',
+  'invalid-manifest': 'update.status.invalidManifest',
+} as const;
+
+const REASON_KEYS = {
+  unavailable: 'update.reason.unavailable',
+  'not-configured': 'update.reason.notConfigured',
+  'path-required': 'update.reason.pathRequired',
+} as const;
 
 export interface UpdatePanelProps {
   open: boolean;
@@ -38,7 +50,7 @@ export interface UpdatePanelProps {
 type Phase =
   | { kind: 'idle' }
   | { kind: 'checking' }
-  | { kind: 'failed'; message: string }
+  | { kind: 'failed'; reason: FailureReason }
   | {
       kind: 'done';
       current: string;
@@ -51,20 +63,32 @@ type Phase =
 type Mode = 'online' | 'offline';
 
 export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePanelProps) {
+  const { t } = useTranslation('shell');
   const [mode, setMode] = useState<Mode>(endpoint.length > 0 ? 'online' : 'offline');
   const [path, setPath] = useState('');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
-  const closeRef = useRef<HTMLButtonElement | null>(null);
-  // The host passes an inline `onClose`, whose identity changes on every parent
-  // render (tasks/revision). Reading it through a ref keeps the effect keyed on
-  // `open` alone, so a background re-render cannot re-run focus and yank the
-  // caret out of the path field mid-typing.
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const titleId = useId();
+  const reasonId = useId();
+
+  // Drive the native dialog imperatively — never render the `open` attribute.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+    } else if (dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
+
+  // A check left mid-flight when the panel was closed resolves within the
+  // host's 15 s timeout; reopening then shows its real outcome rather than a
+  // stale "checking" that never ends.
 
   const check = useCallback(async () => {
     if (checker === null) {
-      setPhase({ kind: 'failed', message: '更新检查仅在桌面应用中可用' });
+      setPhase({ kind: 'failed', reason: 'unavailable' });
       return;
     }
     setPhase({ kind: 'checking' });
@@ -77,7 +101,7 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
       const outcome = await checker.fetchManifest(source);
 
       if (outcome.status !== 'manifest-read') {
-        setPhase({ kind: 'failed', message: STATUS_COPY[outcome.status] });
+        setPhase({ kind: 'failed', reason: outcome.status });
         return;
       }
 
@@ -94,33 +118,11 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
       });
     } catch (error: unknown) {
       // A host that throws (rather than returning a status) must not leave the
-      // panel spinning on 「正在检查…」 forever.
+      // panel spinning on 「checking」 forever.
       console.warn('[update] 检查更新失败', error);
-      setPhase({ kind: 'failed', message: STATUS_COPY.unreachable });
+      setPhase({ kind: 'failed', reason: 'unreachable' });
     }
   }, [checker, path, mode, endpoint]);
-
-  // Escape closes and focus returns to whatever opened the panel, matching the
-  // Popover/dialog behaviour every other overlay in the shell uses.
-  useEffect(() => {
-    if (!open) return;
-    const previous = document.activeElement as HTMLElement | null;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
-      // An inner popover/menu owns Escape while open.
-      if (document.querySelector('.tl-popover')) return;
-      e.stopPropagation();
-      onCloseRef.current();
-    };
-    document.addEventListener('keydown', onKey);
-    closeRef.current?.focus();
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      previous?.focus?.();
-    };
-  }, [open]);
-
-  if (!open) return null;
 
   const onlineConfigured = endpoint.length > 0;
   const canCheck =
@@ -129,36 +131,56 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
     (mode === 'offline' || onlineConfigured) &&
     (mode === 'online' || path.trim().length > 0);
 
+  // Why the check button is unavailable. `title` is neither keyboard-reachable
+  // nor reliably announced, and a `disabled` button cannot be focused to
+  // surface it, so the reason renders as visible text beside the button and is
+  // wired to it with `aria-describedby`.
+  const blocked: 'unavailable' | 'not-configured' | 'path-required' | null =
+    phase.kind === 'checking'
+      ? null
+      : checker === null
+        ? 'unavailable'
+        : mode === 'online' && !onlineConfigured
+          ? 'not-configured'
+          : mode === 'offline' && path.trim().length === 0
+            ? 'path-required'
+            : null;
+
+  // A click on the dialog element itself (not a descendant) is the backdrop.
+  const onClick = (event: ReactMouseEvent<HTMLDialogElement>) => {
+    if (event.target === event.currentTarget) onClose();
+  };
+
   return (
-    <div
-      className="up"
-      role="dialog"
-      aria-modal="true"
-      aria-label="检查更新"
-      // Native dialogs close on a backdrop click; this hand-rolled overlay must
-      // do the same. The event target is the backdrop only when the press
-      // started there (`e.target === e.currentTarget`), not on the card.
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <dialog
+      ref={dialogRef}
+      className="up-dialog"
+      aria-labelledby={titleId}
+      onClick={onClick}
+      // `cancel` fires on Escape; close through the parent so `open` stays the
+      // single source of truth, and let the native close follow.
+      onCancel={onClose}
+      onClose={onClose}
     >
-      <div className="up__card">
+      <div className="up__shell">
         <header className="up__head">
-          <h2 className="up__title">检查更新</h2>
-          <Button ref={closeRef} variant="ghost" size="sm" onClick={onClose}>
-            关闭
+          <h2 className="up__title" id={titleId}>
+            {t('update.title')}
+          </h2>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            {t('update.close')}
           </Button>
         </header>
 
         <div className="up__body">
-          <div className="up__modes" role="group" aria-label="更新源">
+          <div className="up__modes" role="group" aria-label={t('update.source.label')}>
             <button
               type="button"
               className={`up__mode${mode === 'online' ? ' is-active' : ''}`}
               aria-pressed={mode === 'online'}
               onClick={() => setMode('online')}
             >
-              在线（GitHub Releases）
+              {t('update.source.online')}
             </button>
             <button
               type="button"
@@ -166,35 +188,28 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
               aria-pressed={mode === 'offline'}
               onClick={() => setMode('offline')}
             >
-              离线（本地文件）
+              {t('update.source.offline')}
             </button>
           </div>
 
           {mode === 'online' ? (
             endpoint.length > 0 ? (
               <p className="up__intro">
-                将从项目的发布页读取版本信息。只有版本清单会被下载，
-                <strong>你的任务数据不会离开这台电脑</strong>。
+                {t('update.online.intro')} <strong>{t('update.online.privacy')}</strong>
               </p>
             ) : (
-              <p className="up__error">
-                此构建尚未配置更新源。请在 tauri.conf.json 的 plugins.updater.endpoints
-                填入你的 GitHub Releases 地址。
-              </p>
+              <p className="up__error">{t('update.online.notConfigured')}</p>
             )
           ) : (
             <>
-              <p className="up__intro">
-                如果你在离线环境，请先手动下载发布页提供的
-                <code> latest.json </code>，把它的完整路径填在下面。
-              </p>
+              <p className="up__intro">{t('update.offline.intro')}</p>
               <label className="up__field">
-                <span className="up__label">清单文件路径</span>
+                <span className="up__label">{t('update.offline.pathLabel')}</span>
                 <TextField
                   value={path}
                   onChange={setPath}
-                  placeholder="D:\下载\latest.json"
-                  label="清单文件路径"
+                  placeholder={t('update.offline.pathPlaceholder')}
+                  label={t('update.offline.pathLabel')}
                 />
               </label>
             </>
@@ -205,50 +220,50 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
               variant="primary"
               onClick={() => void check()}
               disabled={!canCheck}
-              title={
-                mode === 'online' && !onlineConfigured
-                  ? '此构建未配置更新源'
-                  : mode === 'offline' && path.trim().length === 0
-                    ? '请填写清单文件路径'
-                    : undefined
-              }
+              {...(blocked === null ? {} : { 'aria-describedby': reasonId })}
             >
-              {phase.kind === 'checking' ? '正在检查…' : '检查更新'}
+              {phase.kind === 'checking' ? t('update.checking') : t('update.check')}
             </Button>
-            {mode === 'offline' && path.trim().length === 0 ? (
-              <span className="up__muted">填写路径后即可检查</span>
-            ) : null}
+            {blocked === null ? null : (
+              <span className="up__muted" id={reasonId}>
+                {t(REASON_KEYS[blocked])}
+              </span>
+            )}
           </div>
 
           <div className="up__result" role="status" aria-live="polite">
             {phase.kind === 'idle' ? (
-              <p className="up__muted">尚未检查</p>
+              <p className="up__muted">{t('update.result.idle')}</p>
             ) : phase.kind === 'checking' ? (
-              <p className="up__muted">正在读取清单…</p>
+              <p className="up__muted">{t('update.result.reading')}</p>
             ) : phase.kind === 'failed' ? (
-              <p className="up__error">{phase.message}</p>
+              <p className="up__error">
+                {phase.reason === 'unavailable'
+                  ? t('update.reason.unavailable')
+                  : t(STATUS_KEYS[phase.reason])}
+              </p>
             ) : (
               <>
                 <dl className="up__versions">
-                  <dt>当前版本</dt>
+                  <dt>{t('update.result.currentVersion')}</dt>
                   <dd>{phase.current}</dd>
-                  <dt>清单版本</dt>
+                  <dt>{t('update.result.latestVersion')}</dt>
                   <dd>{phase.latest}</dd>
                 </dl>
 
                 {phase.availability === 'invalid-version' ? (
-                  <p className="up__error">无法比较版本：清单里的版本号格式不正确。</p>
+                  <p className="up__error">{t('update.result.invalidVersion')}</p>
                 ) : phase.availability === 'update-available' ? (
-                  <p className="up__found">有新版本可用。请从发布页下载并覆盖安装。</p>
+                  <p className="up__found">{t('update.result.available')}</p>
                 ) : (
-                  <p className="up__ok">当前已是最新版本。</p>
+                  <p className="up__ok">{t('update.result.upToDate')}</p>
                 )}
 
                 {phase.notes === undefined ? null : <p className="up__notes">{phase.notes}</p>}
 
                 {phase.releaseUrl === undefined ? null : (
                   <label className="up__field">
-                    <span className="up__label">发布页（可复制到浏览器打开）</span>
+                    <span className="up__label">{t('update.result.releaseUrlLabel')}</span>
                     <input className="up__url" value={phase.releaseUrl} readOnly onFocus={(e) => e.currentTarget.select()} />
                   </label>
                 )}
@@ -257,6 +272,6 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
           </div>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

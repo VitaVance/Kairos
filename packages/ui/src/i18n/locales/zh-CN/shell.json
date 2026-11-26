@@ -55,5 +55,78 @@
         "hint": "纸感 · 赭黄靛苔"
       }
     }
+  },
+  "settings": {
+    "open": "设置",
+    "title": "设置",
+    "close": "关闭设置",
+    "sections": {
+      "general": "常规",
+      "appearance": "外观",
+      "shortcuts": "快捷键",
+      "about": "关于"
+    },
+    "general": {
+      "language": "语言",
+      "languageHint": "界面语言，切换后立即生效。",
+      "weekStart": "周起始日",
+      "weekStartValue": "周一",
+      "weekStartFixed": "固定为周一：日历周一律为周一至周日，暂不支持调整。"
+    },
+    "appearance": {
+      "theme": "主题",
+      "palette": "配色"
+    },
+    "shortcuts": {
+      "notRebindable": "当前版本的按键为固定设置，自定义快捷键将在后续版本提供。",
+      "groupCommon": "通用",
+      "groupNavigation": "导航"
+    },
+    "about": {
+      "version": "版本 {{version}}",
+      "description": "私有的待办清单与日历——所有任务与日程都保存在你自己电脑上的单个文件中。"
+    }
+  },
+  "update": {
+    "title": "检查更新",
+    "check": "检查更新",
+    "checking": "正在检查…",
+    "close": "关闭",
+    "source": {
+      "label": "更新源",
+      "online": "在线（GitHub Releases）",
+      "offline": "离线（本地文件）"
+    },
+    "online": {
+      "intro": "将从项目的发布页读取版本信息。只有版本清单会被下载。",
+      "privacy": "你的任务数据不会离开这台电脑。",
+      "notConfigured": "此构建尚未配置更新源。请在 tauri.conf.json 的 plugins.updater.endpoints 填入你的 GitHub Releases 地址。"
+    },
+    "offline": {
+      "intro": "如果你在离线环境，请先手动下载发布页提供的 latest.json，把它的完整路径填在下面。",
+      "pathLabel": "清单文件路径",
+      "pathPlaceholder": "D:\\下载\\latest.json"
+    },
+    "status": {
+      "notConfigured": "尚未配置更新源",
+      "invalidSource": "更新源无效（在线地址必须是 https://，本地路径必须是绝对路径）",
+      "unreachable": "无法连接更新源（网络不可用，或文件不存在）",
+      "invalidManifest": "更新源返回的内容不是有效的更新清单"
+    },
+    "reason": {
+      "notConfigured": "此构建未配置更新源",
+      "pathRequired": "请填写清单文件路径",
+      "unavailable": "更新检查仅在桌面应用中可用"
+    },
+    "result": {
+      "idle": "尚未检查",
+      "reading": "正在读取清单…",
+      "currentVersion": "当前版本",
+      "latestVersion": "清单版本",
+      "invalidVersion": "无法比较版本：清单里的版本号格式不正确。",
+      "available": "有新版本可用。请从发布页下载并覆盖安装。",
+      "upToDate": "当前已是最新版本。",
+      "releaseUrlLabel": "发布页（可复制到浏览器打开）"
+    }
   }
 }
