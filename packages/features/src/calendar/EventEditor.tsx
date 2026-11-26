@@ -9,12 +9,17 @@ import type {
   NewEvent,
 } from '@todolist/core';
 import { addDays, todayLocal } from '@todolist/core';
-import { Button, Checkbox, TextField, useTranslation } from '@todolist/ui';
+import { Button, Checkbox, IconButton, useTranslation } from '@todolist/ui';
 import { useAppServices, useLists } from '../services';
 import { DatePicker } from '../pickers/DatePicker';
 import { TimePicker } from '../pickers/TimePicker';
 import { formatMinutes, minutesOfDay } from './time-math';
 import './calendar.css';
+// The shared destructive-confirmation surface lives beside its styles; import
+// it here so the confirmation renders correctly even if the data panel was
+// never mounted.
+import '../data/data-transfer.css';
+import { DestructiveConfirm } from '../data/DestructiveConfirm';
 
 export interface EventEditorProps {
   open: boolean;
@@ -138,6 +143,7 @@ export function EventEditor({
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const headingId = useId();
+  const titleId = useId();
 
   const isEditing = entry !== null && entry !== undefined;
   const canEditEntry = !isEditing || entry?.source === 'event';
@@ -245,14 +251,13 @@ export function EventEditor({
     if (!dialog) return;
     if (open) {
       if (!dialog.open) dialog.showModal();
-      const focusTarget = dialog.querySelector<HTMLInputElement>(
-        `input[aria-label="${t('event.fields.title')}"]`,
-      );
-      focusTarget?.focus();
+      // The title is the composer's hero, so it is the element that takes
+      // focus (and seeds typing) the moment the dialog appears.
+      dialog.querySelector<HTMLInputElement>('.cal-composer__title')?.focus();
     } else if (dialog.open) {
       dialog.close();
     }
-  }, [open, t]);
+  }, [open]);
 
   const effectiveStart = allDay ? '00:00' : startTime;
   const effectiveEnd = allDay ? '00:00' : endTime;
@@ -358,12 +363,20 @@ export function EventEditor({
       }}
     >
       <div className="cal-form">
-        <div className="cal-form__head">
+        <header className="cal-form__head">
           <h2 className="cal-form__title" id={headingId}>
             {isEditing ? t('event.editTitle') : t('event.newTitle')}
           </h2>
-          <span className="cal-form__hint">{t('event.escToClose')}</span>
-        </div>
+          <IconButton
+            variant="quiet"
+            label={tCommon('buttons.close')}
+            className="cal-form__close"
+            onClick={requestClose}
+            disabled={busy}
+          >
+            <span aria-hidden="true">✕</span>
+          </IconButton>
+        </header>
 
         {events === null ? (
           <p className="cal-note" role="status">
@@ -377,31 +390,23 @@ export function EventEditor({
           </p>
         ) : null}
 
-        <div className="cal-field">
-          <span className="cal-field__label">{t('event.fields.title')}</span>
-          <TextField
+        <div className="cal-composer">
+          <label className="tl-visually-hidden" htmlFor={titleId}>
+            {t('event.fields.title')}
+          </label>
+          <input
+            id={titleId}
+            className="cal-composer__title"
             value={title}
-            onChange={setTitle}
-            placeholder={t('event.titlePlaceholder')}
-            label={t('event.fields.title')}
-            disabled={events === null || !canEditEntry || busy}
+            placeholder={t('event.composerPlaceholder')}
             autoComplete="off"
+            disabled={events === null || !canEditEntry || busy}
+            onChange={(e) => setTitle(e.target.value)}
           />
         </div>
 
-        <label className="cal-check">
-          <Checkbox
-            checked={allDay}
-            disabled={events === null || !canEditEntry || busy}
-            onChange={toggleAllDay}
-            aria-label={t('event.allDay')}
-          />
-          {t('event.allDay')}
-        </label>
-
-        <div className="cal-field">
-          <span className="cal-field__label">{t('event.fields.start')}</span>
-          <div className="cal-field__row">
+        <div className="cal-when">
+          <div className="cal-when__fields">
             <DatePicker
               value={startDate}
               onChange={setStartDate}
@@ -414,19 +419,14 @@ export function EventEditor({
               disabled={events === null || !canEditEntry || allDay || busy}
               label={t('event.fields.startTime')}
             />
-          </div>
-        </div>
-
-        <div className="cal-field">
-          <span className="cal-field__label">
-            {allDay ? t('event.fields.endDateExclusive') : t('event.fields.end')}
-          </span>
-          <div className="cal-field__row">
+            <span className="cal-when__dash" aria-hidden="true">
+              –
+            </span>
             <DatePicker
               value={endDate}
               onChange={setEndDate}
               disabled={events === null || !canEditEntry || busy}
-              label={t('event.fields.endDate')}
+              label={allDay ? t('event.fields.endDateExclusive') : t('event.fields.endDate')}
             />
             <TimePicker
               value={endTime}
@@ -435,43 +435,54 @@ export function EventEditor({
               label={t('event.fields.endTime')}
             />
           </div>
+          <label className="cal-switch">
+            <Checkbox
+              checked={allDay}
+              disabled={events === null || !canEditEntry || busy}
+              onChange={toggleAllDay}
+              aria-label={t('event.allDay')}
+            />
+            <span className="cal-switch__label">{t('event.allDay')}</span>
+          </label>
         </div>
 
-        <label className="cal-field">
-          <span className="cal-field__label">{t('event.fields.list')}</span>
-          {/*
-            Native <select> kept for semantics and keyboard support; a branded
-            surface is layered on with `appearance: base-select` + `::picker(select)`
-            in calendar.css (`.cal-select`). Browsers without base-select fall
-            back to their own dropdown — no JS listbox to maintain.
-          */}
-          <select
-            className="cal-input cal-select tl-select"
-            aria-label={t('event.fields.list')}
-            value={listId}
-            disabled={events === null || !canEditEntry || isEditing || busy}
-            onChange={(e) => setListId(e.target.value)}
-          >
-            <option value="">{t('event.noList')}</option>
-            {lists.map((list) => (
-              <option key={list.id} value={list.id}>
-                {list.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="cal-meta">
+          <label className="cal-field">
+            <span className="cal-field__label">{t('event.fields.list')}</span>
+            {/*
+              Native <select> kept for semantics and keyboard support; a branded
+              surface is layered on with `appearance: base-select` + `::picker(select)`
+              in calendar.css (`.cal-select`). Browsers without base-select fall
+              back to their own dropdown — no JS listbox to maintain.
+            */}
+            <select
+              className="cal-input cal-select tl-select"
+              value={listId}
+              disabled={events === null || !canEditEntry || isEditing || busy}
+              onChange={(e) => setListId(e.target.value)}
+            >
+              <option value="">{t('event.noList')}</option>
+              {lists.map((list) => (
+                <option key={list.id} value={list.id}>
+                  {list.name}
+                </option>
+              ))}
+            </select>
+          </label>
 
-        <label className="cal-field">
-          <span className="cal-field__label">{t('event.fields.notes')}</span>
-          <textarea
-            className="cal-input cal-input--area"
-            aria-label={t('event.fields.notes')}
-            value={notes}
-            placeholder={t('event.notesPlaceholder')}
-            disabled={events === null || !canEditEntry || isEditing || busy}
-            onChange={(e) => setNotes(e.target.value)}
-          />
-        </label>
+          <label className="cal-field">
+            <span className="cal-field__label">{t('event.fields.notes')}</span>
+            <textarea
+              className="cal-input cal-input--area"
+              aria-label={t('event.fields.notes')}
+              rows={2}
+              value={notes}
+              placeholder={t('event.notesPlaceholder')}
+              disabled={events === null || !canEditEntry || isEditing || busy}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </label>
+        </div>
 
         {rangeError ? (
           <p className="cal-error" role="alert">
@@ -491,42 +502,42 @@ export function EventEditor({
           </p>
         ) : null}
 
-        {confirm ? (
-          <div
-            className="cal-confirm"
-            role="alertdialog"
-            aria-label={
-              confirm === 'delete'
-                ? t('event.confirmDeleteLabel')
-                : t('event.confirmDiscardLabel')
-            }
-            aria-live="assertive"
-          >
-            <p className="cal-confirm__msg">
-              {confirm === 'delete'
-                ? t('event.confirmDeleteMessage')
-                : t('event.confirmDiscardMessage')}
-            </p>
-            <div className="cal-confirm__actions">
-              <Button variant="ghost" size="sm" onClick={() => setConfirm(null)} disabled={busy}>
-                {t('event.back')}
-              </Button>
-              {confirm === 'delete' ? (
-                <Button variant="danger" size="sm" onClick={() => void remove()} disabled={busy}>
-                  {tCommon('buttons.delete')}
-                </Button>
-              ) : (
-                <Button variant="danger" size="sm" onClick={onClose} disabled={busy}>
-                  {t('event.discard')}
-                </Button>
-              )}
-            </div>
-          </div>
-        ) : (
+        {/* Destructive confirmations use the shared shape (DESIGN-LANGUAGE
+            §5.4): a modal `<dialog>`, focus on the safe action, and a 600ms arm
+            delay. This used to be an inline `role="alertdialog"` stacked inside
+            this already-open dialog: focus never moved into it and a held
+            Enter could delete in one gesture. As a nested native modal it is
+            inert to the editor behind it; Esc closes it, which mirrors `null`
+            back into `confirm` (the `close` path in DestructiveConfirm). */}
+        <DestructiveConfirm
+          open={confirm !== null}
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            // Clear the confirmation *before* the action closes the editor.
+            // `remove()`/`onClose()` close the parent dialog; if `confirm` were
+            // still set, this nested modal would stay `showModal()` over a
+            // closed editor — the app inert behind an invisible dialog, the
+            // same shape as UI-AUDIT P0-4.
+            setConfirm(null);
+            if (confirm === 'delete') void remove();
+            else if (confirm === 'discard') onClose();
+          }}
+          title={
+            confirm === 'delete' ? t('event.confirmDeleteLabel') : t('event.confirmDiscardLabel')
+          }
+          body={
+            confirm === 'delete' ? t('event.confirmDeleteMessage') : t('event.confirmDiscardMessage')
+          }
+          confirmLabel={confirm === 'delete' ? tCommon('buttons.delete') : t('event.discard')}
+          cancelLabel={t('event.back')}
+          busy={busy}
+        />
+
+        {confirm ? null : (
           <div className="cal-actions">
             {isEditing && entry?.source === 'event' ? (
               <Button
-                variant="danger"
+                variant="ghost"
                 className="cal-actions__delete"
                 onClick={() => setConfirm('delete')}
                 disabled={busy}

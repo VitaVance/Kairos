@@ -75,8 +75,8 @@
 .dt-close {
   display: grid;
   place-items: center;
-  inline-size: 30px;
-  block-size: 30px;
+  inline-size: var(--tl-control-h);
+  block-size: var(--tl-control-h);
   border: 0;
   border-radius: var(--tl-radius-md);
   background: transparent;
@@ -127,7 +127,10 @@
 .dt-section--danger {
   margin-block-start: var(--tl-space-2);
   padding: var(--tl-space-4);
-  border: 1px solid var(--tl-danger);
+  /* A hairline in a diluted danger hue, not a full-strength 1px frame: the
+     section is already set apart by its ground, and the frame made it the
+     loudest thing on the panel. */
+  border: 1px solid color-mix(in oklab, var(--tl-danger) 35%, var(--tl-surface));
   border-radius: var(--tl-radius-lg);
   background: var(--tl-danger-tint);
 }
@@ -137,7 +140,7 @@
 }
 
 .dt-section--danger .dt-section__hint {
-  color: var(--tl-text);
+  color: var(--tl-text-secondary);
 }
 
 .dt-empty {
@@ -256,7 +259,7 @@
 .dt-file::file-selector-button {
   margin-inline-end: var(--tl-space-2);
   padding: 0 var(--tl-space-3);
-  block-size: 30px;
+  block-size: var(--tl-control-h);
   border: 1px solid var(--tl-border-strong);
   border-radius: var(--tl-radius-md);
   background: var(--tl-surface);
@@ -395,14 +398,18 @@
   color: var(--tl-danger-ink);
 }
 
+/* The merge-confirm step. Merge leaves the undo stack intact, so it is not
+   treated as irreversible and keeps a one-step inline confirmation (§5.4); the
+   irreversible paths (delete all data, replace import) use the shared modal
+   below instead. */
 .dt-confirm {
   display: flex;
   flex-direction: column;
   gap: var(--tl-space-2);
   padding: var(--tl-space-3);
-  border: 1px solid var(--tl-danger);
+  border: 1px solid var(--tl-border-strong);
   border-radius: var(--tl-radius-lg);
-  background: var(--tl-danger-tint);
+  background: var(--tl-surface-subtle);
 }
 
 .dt-confirm__text {
@@ -412,12 +419,63 @@
   color: var(--tl-text);
 }
 
-/* The "this will lose N tasks" line — same body as the confirm text, but
-   framed as a consequence rather than a description. */
-.dt-confirm__loss {
-  padding-inline-start: var(--tl-space-2);
-  border-inline-start: 2px solid var(--tl-danger);
+/* ---------------- Confirm dialogs (DestructiveConfirm) ---------------- */
+
+/* The shared destructive confirmation (see DestructiveConfirm.tsx). It is a
+   nested modal: the settings dialog stays behind it, inert. The native element
+   supplies ::backdrop, focus containment and Esc; only the surface and rhythm
+   are ours. Sizing is shared by every caller — "delete all data" and the
+   replace-import confirmation — so the shape cannot drift per call site. */
+.dt-reset-dialog {
+  box-sizing: border-box;
+  inline-size: min(420px, calc(100vw - var(--tl-space-8)));
+  padding: var(--tl-space-5);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  background: var(--tl-surface-raised);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-lg);
+}
+
+.dt-reset-dialog::backdrop {
+  background: color-mix(in oklab, var(--tl-text) 28%, transparent);
+}
+
+.dt-reset-dialog__title {
+  margin: 0 0 var(--tl-space-2);
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-semibold);
   color: var(--tl-danger-ink);
+}
+
+.dt-reset-dialog__body {
+  margin: 0;
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-normal);
+  color: var(--tl-text);
+}
+
+/* Callers that pass more than one sentence (the import confirmation) separate
+   them here instead of nesting paragraphs of unrelated styles. */
+.dt-reset-dialog__line {
+  margin: 0;
+}
+
+.dt-reset-dialog__line + .dt-reset-dialog__line {
+  margin-block-start: var(--tl-space-2);
+}
+
+/* The counts are the only part specific to this moment. */
+.dt-reset-dialog__loss {
+  color: var(--tl-danger-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-reset-dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--tl-space-2);
+  margin-block-start: var(--tl-space-5);
 }
 
 /* ---------------- Buttons ---------------- */
@@ -433,7 +491,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   padding: 0 var(--tl-space-3);
   border: 1px solid var(--tl-border-strong);
   border-radius: var(--tl-radius-md);
@@ -460,7 +518,7 @@
 .dt-btn--sm {
   /* 28px, matching .tl-btn--sm: a 26px pill with a 13px label was the same
      cramped control the scale change set out to fix. */
-  block-size: 28px;
+  block-size: var(--tl-control-h-sm);
   padding: 0 var(--tl-space-2);
   font-size: var(--tl-font-size-sm);
 }
@@ -477,7 +535,17 @@
 
 .dt-btn--danger {
   border-color: transparent;
-  background: var(--tl-danger-tint);
+  /* The resting ground is the raised panel, not --tl-danger-tint.
+   *
+   * `--tl-danger-ink` on a danger tint only passes while that tint sits on an
+   * opaque surface. This button lives *inside* `.dt-section--danger`, which is
+   * already painted with the same tint, so the button's `background` composited
+   * the 14–15%-alpha editorial tint a second time. That double wash measured
+   * 4.19:1 in editorial/dark and 4.93:1 in editorial/light — under the 4.5 text
+   * floor for a 13px label. A second token cannot fix a double wash; the ground
+   * has to stay a single layer. Ink on the panel's own surface is 5.62–6.19:1 in
+   * all six combinations. */
+  background: var(--tl-surface);
   color: var(--tl-danger-ink);
 }
 

@@ -5,6 +5,7 @@ import { useTranslation } from '@todolist/ui';
 import type { AppServices } from '../services';
 import { useAppServices, useLists, useRevision } from '../services';
 import { useUndoOptional } from '../undo/UndoProvider';
+import { DestructiveConfirm } from './DestructiveConfirm';
 import type { BackupData, BackupFile, MergeMode } from './export-import';
 import {
   exportTasksToCsv,
@@ -102,6 +103,47 @@ export function resetLossLine(
   });
 }
 
+/**
+ * What the reset handler must do to the UI when the port settles.
+ *
+ * A pure data description so the success/failure split can be tested without a
+ * DOM. It exists because the success branch once forgot to close the
+ * confirmation dialog: `onReset` succeeded, the data was gone, the outer panel
+ * closed, and the inner `<dialog>` stayed `showModal()` — leaving the whole app
+ * `inert` behind an invisible modal (UI-AUDIT P0-4). Every field here is
+ * load-bearing on success; treat a missing `closeConfirm` as that bug.
+ */
+export interface ResetOutcome {
+  /** Close the inner confirmation dialog. Not a courtesy — a modal that stays
+   *  open locks the page. */
+  readonly closeConfirm: boolean;
+  /** Close the settings panel that hosts it. */
+  readonly closePanel: boolean;
+  /** Drop the undo stack: every closure in it pointed at a deleted row. */
+  readonly clearUndo: boolean;
+  /** Show the success status line. */
+  readonly announce: 'resetDone' | null;
+}
+
+export const RESET_SUCCEEDED: ResetOutcome = {
+  closeConfirm: true,
+  closePanel: true,
+  clearUndo: true,
+  announce: 'resetDone',
+};
+
+export const RESET_FAILED: ResetOutcome = {
+  closeConfirm: true,
+  closePanel: false,
+  clearUndo: false,
+  announce: null,
+};
+
+/** Map a settled reset to its UI effects. */
+export function resetOutcome(ok: boolean): ResetOutcome {
+  return ok ? RESET_SUCCEEDED : RESET_FAILED;
+}
+
 // ---------------------------------------------------------------------------
 // Live dataset
 // ---------------------------------------------------------------------------
@@ -169,8 +211,13 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The import mode whose confirmation is open, `null` when closed. `replace`
+   * gets the shared destructive modal below; `merge` keeps a one-step inline
+   * confirm because it leaves the undo stack intact.
+   */
   const [confirmMode, setConfirmMode] = useState<MergeMode | null>(null);
-  /** Two-step confirm for the destructive reset, like `TaskDetailPanel`. */
+  /** Whether the "delete all data" confirmation modal is open. */
   const [confirmReset, setConfirmReset] = useState(false);
 
   const [exportPreview, setExportPreview] = useState<{
@@ -358,18 +405,27 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
     if (!onReset) return;
     setBusy(true);
     setError(null);
+    let outcome: ResetOutcome = RESET_FAILED;
     try {
       await onReset();
-      // Every row the stack pointed at is gone; replaying a closure would
-      // resurrect content the user just asked to delete.
-      undoStack?.clear();
-      setStatus(t('data.status.resetDone'));
+      outcome = resetOutcome(true);
+      if (outcome.clearUndo) {
+        // Every row the stack pointed at is gone; replaying a closure would
+        // resurrect content the user just asked to delete.
+        undoStack?.clear();
+      }
+      if (outcome.announce) setStatus(t('data.status.resetDone'));
       resetImport();
-      onClose();
     } catch (err) {
+      outcome = resetOutcome(false);
       setError(err instanceof Error ? err.message : String(err));
-      setConfirmReset(false);
     } finally {
+      // Close the confirmation modal on BOTH paths. On success this was the
+      // P0-4 bug: the data was deleted, the panel closed, and this modal stayed
+      // `showModal()`, leaving the app `inert` and un-clickable. The outcome is
+      // what keeps the two branches in step, so neither can drift again.
+      if (outcome.closeConfirm) setConfirmReset(false);
+      if (outcome.closePanel) onClose();
       setBusy(false);
     }
   }, [onReset, onClose, resetImport, undoStack, t]);
@@ -557,37 +613,23 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
                 <p className="dt-note" role="note">
                   {t('data.import.notWritable')}
                 </p>
-              ) : confirmMode !== null ? (
-                <div
-                  className="dt-confirm"
-                  role="alertdialog"
-                  aria-label={t('data.import.confirmLabel')}
-                >
-                  <p className="dt-confirm__text">
-                    {confirmMode === 'replace'
-                      ? t('data.import.confirmReplace')
-                      : t('data.import.confirmMerge')}
-                  </p>
-                  {confirmMode === 'replace' && discardWarning ? (
-                    <p className="dt-confirm__text dt-confirm__loss">
-                      {t(discardWarning.done > 0 ? 'data.import.discardWithDone' : 'data.import.discard', {
-                        tasks: t('data.prose.tasks', { count: discardWarning.lost }),
-                        done: t('data.prose.done', { count: discardWarning.done }),
-                      })}
-                    </p>
-                  ) : null}
+              ) : null}
+
+              {writable && confirmMode === 'merge' ? (
+                // Merge is additive: it leaves the undo stack intact, so it
+                // stays a one-step inline confirm (§5.4: don't intercept what
+                // undo can reach). Replace deletes every row and clears that
+                // stack — it gets the full modal below.
+                <div className="dt-confirm">
+                  <p className="dt-confirm__text">{t('data.import.confirmMerge')}</p>
                   <div className="dt-actions">
                     <button
                       type="button"
-                      className={`dt-btn dt-btn--sm ${confirmMode === 'replace' ? 'dt-btn--danger' : 'dt-btn--primary'}`}
+                      className="dt-btn dt-btn--primary dt-btn--sm"
                       disabled={busy}
-                      onClick={() => void apply(confirmMode)}
+                      onClick={() => void apply('merge')}
                     >
-                      {busy
-                        ? t('data.import.busy')
-                        : confirmMode === 'replace'
-                          ? t('data.import.confirmReplaceAction')
-                          : t('data.import.confirmMergeAction')}
+                      {busy ? t('data.import.busy') : t('data.import.confirmMergeAction')}
                     </button>
                     <button
                       type="button"
@@ -599,13 +641,12 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : writable ? (
                 <div className="dt-actions">
                   <button
                     type="button"
                     className="dt-btn dt-btn--danger dt-btn--sm"
-                    disabled={!writable || busy}
-                    title={writable ? undefined : t('data.import.notWritableTitle')}
+                    disabled={busy}
                     onClick={() => setConfirmMode('replace')}
                   >
                     {t('data.import.replace')}
@@ -613,8 +654,7 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
                   <button
                     type="button"
                     className="dt-btn dt-btn--primary dt-btn--sm"
-                    disabled={!writable || busy}
-                    title={writable ? undefined : t('data.import.notWritableTitle')}
+                    disabled={busy}
                     onClick={() => setConfirmMode('merge')}
                   >
                     {t('data.import.merge')}
@@ -628,7 +668,7 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
                     {t('buttons.cancel', { ns: 'common' })}
                   </button>
                 </div>
-              )}
+              ) : null}
             </div>
           ) : null}
         </section>
@@ -641,45 +681,16 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
             </h3>
             <p className="dt-section__hint">{copy.hint}</p>
 
-            {confirmReset ? (
-              <div className="dt-confirm" role="alertdialog" aria-label={copy.alertLabel}>
-                <p className="dt-confirm__text">{copy.confirm}</p>
-                {exportPreview && exportPreview.counts.tasks + exportPreview.counts.lists + exportPreview.counts.events > 0 ? (
-                  <p className="dt-confirm__text dt-confirm__loss">
-                    {resetLossLine(t, exportPreview.counts)}
-                  </p>
-                ) : null}
-                <div className="dt-actions">
-                  <button
-                    type="button"
-                    className="dt-btn dt-btn--danger dt-btn--sm"
-                    disabled={busy}
-                    onClick={() => void resetAll()}
-                  >
-                    {busy ? copy.busy : copy.confirmAction}
-                  </button>
-                  <button
-                    type="button"
-                    className="dt-btn dt-btn--ghost dt-btn--sm"
-                    disabled={busy}
-                    onClick={() => setConfirmReset(false)}
-                  >
-                    {t('buttons.cancel', { ns: 'common' })}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="dt-actions">
-                <button
-                  type="button"
-                  className="dt-btn dt-btn--danger dt-btn--sm"
-                  disabled={busy}
-                  onClick={() => setConfirmReset(true)}
-                >
-                  {copy.trigger}
-                </button>
-              </div>
-            )}
+            <div className="dt-actions">
+              <button
+                type="button"
+                className="dt-btn dt-btn--danger dt-btn--sm"
+                disabled={busy}
+                onClick={() => setConfirmReset(true)}
+              >
+                {copy.trigger}
+              </button>
+            </div>
           </section>
         ) : null}
 
@@ -694,6 +705,57 @@ export function DataTransferPanel({ open, onClose, onApply, onReset }: DataTrans
           {status}
         </p>
       </div>
+
+      {/*
+        Destructive confirmations. Each is a separate modal `<dialog>` rendered
+        as a sibling of the panel's content (a nested modal is the platform's
+        intended shape): inert to everything behind it, Esc closes it, focus
+        lands on Cancel, and the destructive button only arms after a short
+        delay. Neither must ever be an inline `role="alertdialog"` — that is
+        the shape that let one double-click clear everything.
+      */}
+      <DestructiveConfirm
+        open={confirmReset}
+        onCancel={() => setConfirmReset(false)}
+        onConfirm={() => void resetAll()}
+        title={copy.alertLabel}
+        body={
+          <>
+            {copy.confirm}
+            {exportPreview && exportPreview.counts.tasks + exportPreview.counts.lists + exportPreview.counts.events > 0 ? (
+              <span className="dt-reset-dialog__loss"> {resetLossLine(t, exportPreview.counts)}</span>
+            ) : null}
+          </>
+        }
+        confirmLabel={copy.confirmAction}
+        cancelLabel={t('buttons.cancel', { ns: 'common' })}
+        busy={busy}
+        busyLabel={copy.busy}
+      />
+
+      <DestructiveConfirm
+        open={confirmMode === 'replace'}
+        onCancel={() => setConfirmMode(null)}
+        onConfirm={() => void apply('replace')}
+        title={t('data.import.confirmLabel')}
+        body={
+          <>
+            <p className="dt-reset-dialog__line">{t('data.import.confirmReplace')}</p>
+            {discardWarning ? (
+              <p className="dt-reset-dialog__line dt-reset-dialog__loss">
+                {t(discardWarning.done > 0 ? 'data.import.discardWithDone' : 'data.import.discard', {
+                  tasks: t('data.prose.tasks', { count: discardWarning.lost }),
+                  done: t('data.prose.done', { count: discardWarning.done }),
+                })}
+              </p>
+            ) : null}
+          </>
+        }
+        confirmLabel={t('data.import.confirmReplaceAction')}
+        cancelLabel={t('buttons.cancel', { ns: 'common' })}
+        busy={busy}
+        busyLabel={t('data.import.busy')}
+      />
     </dialog>
   );
 }
