@@ -3,7 +3,16 @@ import type { DragEvent as ReactDragEvent } from 'react';
 import type { LocalDate, Task, TaskId, TaskList } from '@todolist/core';
 import { quadrantOf } from '@todolist/core';
 import type { QuadrantKey } from '@todolist/ui';
-import { Badge, CollapsibleSection, EmptyState, TextField, QUADRANT_COLOR, useTranslation } from '@todolist/ui';
+import {
+  Badge,
+  CollapsibleSection,
+  EmptyState,
+  IconButton,
+  PlusIcon,
+  TextField,
+  QUADRANT_COLOR,
+  useTranslation,
+} from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
 import { useAppServices } from '../services';
 import { useToast } from '../undo/UndoProvider';
@@ -36,6 +45,32 @@ const QUADRANT_NAME_KEY = {
   'urgent-not-important': 'quadrant.names.urgentNotImportant',
   unimportant: 'quadrant.names.unimportant',
 } as const;
+
+/**
+ * How many completed rows an expanded footer shows. Long-lived boards collect
+ * recurring copies indefinitely; nothing is deleted, but the disclosure only
+ * paints the newest slice so the card stays readable. The section header still
+ * shows the true total.
+ */
+const RECENT_COMPLETED_LIMIT = 20;
+
+/**
+ * `completedAt` is an ISO-8601 instant, so plain string comparison orders it.
+ * Rows completed before the field existed have `completedAt: null`; those fall
+ * back to `updatedAt`, which was stamped by the same write that closed them.
+ */
+function completedMoment(task: Task): string {
+  return task.completedAt ?? task.updatedAt;
+}
+
+function byMostRecent(first: Task, second: Task): number {
+  // Same ISO-8601 shape on every row, so a plain lexicographic compare is an
+  // exact chronological order (and unlike `localeCompare`, deterministic).
+  const a = completedMoment(first);
+  const b = completedMoment(second);
+  if (a === b) return 0;
+  return a < b ? 1 : -1;
+}
 
 export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: QuadrantScreenProps) {
   const { t } = useTranslation('lists');
@@ -204,6 +239,10 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
         const color = QUADRANT_COLOR[q];
         const open = grouped[q].open;
         const done = grouped[q].done;
+        // Newest completions first; the disclosure paints only this slice so a
+        // board that has been used for months stays readable. The header count
+        // keeps showing `done.length`, the true total.
+        const recentDone = [...done].sort(byMostRecent).slice(0, RECENT_COMPLETED_LIMIT);
         return (
           <section
             key={q}
@@ -240,17 +279,53 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
               <Badge label={quadrantName(q)} color={color.color} count={open.length} />
             </header>
 
+            {/*
+              One flex column owns the card's height: the add field (fixed),
+              then the scrolling body (flex: 1, min-height: 0) which holds the
+              open rows *and* the completed disclosure. The disclosure used to
+              be a sibling of the scrolling list with no shrink limit, so a long
+              completed list made the card's content taller than its fixed grid
+              track — and because only the list clipped, the rest painted over
+              the card below. Keeping a single scroll container is both simpler
+              and impossible to overflow.
+            */}
             <TextField
               value={drafts[q] ?? ''}
               onChange={(v) => setDrafts((d) => ({ ...d, [q]: v }))}
               onSubmit={() => void addTask(q)}
               placeholder={t('quadrant.addPlaceholder')}
               label={t('quadrant.addLabel', { quadrant: quadrantName(q) })}
+              leadingIcon={<PlusIcon size={14} />}
               className="qz-card__add"
+              /*
+                Pointer/touch users had no way to submit: the only submit path
+                was Enter, and `leadingIcon` is a decorative span. A real submit
+                button trailing the input gives them one. It lives inside the
+                field's existing flex row (`.tl-field` is `display: flex`), so
+                `.qz-card__add` (flex: none + margin) needs no change.
+
+                The label reuses the field's accessible name ("Add a task to
+                …") — the locale catalog has no shorter "Add" verb, and the
+                input right next to it already carries the quadrant context.
+              */
+              trailing={
+                <IconButton
+                  variant="quiet"
+                  label={t('quadrant.addLabel', { quadrant: quadrantName(q) })}
+                  disabled={(drafts[q] ?? '').trim().length === 0}
+                  onClick={() => void addTask(q)}
+                >
+                  <PlusIcon size={16} />
+                </IconButton>
+              }
             />
 
-            <div className="qz-card__list">
-              {open.length === 0 && done.length === 0 ? <EmptyState compact /> : null}
+            <div className="qz-card__body">
+              {open.length === 0 && done.length === 0 ? (
+                <div className="qz-card__empty">
+                  <EmptyState compact />
+                </div>
+              ) : null}
               {open.map((task) => (
                 <QuadrantRow
                   key={task.id}
@@ -282,24 +357,38 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
                     leaving
                   />
                 ))}
-            </div>
 
-            {done.length > 0 ? (
-              <CollapsibleSection title={t('quadrant.completed')} count={done.length} defaultOpen={false}>
-                {done.map((task) => (
-                  <QuadrantRow
-                    key={task.id}
-                    task={task}
-                    lists={lists}
-                    today={today}
-                    onToggle={toggle}
-                    onMove={moveTask}
-                    onOpen={onOpenTask}
-                    fresh={fresh.has(task.id)}
-                  />
-                ))}
-              </CollapsibleSection>
-            ) : null}
+              {done.length > 0 ? (
+                <div className="qz-card__done">
+                  <CollapsibleSection
+                    title={t('quadrant.completed')}
+                    count={done.length}
+                    defaultOpen={false}
+                    footer={
+                      done.length > recentDone.length
+                        ? t('quadrant.completedRecent', {
+                            shown: recentDone.length,
+                            total: done.length,
+                          })
+                        : undefined
+                    }
+                  >
+                    {recentDone.map((task) => (
+                      <QuadrantRow
+                        key={task.id}
+                        task={task}
+                        lists={lists}
+                        today={today}
+                        onToggle={toggle}
+                        onMove={moveTask}
+                        onOpen={onOpenTask}
+                        fresh={fresh.has(task.id)}
+                      />
+                    ))}
+                  </CollapsibleSection>
+                </div>
+              ) : null}
+            </div>
           </section>
         );
       })}
