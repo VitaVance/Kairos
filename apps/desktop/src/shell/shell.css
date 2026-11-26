@@ -42,7 +42,10 @@
   margin-bottom: var(--tl-space-4);
   border-radius: var(--tl-radius-full);
   background: var(--tl-danger-tint);
-  color: var(--tl-danger);
+  /* Icon ink, still text-sized: --tl-danger on --tl-danger-tint is 2.88:1
+     (default/light) and sub-4.5 in two more combos; --tl-danger-ink is
+     ≥5.08:1 in all six. */
+  color: var(--tl-danger-ink);
 }
 
 .sh-error__title {
@@ -120,12 +123,16 @@
 }
 
 .sh-error__btn--primary {
-  background: var(--tl-accent);
+  /* The fill that carries white text: --tl-accent-contrast on --tl-accent is
+     3.68:1 (default/light). --tl-accent-strong is the paired fill for exactly
+     this case (5.17:1), and every palette whose accent already passes sets
+     strong = accent, so this changes only default/light. */
+  background: var(--tl-accent-strong);
   color: var(--tl-accent-contrast);
 }
 
 .sh-error__btn--primary:hover {
-  background: var(--tl-accent-hover);
+  background: var(--tl-accent-strong-hover);
 }
 
 .sh-error__btn--secondary {
@@ -189,13 +196,23 @@
 .top-bar__prefs {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--tl-space-2);
+}
+
+/* Settings moved to the foot of the side rail (it belongs with backup, update
+   and help, not next to the view controls). Only the rail rules remain. */
+.side-rail__settings {
+  color: var(--tl-text-secondary);
+}
+
+.side-rail__settings:hover:not(:disabled) {
+  color: var(--tl-text);
 }
 
 /* ---------- theme toggle ---------- */
 .sh-theme-toggle {
-  width: 32px;
-  height: 32px;
+  width: var(--tl-control-h);
+  height: var(--tl-control-h);
   color: var(--tl-text-secondary);
 }
 
@@ -210,7 +227,7 @@
   gap: var(--tl-space-3);
   /* The popover already contributes 8px; 6 more keeps the painted inset at the
      4px rhythm's 14px instead of the old 22px double pad. */
-  padding: 6px;
+  padding: var(--tl-space-compact);
 }
 
 .th-menu__group {
@@ -220,19 +237,19 @@
 }
 
 .th-menu__label {
-  /* Matches the 11px `--tl-font-size-xs` role used by every other small
-     all-caps label in the app; 10px was a one-off. */
+  /* Sentence case at the xs role, matching the detail panel's section labels:
+     the uppercase + 0.08em tracking read as "small print" and is gone. */
   font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--tl-text-secondary);
 }
 
 .th-menu__row {
   display: flex;
-  gap: 4px;
-  padding: 3px;
+  gap: var(--tl-space-1);
+  padding: var(--tl-space-dense-2);
   border-radius: var(--tl-radius-sm);
   background: var(--tl-surface-sunken);
 }
@@ -267,16 +284,16 @@
 .th-menu__palettes {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--tl-space-dense);
 }
 
 .th-menu__palette {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--tl-space-3);
   /* 8px block padding keeps each row on the 4px rhythm and makes the three
      palette rows read as one list, not three cards. */
-  padding: 8px;
+  padding: var(--tl-space-2);
   border: 1px solid transparent;
   border-radius: var(--tl-radius-sm);
   background: transparent;
@@ -304,7 +321,7 @@
   overflow: hidden;
   width: 34px;
   height: 22px;
-  border-radius: 4px;
+  border-radius: var(--tl-radius-xs);
   /* Hairline ring around the palette preview; a literal black ring vanishes
      into a dark popover. */
   box-shadow: inset 0 0 0 1px var(--tl-border-strong);

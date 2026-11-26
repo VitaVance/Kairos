@@ -31,12 +31,30 @@ interface ToastState {
   readonly label: string;
   /** False for informational notices (e.g. a failed optimistic write). */
   readonly undoable: boolean;
+  /**
+   * Optional second action, offered next to Undo. A completion uses it to end
+   * a repeating series without leaving the list: the toast is already the
+   * place that reports what a tick did, so it is where "and stop repeating"
+   * belongs.
+   */
+  readonly action?: {
+    readonly label: string;
+    readonly run: () => void | Promise<void>;
+  };
 }
 
 /** Show a transient notice without offering undo. No-op outside the provider. */
 const ToastContext = createContext<((label: string) => void) | null>(null);
 
 const NOOP_NOTIFY = () => {};
+
+/**
+ * Show a notice that also carries one extra action. Optional provider, like
+ * `useToast`: outside it the call degrades to nothing rather than throwing.
+ */
+const ToastActionContext = createContext<
+  ((label: string, action: NonNullable<ToastState['action']>) => void) | null
+>(null);
 
 export interface UndoProviderProps {
   children: ReactNode;
@@ -68,6 +86,13 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
   const deadlineRef = useRef<number | null>(null);
   const remainingRef = useRef(TOAST_DURATION_MS);
   const pausedRef = useRef(false);
+  /**
+   * One undo/redo in flight at a time. The stack awaits a command *before* it
+   * moves off the stack, so a second Ctrl+Z landing during that await would run
+   * the same command twice — and for a completion that means deleting the
+   * occurrence the first run just re-created.
+   */
+  const busyRef = useRef(false);
 
   const syncFlags = useCallback(() => {
     setFlags({ canUndo: stack.canUndo, canRedo: stack.canRedo });
@@ -136,7 +161,27 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
     [armTimer, clearTimer],
   );
 
+  /**
+   * The toast that reports a tick, with "stop repeating" next to Undo. Shown
+   * even when the tick itself is silent: the caller only uses this for a
+   * *recurring* completion, where not saying anything would hide the fact that
+   * a second row now exists.
+   */
+  const notifyWithAction = useCallback(
+    (label: string, action: NonNullable<ToastState['action']>) => {
+      clearTimer();
+      remainingRef.current = TOAST_DURATION_MS;
+      pausedRef.current = false;
+      toastId.current += 1;
+      setToast({ id: toastId.current, label, undoable: true, action });
+      armTimer();
+    },
+    [armTimer, clearTimer],
+  );
+
   const undo = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     try {
       const command = await stack.undo();
       syncFlags();
@@ -149,10 +194,14 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
       // turning a keyboard shortcut into an unhandled rejection.
       console.error('撤销失败', error);
       syncFlags();
+    } finally {
+      busyRef.current = false;
     }
   }, [bump, dismissToast, stack, syncFlags]);
 
   const redo = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     try {
       const command = await stack.redo();
       syncFlags();
@@ -163,6 +212,8 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
     } catch (error) {
       console.error('重做失败', error);
       syncFlags();
+    } finally {
+      busyRef.current = false;
     }
   }, [bump, dismissToast, stack, syncFlags]);
 
@@ -201,6 +252,15 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
     void undo();
   }, [undo]);
 
+  const onToastAction = useCallback(() => {
+    const action = toast?.action;
+    if (!action) return;
+    dismissToast();
+    void Promise.resolve(action.run()).catch((error: unknown) => {
+      console.error('提示操作失败', error);
+    });
+  }, [dismissToast, toast]);
+
   const value = useMemo<UndoContextValue>(
     () => ({ push, undo, redo, clear, canUndo: flags.canUndo, canRedo: flags.canRedo }),
     [push, undo, redo, clear, flags],
@@ -209,36 +269,48 @@ export function UndoProvider({ children, max = DEFAULT_UNDO_LIMIT }: UndoProvide
   return (
     <UndoContext.Provider value={value}>
       <ToastContext.Provider value={notify}>
-        {children}
-        {toast ? (
-          <div
-            key={toast.id}
-            className={`undo-toast${toast.undoable ? '' : ' undo-toast--notice'}`}
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-            onMouseEnter={pause}
-            onMouseLeave={resume}
-            onFocus={pause}
-            onBlur={onBlurToast}
-          >
-            <span className="undo-toast__label">{toast.label}</span>
-            {toast.undoable ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="undo-toast__action"
-                // The toast can outlive a successful undo elsewhere (another
-                // toast, a bulk import clearing the stack). Offering a button
-                // that silently does nothing is worse than hiding it.
-                disabled={!flags.canUndo}
-                onClick={onUndoClick}
-              >
-                {t('undo.action')}
-              </Button>
-            ) : null}
-          </div>
-        ) : null}
+        <ToastActionContext.Provider value={notifyWithAction}>
+          {children}
+          {toast ? (
+            <div
+              key={toast.id}
+              className={`undo-toast${toast.undoable ? '' : ' undo-toast--notice'}`}
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              onMouseEnter={pause}
+              onMouseLeave={resume}
+              onFocus={pause}
+              onBlur={onBlurToast}
+            >
+              <span className="undo-toast__label">{toast.label}</span>
+              {toast.action ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="undo-toast__action"
+                  onClick={onToastAction}
+                >
+                  {toast.action.label}
+                </Button>
+              ) : null}
+              {toast.undoable ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="undo-toast__action"
+                  // The toast can outlive a successful undo elsewhere (another
+                  // toast, a bulk import clearing the stack). Offering a button
+                  // that silently does nothing is worse than hiding it.
+                  disabled={!flags.canUndo}
+                  onClick={onUndoClick}
+                >
+                  {t('undo.action')}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </ToastActionContext.Provider>
       </ToastContext.Provider>
     </UndoContext.Provider>
   );
@@ -266,4 +338,12 @@ export function useUndoOptional(): UndoContextValue | null {
  */
 export function useToast(): (label: string) => void {
   return useContext(ToastContext) ?? NOOP_NOTIFY;
+}
+
+/**
+ * A notice with one extra action next to Undo. Returns a no-op outside a
+ * provider, so screens can report from tests without extra wiring.
+ */
+export function useToastAction(): (label: string, action: NonNullable<ToastState['action']>) => void {
+  return useContext(ToastActionContext) ?? NOOP_NOTIFY;
 }

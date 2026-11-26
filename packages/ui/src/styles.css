@@ -81,7 +81,7 @@
     border: 1px solid transparent;
     border-radius: var(--tl-radius-md);
     padding: 0 var(--tl-space-3);
-    block-size: 32px;
+    block-size: var(--tl-control-h);
     font-size: var(--tl-font-size-base);
     font-weight: var(--tl-font-weight-medium);
     cursor: pointer;
@@ -94,7 +94,7 @@
     /* 28px, not 26px: with the 13px label a 26px pill left only 6.5px of
        vertical breathing room and read as a text link with a border. 28px is
        the dense-desktop pointer floor; coarse pointers get 44px below. */
-    block-size: 28px;
+    block-size: var(--tl-control-h-sm);
     padding: 0 var(--tl-space-2);
     font-size: var(--tl-font-size-sm);
   }
@@ -156,8 +156,8 @@
   .tl-icon-btn {
     display: grid;
     place-items: center;
-    inline-size: 30px;
-    block-size: 30px;
+    inline-size: var(--tl-control-h);
+    block-size: var(--tl-control-h);
     border: 0;
     border-radius: var(--tl-radius-md);
     background: transparent;
@@ -258,8 +258,8 @@
     opacity: 0;
     scale: 0.2;
     transition:
-      opacity 100ms var(--tl-ease-standard),
-      scale 160ms var(--tl-ease-out);
+      opacity var(--tl-duration-fast) var(--tl-ease-standard),
+      scale var(--tl-duration-base) var(--tl-ease-out);
   }
   .tl-checkbox__input:checked + .tl-checkbox__box .tl-checkbox__tick {
     opacity: 1;
@@ -308,23 +308,29 @@
        a 140px month cell that it read as a highlight rather than a task. The
        inline padding stays tight because the leading rule and the truncated
        title need every pixel of a narrow column. */
-    padding: 3px 6px 3px 7px;
+    padding: var(--tl-space-dense-2) 6px var(--tl-space-dense-2) 7px;
     border: 0;
-    border-inline-start: 2px solid var(--chip-color);
-    border-radius: var(--tl-radius-sm);
-    background: var(--chip-tint, color-mix(in oklab, var(--chip-color) 10%, var(--tl-tint-base)));
-    color: var(--tl-chip-text);
+    /* The one coloured-block language (docs/DESIGN-LANGUAGE.md §3): tint of the
+       event's own hue over the current surface, full-hue leading bar. The base
+       chip used to own its own 10%/18%/7% ratios and a 2px bar, which is how
+       the calendar and the agenda drifted apart. `--chip-tint` stays as an
+       escape hatch for a caller that must supply a finished colour. */
+    border-inline-start: var(--tl-block-bar) solid var(--chip-color);
+    border-radius: var(--tl-block-radius);
+    background: var(--chip-tint, color-mix(in oklab, var(--chip-color) var(--tl-block-tint), var(--tl-surface)));
+    color: var(--tl-block-title-ink);
     font-size: var(--tl-font-size-sm);
     line-height: 1.45;
     text-align: start;
     cursor: default;
     overflow: hidden;
+    box-sizing: border-box;
   }
   button.tl-chip {
     cursor: pointer;
   }
   button.tl-chip:hover {
-    background: var(--chip-tint-solid, color-mix(in oklab, var(--chip-color) 18%, var(--tl-tint-base)));
+    background: var(--chip-tint-solid, color-mix(in oklab, var(--chip-color) var(--tl-block-tint-hover), var(--tl-surface)));
   }
   .tl-chip__title {
     min-inline-size: 0;
@@ -349,9 +355,10 @@
        118px chip, so the extra 2px does not steal a title glyph. */
     font-size: var(--tl-font-size-xs);
     font-variant-numeric: tabular-nums;
-    /* The time label sits on the chip's own tint, not on --tl-surface; tertiary
-       ink falls below 4.5:1 over every palette's tint in dark mode. */
-    color: var(--tl-text-secondary);
+    /* The time label sits on the chip's own tint, not on --tl-surface; the
+       plain secondary happens to fail 4.5:1 on some palette/hue pairs, so it
+       is the nudged `--tl-block-time-ink` pair (see tokens.css). */
+    color: var(--tl-block-time-ink);
     white-space: nowrap;
   }
   .tl-chip__dot {
@@ -374,10 +381,17 @@
      intended overflow behaviour at any width. */
   .tl-chip--done .tl-chip__title {
     text-decoration: line-through;
-    color: var(--tl-text-tertiary);
+    text-decoration-color: color-mix(in oklab, currentColor 55%, transparent);
+    /* `--tl-block-time-ink` instead of tertiary: the struck title sits on the
+       chip's own tint, where tertiary fell under 4.5:1 in several palettes. */
+    color: var(--tl-block-time-ink);
+  }
+  .tl-chip--done {
+    background: var(--chip-tint, color-mix(in oklab, var(--chip-color) var(--tl-block-tint-muted), var(--tl-surface)));
+    border-inline-start-color: color-mix(in oklab, var(--chip-color) var(--tl-block-bar-muted), var(--tl-surface));
   }
   .tl-chip--allday {
-    background: color-mix(in oklab, var(--chip-color) 7%, var(--tl-tint-base));
+    background: var(--chip-tint, color-mix(in oklab, var(--chip-color) var(--tl-block-tint), var(--tl-surface)));
   }
 
   /* ---------------- Badge ---------------- */
@@ -407,7 +421,7 @@
     font-variant-numeric: tabular-nums;
   }
   .tl-badge--solid {
-    padding: 1px 8px;
+    padding: var(--tl-space-hairline) 8px;
     border-radius: var(--tl-radius-full);
     background: color-mix(in oklab, var(--badge-color) 12%, var(--tl-tint-base));
     font-size: var(--tl-font-size-sm);
@@ -546,7 +560,7 @@
     pointer-events: auto;
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: var(--tl-space-dense);
     max-inline-size: 100%;
     padding: 6px;
     border-radius: var(--tl-radius-full);
@@ -574,7 +588,7 @@
        --tl-pill-text-muted: the editorial light pill only reaches 3.8:1 with it. */
     color: color-mix(in oklab, var(--tl-pill-text) 76%, var(--tl-pill-bg));
     padding: 0 var(--tl-space-3);
-    block-size: 30px;
+    block-size: var(--tl-control-h);
     font-size: var(--tl-font-size-sm);
     cursor: pointer;
     transition:
@@ -601,13 +615,13 @@
        its own pairing in tokens.css. */
     color: var(--tl-cta-ink);
     padding: 0 var(--tl-space-4);
-    block-size: 30px;
+    block-size: var(--tl-control-h);
     font-size: var(--tl-font-size-sm);
     font-weight: var(--tl-font-weight-semibold);
     /* The `font: inherit` reset leaves buttons with the UA's normal line box,
        which sits the label 1px below centre in a fixed-height pill; an explicit
        line-height makes it optically centred against the view labels. */
-    line-height: 30px;
+    line-height: var(--tl-control-h);
     cursor: pointer;
   }
   .tl-pill__cta:hover {
@@ -677,7 +691,7 @@
   .tl-field__input {
     flex: 1;
     min-inline-size: 0;
-    block-size: 30px;
+    block-size: var(--tl-control-h);
     border: 0;
     background: transparent;
     outline: none;
@@ -740,7 +754,7 @@
   }
   .tl-collapse__panel {
     display: grid;
-    gap: 2px;
+    gap: var(--tl-space-dense);
   }
   .tl-collapse__footer {
     padding-block-start: var(--tl-space-2);

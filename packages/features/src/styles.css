@@ -14,6 +14,11 @@
   min-height: 0;
 }
 
+/* A card is a self-contained column: header + add field (fixed) above a single
+   scroll container. `overflow: hidden` is a guarantee, not the mechanism —
+   the scroll body already bounds its content — so nothing a child paints can
+   reach the card below at any window size. The 3px drop ring on
+   `.qz-card--over` is the card's own box-shadow and is not clipped by this. */
 .qz-card {
   display: flex;
   flex-direction: column;
@@ -23,6 +28,7 @@
      *content* inside was 34px narrower than intended. Defensive, kept so the
      card's inner width is predictable rather than track-minus-borders. */
   box-sizing: border-box;
+  overflow: hidden;
   padding: 16px;
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-xl);
@@ -56,7 +62,13 @@
   }
 }
 
+/* The header is a flex sibling *outside* the scroll container, so it stays put
+   while the card's list scrolls — no sticky positioning needed, and no chance
+   of a sticky header being clipped by the card's rounded corners. */
 .qz-card__head {
+  display: flex;
+  align-items: center;
+  flex: none;
   margin-bottom: 10px;
 }
 
@@ -75,19 +87,76 @@
   --badge-ink: var(--tl-quadrant-q4-ink);
 }
 
+/* Local restyle only (packages/ui is not ours to edit): the count renders as a
+   quiet pill instead of loose text, and the name stays at body size so the
+   header reads as a label rather than a heading. */
+.qz-card .tl-badge {
+  gap: var(--tl-space-2);
+  font-size: var(--tl-font-size-base);
+}
+.qz-card .tl-badge__dot {
+  inline-size: 8px;
+  block-size: 8px;
+  border-radius: var(--tl-radius-full);
+}
+.qz-card .tl-badge__count {
+  padding: 1px var(--tl-space-2);
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-subtle);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-secondary);
+}
+
+/* Quiet add row. The shared TextField is already the target look — a
+   `--tl-surface-subtle` ground with a transparent border that turns into the
+   accent ring on focus — so only the card's spacing is set here. Restating the
+   ground/border would also defeat `.tl-field--focused`, because this file is
+   unlayered and the component styles live in `@layer tl.components`. */
 .qz-card__add {
+  flex: none;
   margin-bottom: 8px;
 }
 
-.qz-card__list {
+/*
+ * The card's one scroll container. Open rows, the in-flight leaving row and
+ * the completed disclosure all live here, so however long either list grows
+ * the card's painted box never changes: `flex: 1` + `min-height: 0` lets the
+ * body shrink to the space left by the header and add field, and anything
+ * past that scrolls.
+ */
+.qz-card__body {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 1px;
+  gap: 2px;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   scrollbar-width: thin;
   scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+}
+
+/* The empty quadrant keeps its hint centred in the free space above the
+   completed disclosure rather than pinned to the top of the scroll body. */
+.qz-card__empty {
+  flex: 1;
+  display: grid;
+  place-content: center;
+  min-height: 0;
+}
+
+/* The disclosure is the body's last block: a hairline separates the live rows
+   from the archive at the foot of the card. `margin-block-start: auto` pins it
+   to the bottom when the open list is short (a flex container absorbs its free
+   space into an auto margin) and collapses to nothing when the list overflows,
+   so it never adds scroll height beyond its own line. Collapsed, it is a
+   single quiet line ("已完成 N") — the accumulation the user complained about
+   stays folded away instead of pushing the open list up. */
+.qz-card__done {
+  flex: none;
+  margin-block-start: auto;
+  padding-block-start: 6px;
+  border-top: 1px solid var(--tl-border-soft);
 }
 
 .qz-row {
@@ -99,16 +168,17 @@
      a `min-height: 34px` row measured 38px and the checkbox sat 0.5px below
      the title's optical centre (185.5 vs 185). */
   box-sizing: border-box;
+  flex: none;
+  /* 2px block padding + a 36px floor = a 32px content box, exactly the height
+     of the chevron/checkbox hit squares. Growing the padding instead would
+     make every row 40px and eat scroll room in the card's fixed track; the
+     calm comes from the 2px inter-row gap and the quieter meta ink. */
   padding: 2px 8px;
-  /* Completion is the row's main interaction; the grab cursor belongs to the
-     handle alone. */
-  /* 36px, up from 34: the chevron and checkbox now own 32px squares, and
-     with 2px block padding a 34px row left them 2px taller than its content
-     box — adjacent rows could touch. 36px holds both without adding air. */
   min-height: 36px;
   border-radius: var(--tl-radius-sm);
-  /* The row body is the completion target. The grab cursor belongs to the
-     handle alone; the checkbox and chevron set their own pointer cursor. */
+  /* The body opens the task; completion is the checkbox's job alone. The grab
+     cursor still belongs to the handle, and the checkbox/chevron set their
+     own pointer cursor. */
   cursor: pointer;
   transition: background var(--tl-duration-fast) var(--tl-ease-standard);
 }
@@ -117,8 +187,8 @@
   background: var(--tl-surface-hover);
 }
 
-/* Same press feedback as the flat row — both surfaces complete on a row click,
-   so both must acknowledge that the click landed. Suppressed while dragging:
+/* Same press feedback as the flat row — both surfaces open the task on a row
+   click, so both must acknowledge that the click landed. Suppressed while dragging:
    a drag also begins with a press, and shrinking the source row mid-grab would
    read as a layout glitch rather than feedback. */
 .qz-row:active:not(.qz-row--dragging) {
@@ -195,7 +265,10 @@
 .qz-row__meta {
   flex: none;
   font-size: var(--tl-font-size-xs);
-  /* Due date / list name — content, so it must clear 4.5:1 in dark. */
+  /* A quiet label, not the first thing the eye should land on. Tertiary is
+     4.6:1 on the card but only 4.0–4.35:1 on `--tl-surface-hover` in every
+     palette, and the whole row gets that ground on hover — secondary holds
+     4.6:1+ on both, so it is the muted step that survives interaction. */
   color: var(--tl-text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -203,6 +276,36 @@
 .qz-row--done .qz-row__title {
   color: var(--tl-text-secondary);
   text-decoration: line-through;
+}
+
+/* Completed rows are an archive: they cannot be re-dragged between quadrants
+   (reopening is what returns one to the live list), so the handle is hidden —
+   `visibility` rather than `display` keeps its 10px slot so the checkbox and
+   title still line up with the open rows above, and a hidden element is not
+   focusable, so the keyboard path is gone too. */
+.qz-row--done .qz-row__handle {
+  visibility: hidden;
+}
+
+/* The disclosure's trigger and the "only the latest N of M" footer both sit at
+   the quiet end of the scale; the panel's rows are ordinary quadrant rows. */
+.qz-card__done .tl-collapse__trigger {
+  color: var(--tl-text-tertiary);
+  font-size: var(--tl-font-size-sm);
+}
+
+.qz-card__done .tl-collapse__trigger:hover {
+  color: var(--tl-text-secondary);
+}
+
+.qz-card__done .tl-collapse__footer {
+  padding-block: var(--tl-space-1) var(--tl-space-2);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-tertiary);
+}
+
+.qz-card__done .tl-collapse__panel {
+  padding-block-end: 2px;
 }
 
 /* ---- completion feedback (instant default → animated when motion is OK) ----
@@ -340,7 +443,7 @@
 .mv__cell {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--tl-space-dense-2);
   min-width: 0;
   padding: 4px 6px 5px;
   border-right: 1px solid var(--tl-border-soft);
@@ -392,12 +495,22 @@
 }
 
 .mv__cell--out .mv__date {
-  color: var(--tl-text-disabled);
+  /* Sunken ground. tertiary is the quietest token that clears 4.5:1 on it in
+     most combos (4.09–5.26, so the light palettes still fall 0.15–0.4 short —
+     tracked as a deferred --tl-text-muted token) while still reading as
+     "receded"; --tl-text-disabled measured 1.45–2.74:1 — disabled ink is not
+     text ink. */
+  color: var(--tl-text-tertiary);
   font-weight: var(--tl-font-weight-regular);
 }
 
+/* 0.72, not 0.6. The coloured-chip treatment now paints each chip with a 14%
+   hue tint; at 0.6 that tint composited over the out-of-month sunken ground
+   dropped the title to ~3.7:1 (below the 4.5 floor). 0.72 still reads as
+   "receded" — the cell's own ground, date numeral and chip bar all stay
+   visibly dimmer — while keeping the title at ≥5.1:1 in every palette. */
 .mv__cell--out .tl-chip {
-  opacity: 0.6;
+  opacity: 0.72;
 }
 
 /* Today is a plain, unmistakable column marker: tinted ground plus a hairline
@@ -461,7 +574,7 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--tl-space-dense);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -489,6 +602,12 @@
   align-self: flex-end;
   padding-inline: 4px 2px;
   background: var(--mv-ground);
+  /* The chip now paints its own --tl-surface-based tint (calendar.css), which
+     is an opaque ground a sticky sibling was never fighting before. Raise the
+     indicator above the chip stack so the chip's tint can never paint over the
+     "+N" it summarises. */
+  position: relative;
+  z-index: var(--tl-z-raised);
   /* 12px, not a hardcoded 10px: this is the only affordance telling the user
      the cell has more events, so it must be readable at the same size as the
      chips it summarises. It is a sticky label inside the cell, not a control,
@@ -510,6 +629,16 @@
   padding: var(--tl-space-4);
   background: color-mix(in oklab, var(--tl-surface) 82%, transparent);
   pointer-events: none;
+}
+
+/* The overlay sits on an 82%-opaque surface wash over the calendar grid, so the
+   ink is measured against --tl-surface. `.tl-empty` itself is defined in
+   packages/ui (outside this package's files); this override only raises the
+   colour one step, tertiary → secondary, which is 5.07–6.96:1 on that ground in
+   every palette/theme vs 4.61–5.03 for tertiary. Unlayered here, so it wins
+   over `@layer tl.components` without restating layout. */
+.mv > .tl-empty {
+  color: var(--tl-text-secondary);
 }
 
 /* ---------------- Week view ---------------- */
@@ -541,7 +670,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--tl-space-dense);
   padding: 9px 0;
   border-left: 1px solid var(--tl-border-soft);
 }
@@ -689,7 +818,7 @@
      4px past its column and the scroller paid for it with a horizontal
      scrollbar. Border-box makes the gutter a real inset. */
   box-sizing: border-box;
-  padding: 2px 3px;
+  padding: var(--tl-space-dense) var(--tl-space-dense-2);
   /* No overflow clip here: the chip inside owns its own ellipsis. Clipping at
      this level cuts the chip's right-aligned time label in half. */
 }
@@ -728,131 +857,222 @@
   }
 }
 
-/* ---------------- Timeline (agenda) ---------------- */
+/* ---------------- Timeline (agenda) ----------------
+   One row per day: [date slab] [start time] [axis + block].
+
+   The layout is a grid on the day `section`, not a stack of headers and
+   lists: the date slab spans every entry row so the numeral stays at the top
+   of its day while the axis runs past it. The axis is a continuous line per
+   day (a ::before on `.tv__item`) with a dot per entry, so the day's shape
+   reads before any text does.
+
+   Full width on purpose. The root used to be `max-width: 880px; margin: 0
+   auto` inside `app-content`, which is a flex *column* — an auto inline
+   margin absorbs the free space and cancels stretch, so the view collapsed to
+   its 277px content width and the cap never applied. `inline-size: 100%` with
+   the inner columns capped by `--tv-max` gives the intended reading measure
+   without depending on flex-stretch behaviour. */
 .tv {
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  max-width: 720px;
-  margin: 0 auto;
-  padding-bottom: 40px;
+  /* Border-box: this app has no global reset, so `inline-size: 100%` plus
+     `padding-inline` painted 48px wider than the pane and pushed the centred
+     day column off-centre by half of that. */
+  box-sizing: border-box;
+  inline-size: 100%;
+  gap: var(--tl-space-5);
+  padding-block: var(--tl-space-4) var(--tl-space-10);
+  /* A symmetric inline inset: the day column centres inside it, so a scrollbar
+     appearing on one side cannot shift the plan. */
+  padding-inline: var(--tl-space-6);
+  /* Reading measure for the columns *inside* the view; the view itself fills
+     the content area so the day slabs sit against the same left edge as every
+     other surface. */
+  --tv-max: 1040px;
+  --tv-date-col: 56px;
+  --tv-time-col: 68px;
+  --tv-axis-col: 24px;
+  --tv-gap: var(--tl-space-3);
+  /* This view is mounted directly in `app-content[data-fill='true']`, which
+     hides its own overflow, so the agenda has to own the scrollbar or the
+     lower days are unreachable. The bottom padding clears the floating view
+     switcher. */
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--tl-scrollbar-thumb) transparent;
+  scroll-padding-block-end: 96px;
 }
 
 .tv__day {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: var(--tv-date-col) var(--tv-time-col) var(--tv-axis-col) minmax(0, 1fr);
+  column-gap: var(--tv-gap);
+  /* The view fills the content area; the day *column* is the measure that gets
+     capped, and it is centred inside that full-width scroller. Capping the
+     view itself left the whole plan hugging the left edge — a 980px block in a
+     1585px pane reads as a mistake, not as a deliberate measure.
+     Centring works here (and did not before) because this element is a flex
+     item with `align-self: stretch` cancelled by a max size: auto inline
+     margins then split the leftover space. The earlier attempt put
+     `margin: 0 auto` on the flex *container* itself, whose auto margins
+     cancelled its own stretch and shrank it to content width. */
+  inline-size: 100%;
+  max-inline-size: var(--tv-max);
+  margin-inline: auto;
+  /* Container for the narrow-window fallback below: the agenda reflows on the
+     width it is given, not the window's. */
+  container-type: inline-size;
 }
 
-/* Today's section is given a left accent rail and a quiet wash so it is
-   obvious at a glance without recolouring every header. */
-.tv__day--today {
-  padding-inline-start: var(--tl-space-3);
-  border-inline-start: 2px solid var(--tl-accent);
-}
-
-.tv__head {
+/* The date slab: numeral, weekday, and (today only) the badge, stacked and
+   pinned to the first row of the day. */
+.tv__date-cell {
+  grid-column: 1;
+  grid-row: 1 / -1;
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  gap: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--tl-border);
+  gap: 0 var(--tl-space-1);
+  margin: 0;
+  /* Aligns the numeral's cap with the first block's first text line. */
+  padding-block-start: 9px;
+  font-weight: inherit;
 }
 
 .tv__date {
   font-size: var(--tl-font-size-xl);
-  font-weight: var(--tl-font-weight-bold);
-  color: var(--tl-text-secondary);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text-tertiary);
   font-variant-numeric: tabular-nums;
-  line-height: 1.1;
+  line-height: 1;
+  letter-spacing: -0.01em;
 }
 
+/* Today is the one day allowed to shout: accent numeral, bolder weight. The
+   accent rail the old layout used is gone — the numeral plus badge already
+   say "this one" and a rail on the slab fought the axis for the same edge. */
 .tv__date--today {
   color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-bold);
 }
 
 .tv__weekday {
-  font-size: var(--tl-font-size-sm);
-  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-tertiary);
+  white-space: nowrap;
 }
 
 .tv__badge {
-  padding: 1px 7px;
+  /* Sits on its own line under the weekday, but only as wide as its text —
+     `flex-basis: 100%` wrapped it *and* stretched the pill across the slab. */
+  flex: 0 0 auto;
+  inline-size: fit-content;
+  padding: 1px 6px;
   border-radius: var(--tl-radius-full);
   background: var(--tl-accent-tint);
   color: var(--tl-accent-ink);
-  /* 10px was the smallest text in the app, on a badge that carries the day's
-     event count — at the new base 14px the badge looked like a smudge. xs. */
   font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-medium);
 }
 
 .tv__list {
+  /* The entries own the three remaining columns; the slab spans them all. */
+  grid-column: 2 / -1;
+  grid-row: 1 / -1;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--tl-space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-/* Agenda empty state is a single quiet line pinned to the row height, so the
-   seven day sections keep their rhythm whether or not a day has entries. */
-.tv__empty {
-  margin: 0;
-  padding: var(--tl-space-2) 0 var(--tl-space-2) 106px;
-  font-size: var(--tl-font-size-sm);
-  color: var(--tl-text-tertiary);
-}
-
 .tv__item {
   position: relative;
   display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 10px;
+  grid-template-columns: var(--tv-time-col) var(--tv-axis-col) minmax(0, 1fr);
   align-items: start;
 }
 
-.tv__axis {
-  position: absolute;
-  top: 14px;
-  bottom: -10px;
-  left: 102px;
-  width: 1px;
-  background: var(--tl-border);
+/* The day's axis. One continuous rule through the axis column, drawn by the
+   list rather than by each item, so it does not restart at every gap. It stops
+   short of the first and last dots (inset) instead of running into the day
+   above/below. */
+.tv__list {
+  position: relative;
 }
 
-.tv__item:last-child .tv__axis {
-  display: none;
+.tv__list::before {
+  content: '';
+  position: absolute;
+  /* Full height, not an inset range: a two-entry day produced an 9px stub
+     that read as an orphan tick. The surface-coloured dot rings punch through
+     this line, so it reads as one rule passing behind each point, and the
+     gap between day sections is what ends it. */
+  inset-block: 0;
+  /* Centre of the axis column. The item's own grid has no column-gap (the
+     gap lives on the day grid, which the list spans into), so this is
+     time-column + half the axis track — adding --tv-gap put the rule 12px
+     right of the dots it is supposed to connect. */
+  inset-inline-start: calc(var(--tv-time-col) + var(--tv-axis-col) / 2);
+  inline-size: 1px;
+  /* Mixed toward the ink rather than a hairline token: #e3e3e6 on white was
+     invisible, and the axis is the view's spine. ~18% ink lands near 3:1,
+     the non-text contrast floor for a boundary. */
+  background: color-mix(in oklab, var(--tl-text) 18%, var(--tl-surface));
+}
+
+.tv__axis {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: center;
+  position: relative;
+  z-index: var(--tl-z-raised);
+  inline-size: 9px;
+  block-size: 9px;
+  margin-block-start: 15px;
+  border-radius: var(--tl-radius-full);
+  /* A surface-coloured core with a ring: the dot has to sit *on* the axis, and
+     a solid dot would read as a bullet in a list, not a point on a timeline. */
+  border: 1.5px solid var(--tl-border-strong);
+  background: var(--tl-surface);
+}
+
+.tv__day--today .tv__axis {
+  border-color: var(--tl-accent);
 }
 
 .tv__time {
-  padding-top: 8px;
-  text-align: right;
+  grid-column: 1;
+  padding-block-start: 9px;
+  text-align: end;
   font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
   font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
-/* The list row reads as an object: left accent rule from the entry's own
-   colour, rounded corners, padding and a hover lift. */
+/* The block: tint + leading hue bar (shared language, see tokens.css), with
+   the time on its first line and the title beneath. Two lines is what makes a
+   40px block read as an appointment; a one-line strip reads as a list row. */
 .tv__event {
+  grid-column: 3;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-left: 3px solid var(--chip-color);
-  border-radius: var(--tl-radius-sm);
-  background: color-mix(in oklab, var(--chip-color) 9%, var(--tl-tint-base));
-  box-shadow: var(--tl-shadow-sm);
-  transition:
-    box-shadow var(--tl-duration-fast) var(--tl-ease-standard),
-    filter var(--tl-duration-fast) var(--tl-ease-standard);
+  flex-direction: column;
+  gap: 2px;
+  box-sizing: border-box;
+  min-block-size: 44px;
+  padding-block: 7px;
+  padding-inline: var(--tl-space-3);
+  border-inline-start: var(--tl-block-bar) solid var(--chip-color);
+  border-radius: var(--tl-block-radius);
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint), var(--tl-surface));
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
 }
 
 .tv__event:hover {
-  box-shadow: var(--tl-shadow-md);
-  filter: saturate(1.05);
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint-hover), var(--tl-surface));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -861,21 +1081,70 @@
   }
 }
 
-.tv__event--done .tv__event-title {
-  color: var(--tl-text-secondary);
-  text-decoration: line-through;
+.tv__event-time {
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-block-time-ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
 }
 
 .tv__event-title {
   font-size: var(--tl-font-size-base);
   font-weight: var(--tl-font-weight-medium);
-  color: var(--tl-chip-text);
+  color: var(--tl-block-title-ink);
+  line-height: 1.35;
+}
+
+/* Done entries keep the block identity but recede. */
+.tv__event--done {
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint-muted), var(--tl-surface));
+  border-inline-start-color: color-mix(
+    in oklab,
+    var(--chip-color) var(--tl-block-bar-muted),
+    var(--tl-surface)
+  );
+}
+
+.tv__event--done .tv__event-title {
+  color: var(--tl-block-time-ink);
+  text-decoration: line-through;
+}
+
+/* An empty day keeps its slab and its line, so seven days keep one rhythm
+   whether or not they hold anything. */
+.tv__empty {
+  grid-column: 2 / -1;
+  grid-row: 1 / -1;
+  margin: 0;
+  padding-block-start: 9px;
+  padding-inline-start: var(--tl-space-3);
+  font-size: var(--tl-font-size-sm);
+  color: var(--tl-text-tertiary);
+  border-inline-start: 1px solid var(--tl-border);
+}
+
+/* Narrow windows: drop the date slab into the row's first line so the blocks
+   keep their width instead of being squeezed by three fixed columns. */
+@container (max-width: 640px) {
+  .tv__day {
+    grid-template-columns: var(--tv-time-col) var(--tv-axis-col) minmax(0, 1fr);
+  }
+  .tv__date-cell {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    padding-block-start: 0;
+  }
+  .tv__list,
+  .tv__empty {
+    grid-column: 1 / -1;
+    grid-row: auto;
+  }
 }
 
 /* ---------------- Pill variant of the view switcher ---------------- */
 .view-pill {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--tl-space-dense);
   padding: 4px;
   border-radius: var(--tl-radius-full);
   background: var(--tl-pill-bg);
@@ -883,7 +1152,7 @@
 
 .view-pill__item {
   padding: 0 12px;
-  height: 28px;
+  height: var(--tl-control-h-sm);
   border: 0;
   border-radius: var(--tl-radius-full);
   background: transparent;
@@ -903,6 +1172,19 @@
     grid-template-columns: 1fr;
     grid-template-rows: none;
     height: auto;
+    /* Stacked cards size to their content, so the inner scroll body must not
+       claim `flex: 1` of a height that no longer exists — it gets a viewport
+       share instead and still scrolls rather than growing without bound. */
+    align-items: start;
+  }
+  .qz-card {
+    /* The card keeps its own scroll container; give each a bounded height so
+       scrolling inside still works when the track is content-sized. */
+    max-height: calc(100dvh - 160px);
+  }
+  .qz-card__body {
+    flex: 1 1 auto;
+    min-height: 0;
   }
 }
 
@@ -920,7 +1202,12 @@
   inline-size: min(380px, 100vw);
   border-inline-start: 1px solid var(--tl-border);
   background: var(--tl-surface);
-  box-shadow: var(--tl-shadow-lg);
+  /* Was --tl-shadow-lg (a 34px, 18%-black plume). At the panel's width that
+     halo reads as a floating sheet with a smudge down its whole edge; a
+     directional shadow that only exists on the side the panel lifts off is
+     enough to say "this is above the content" without tinting the list it
+     covers. */
+  box-shadow: var(--tl-shadow-panel);
   animation: tk-enter var(--tl-duration-base) var(--tl-ease-out);
 }
 
@@ -981,30 +1268,45 @@
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: var(--tl-space-5);
+  /* 20px between sections, and each section owns a 2px inner rhythm. The old
+     20px gap plus four stacked hint lines in one block made the repeat section
+     read as one wall of small grey text. Sections themselves are separated by
+     a hairline instead of air (see `.tk-section`), so the eye gets a boundary
+     and the panel gets its vertical space back. */
+  gap: 0;
   min-block-size: 0;
   overflow-y: auto;
-  padding: var(--tl-space-4);
+  padding: var(--tl-space-2) var(--tl-space-4) var(--tl-space-4);
 }
 
 .tk-section {
   display: flex;
   flex-direction: column;
   gap: var(--tl-space-2);
+  padding-block: var(--tl-space-3);
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+
+.tk-section:last-child {
+  border-block-end: 0;
 }
 
 .tk-section__title {
+  /* Sentence case, normal tracking: the uppercase micro-caps label was the
+     single biggest source of "small print" in the panel. The colour still
+     separates it from values, and the size step is what does the work now. */
   margin: 0;
   font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--tl-text-secondary);
 }
 
 .tk-section__hint {
   margin: 0;
   font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-normal);
   color: var(--tl-text-tertiary);
 }
 
@@ -1020,17 +1322,25 @@
      to the same width as their column instead of column + 2px. */
   box-sizing: border-box;
   padding: 0 var(--tl-space-2);
-  border: 1px solid var(--tl-border-strong);
+  /* `--tl-border` rather than `-strong`: at 6px radius the strong hairline
+     made every empty text field look like an error outline. Focus is what
+     promotes the border (`:focus-visible` below); resting state is quiet. */
+  border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-md);
-  background: var(--tl-surface);
+  background: var(--tl-surface-subtle);
   color: var(--tl-text);
   font: inherit;
   font-size: var(--tl-font-size-base);
 }
 
+.tk-input:hover:not(:disabled) {
+  border-color: var(--tl-border-strong);
+}
+
 .tk-input:focus-visible {
   outline: 2px solid var(--tl-focus-ring);
   outline-offset: 1px;
+  background: var(--tl-surface);
 }
 
 .tk-input:disabled {
@@ -1040,7 +1350,7 @@
 
 .tk-schedule__date,
 .tk-schedule__time {
-  block-size: 30px;
+  block-size: var(--tl-control-h);
 }
 
 /* The five-way precision switch sits on its own baseline so it wraps cleanly
@@ -1088,7 +1398,7 @@
   gap: var(--tl-space-1);
   /* Give the label itself the touch target: the 32px/44px input may overflow
      the row without being clipped, and the label text is clickable too. */
-  min-block-size: 32px;
+  min-block-size: var(--tl-control-h);
   padding-inline-end: var(--tl-space-1);
   font-size: var(--tl-font-size-sm);
   color: var(--tl-text-secondary);
@@ -1127,14 +1437,14 @@
 }
 
 /* ---- repeat picker ---- */
+/* No second box inside the section: the picker's controls are already inputs
+   with their own grounds, and wrapping them in another bordered, tinted
+   rectangle produced the "panel inside a panel" stack the redesign is about.
+   Space and one hairline separate the parts instead. */
 .tk-repeat {
   display: flex;
   flex-direction: column;
   gap: var(--tl-space-2);
-  padding: var(--tl-space-2);
-  border: 1px solid var(--tl-border);
-  border-radius: var(--tl-radius-md);
-  background: var(--tl-surface-subtle);
 }
 
 .tk-repeat__interval,
@@ -1151,11 +1461,11 @@
 
 .tk-repeat__number {
   inline-size: 64px;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
 }
 
 .tk-repeat__date {
-  block-size: 30px;
+  block-size: var(--tl-control-h);
 }
 
 /* The pickers draw their own trigger; these only size it within the repeat row. */
@@ -1176,15 +1486,20 @@
 
 .tk-repeat__day {
   min-inline-size: 34px;
-  block-size: 28px;
+  block-size: var(--tl-control-h-sm);
   padding: 0 var(--tl-space-1);
-  border: 1px solid var(--tl-border-strong);
-  border-radius: var(--tl-radius-md);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-full);
   background: var(--tl-surface);
   color: var(--tl-text-secondary);
   font: inherit;
   font-size: var(--tl-font-size-xs);
   cursor: pointer;
+}
+
+.tk-repeat__day:hover:not(.tk-repeat__day--active) {
+  border-color: var(--tl-border-strong);
+  color: var(--tl-text);
 }
 
 .tk-repeat__day--active {
@@ -1222,10 +1537,10 @@
   gap: var(--tl-space-2);
   /* Same box model as .qz-row so both list surfaces share one rhythm. */
   box-sizing: border-box;
-  padding: 2px 8px;
+  padding: var(--tl-space-dense) 8px;
   /* 36px, matching .qz-row: the 32px checkbox and chevron hit targets plus
      2px block padding no longer fit a 34px content box. */
-  min-block-size: 36px;
+  min-block-size: var(--tl-row-h);
   border-radius: var(--tl-radius-sm);
   /* The row body is the completion target (one click, no aiming); the chevron
      and the checkbox are the only nested controls. */
@@ -1278,8 +1593,8 @@
   /* A text button with 2px block padding measured ~20px tall — under the
      24px pointer minimum. The min-block-size lifts the hit area without
      changing the row (36px) or the label. */
-  min-block-size: 28px;
-  padding: 2px var(--tl-space-2);
+  min-block-size: var(--tl-control-h-sm);
+  padding: var(--tl-space-dense) var(--tl-space-2);
   border: 0;
   border-radius: var(--tl-radius-sm);
   background: transparent;
@@ -1323,8 +1638,8 @@
   display: inline-grid;
   place-items: center;
   flex: none;
-  inline-size: 32px;
-  block-size: 32px;
+  inline-size: var(--tl-control-h);
+  block-size: var(--tl-control-h);
   padding: 0;
   border: 0;
   border-radius: var(--tl-radius-sm);
@@ -1371,8 +1686,8 @@
   display: inline-grid;
   place-items: center;
   flex: none;
-  inline-size: 32px;
-  block-size: 32px;
+  inline-size: var(--tl-control-h);
+  block-size: var(--tl-control-h);
   margin-inline-end: -4px;
   padding: 0;
   border: 0;
@@ -1441,7 +1756,7 @@
 .tk-select > .tk-input {
   box-sizing: border-box;
   inline-size: 100%;
-  block-size: 30px;
+  block-size: var(--tl-control-h);
 }
 
 /* A rejected write surfaces here, above the delete action. */

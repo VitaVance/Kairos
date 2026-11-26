@@ -234,6 +234,9 @@
   --tl-shadow-float: 0 1px 2px rgba(0, 0, 0, 0.14),
     0 10px 28px -10px rgba(0, 0, 0, 0.32),
     0 30px 60px -24px rgba(0, 0, 0, 0.26);
+  /* Directional lift for the task-detail panel: only the edge the panel lifts
+     off casts, so the covered list is not tinted by a full plume. */
+  --tl-shadow-panel: -12px 0 32px -18px rgb(20 20 25 / 0.28);
 
   /* ---- Layering --------------------------------------------------------- */
   --tl-z-base: 0;
@@ -277,6 +280,42 @@
   /* ---- Scrollbars ------------------------------------------------------- */
   --tl-scrollbar-thumb: #d9d9de;
   --tl-scrollbar-thumb-hover: #c4c4c9;
+
+  /* ======================================================================
+     TIER 3 — one language for every "coloured object" in the app.
+
+     Calendar blocks, month chips, quadrant cards and the agenda all used to
+     invent their own tint ratio, bar width and radius. The result reads as
+     several products stitched together. These tokens are the shared
+     definition; component CSS may only consume them.
+
+     `--tl-block-tint` is a *percentage* fed into
+     `color-mix(in oklab, <hue> var(--tl-block-tint), var(--tl-surface))`.
+     Mixing toward the surface (never white) is what keeps one rule correct in
+     both themes — see `--tl-tint-base` above for the bug that taught us this.
+     The dark value is higher because the same share of hue over a dark card
+     is perceptually weaker than over white.
+     ====================================================================== */
+  --tl-block-tint: 14%;
+  --tl-block-tint-hover: 20%;
+  --tl-block-tint-muted: 7%;
+  --tl-block-bar: 3px;
+  --tl-block-bar-muted: 55%;
+  --tl-block-radius: var(--tl-radius-sm);
+  /* Ink pairs measured against the tint (see docs/DESIGN-LANGUAGE.md):
+     title near-ink, time the muted secondary nudged toward the title so it
+     clears 4.5:1 on every hue and palette. */
+  --tl-block-title-ink: var(--tl-text);
+  --tl-block-time-ink: color-mix(in oklab, var(--tl-text-secondary) 88%, var(--tl-text));
+
+  /* ---- Shared control metrics ------------------------------------------
+     Row height, control height and the dense gap between list rows. Both list
+     surfaces (flat list, quadrant board) and the detail panel's fields read
+     these so a "row" is one size everywhere. */
+  --tl-control-h: 32px;
+  --tl-control-h-sm: 28px;
+  --tl-row-h: 36px;
+  --tl-row-gap: 2px;
 }
 
 /* ============================================================================
@@ -341,6 +380,16 @@
   --tl-scrollbar-thumb-hover: #4a4a52;
   /* The CTA keeps its amber fill in dark mode, so its ink stays dark. */
   --tl-cta-ink: #1d1d1f;
+
+  /* Block language, dark: the same hue share reads weaker on a dark card, so
+     every tint step rises. Everything else (bar width, radius, inks) is
+     derived from tokens that already adapt, so only the percentages differ. */
+  --tl-block-tint: 16%;
+  --tl-block-tint-hover: 22%;
+  --tl-block-tint-muted: 8%;
+
+  /* Panel lift needs a darker, denser cast on a dark ground to read at all. */
+  --tl-shadow-panel: -12px 0 32px -18px rgb(0 0 0 / 0.55);
 }
 
 /* ============================================================================

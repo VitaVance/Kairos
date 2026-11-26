@@ -71,10 +71,13 @@
 .flat-group__count {
   margin-inline-start: auto;
   min-inline-size: 20px;
-  padding: 1px var(--tl-space-2);
+  padding: var(--tl-space-hairline) var(--tl-space-2);
   border-radius: var(--tl-radius-full);
   background: var(--tl-surface-subtle);
-  color: var(--tl-text-tertiary);
+  /* Secondary, not tertiary: 12px on --tl-surface-subtle measured 4.26–4.74:1
+     with tertiary (below the 4.5 floor in default and protool light);
+     secondary is 4.86–7.35:1. The count is real content, not a hint. */
+  color: var(--tl-text-secondary);
   font-size: var(--tl-font-size-xs);
   font-weight: var(--tl-font-weight-medium);
   font-variant-numeric: tabular-nums;
@@ -84,7 +87,7 @@
 .flat-group__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--tl-row-gap);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -101,6 +104,17 @@
   display: grid;
   place-items: center;
   min-block-size: 240px;
+}
+
+/* This is the one host where `.tl-empty` sits directly on the canvas
+   (--tl-bg), which is the ground the audit measured: tertiary ink was 4.27:1
+   in default/light (4.49 protool, 4.62 editorial), under the 4.5 floor.
+   `.tl-empty` lives in packages/ui; this package's CSS is unlayered and
+   therefore wins over `@layer tl.components`, so the host that knows the
+   ground can set the ink without forking the component. Secondary measures
+   4.65–5.48:1 on --tl-bg in all six palettes/themes. */
+.flat-empty .tl-empty {
+  color: var(--tl-text-secondary);
 }
 
 /* English labels are longer than the Chinese ones (All day / Morning /

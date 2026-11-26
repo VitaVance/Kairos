@@ -8,7 +8,7 @@
   display: flex;
   align-items: center;
   gap: var(--tl-space-3);
-  max-inline-size: min(420px, calc(100vw - var(--tl-space-8)));
+  max-inline-size: min(480px, calc(100vw - var(--tl-space-8)));
   padding: var(--tl-space-2) var(--tl-space-2) var(--tl-space-2) var(--tl-space-4);
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-lg);
@@ -33,8 +33,18 @@
   font-weight: var(--tl-font-weight-semibold);
 }
 
+/* Hover ground is the neutral surface step, not --tl-accent-tint.
+ *
+ * Ink on a tint is the trap: `--tl-accent-ink` over `--tl-accent-tint`
+ * composited on the raised toast measured 4.28:1 in editorial/dark (the tint
+ * is a 14% alpha wash over a dark card there), and the other five combos clear
+ * 4.5 by a hair (4.67–5.58). Rather than introduce a seventh accent ink token
+ * for one hover state, the ghost button's own hover ground
+ * (--tl-surface-hover) is used: an accent fill is reserved for meaning, a
+ * neutral step for "the pointer is here". `--tl-accent-ink` is 4.70–5.63:1 on
+ * that ground in all six combos. */
 .undo-toast__action:hover:not(:disabled) {
-  background: var(--tl-accent-tint);
+  background: var(--tl-surface-hover);
   color: var(--tl-accent-ink);
 }
 
