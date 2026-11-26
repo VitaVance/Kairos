@@ -1,0 +1,1437 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION D — "CAPTURE FIRST"  ·  v2
+  新建日程的设计稿。与前三个方向（A refined / B pro-tool / C editorial）同源。
+
+  v2 相对 v1 的重写原因（4 份独立评审 + 滴答清单实机对照）：
+
+  1. 分组逻辑借鉴错了对象。v1 把时间塞进图标行、清单塞进 ⋯。
+     滴答的实际布局是「顶部工具栏（日期与提醒）／中部输入区／底部归属（清单 + ⋯）」，
+     时间在顶、归属在底、输入在中间占 60% 高度。v2 改为此结构。
+  2. 时间浮层缺「结束日期」，跨天（23:00→次日 01:00）在设计上就做不到，是相对现状的回退。
+     v2 补回结束日期，并在结束≤开始时自动滚到次日 + 「+1 天」标记。
+  3. 全稿没有任何能显示错误的面（role="alert" = 0）。v2 补错误行 + 提交失败态。
+  4. 「准备做什么？」是任务的问句，不是日程的。v2 改为「新建日程」+ 标签「标题」。
+  5. 「重复」「提醒」「优先级」在 CalendarEvent 域模型里不存在。v2 全部删除。
+  6. 系统字号放大无效（全稿 px）。v2 关键尺寸改用 rem。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Capture First v2 — 新建日程设计稿</title>
+<style>
+/* ============================================================================
+   TOKENS — 三套皮肤共用语义名；与 design/A|B|C 同源
+   ========================================================================== */
+:root {
+  --font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --font-serif: "Source Serif 4", Georgia, "Songti SC", serif;
+
+  /* 用 rem：系统字号放大时整体跟随。1rem = 16px */
+  --sp-1: .25rem;  --sp-2: .5rem;  --sp-3: .75rem; --sp-4: 1rem;
+  --sp-5: 1.25rem; --sp-6: 1.5rem; --sp-8: 2rem;  --sp-10: 2.5rem;
+
+  --text-2xs: .656rem;  /* 10.5 */
+  --text-xs:  .6875rem; /* 11   */
+  --text-sm:  .75rem;   /* 12   */
+  --text-body:.8125rem; /* 13   */
+  --text-md:  .875rem;  /* 14   */
+  --text-lg:  1.0625rem;/* 17   ← 与 --tl-font-size-lg 一致 */
+  --text-xl:  1.25rem;  /* 20   */
+
+  --dur-fast: 120ms; --dur-base: 180ms;
+  --ease: cubic-bezier(.2,.8,.3,1);
+
+  --control-h: 2rem;    /* 32 */
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px; --radius-xl: 12px;
+}
+
+[data-skin="refined"] {
+  --bg-app: #f5f5f6; --bg-surface: #ffffff; --bg-subtle: #fafafa;
+  --bg-hover: #f4f4f5; --bg-sunken: #f0f0f2;
+  --hairline: #ececee; --hairline-soft: #f2f2f4; --hairline-strong: #e3e3e6;
+  --ink-1: #1d1d1f; --ink-2: #6e6e73; --ink-3: #747478; --ink-4: #c7c7cc;
+  --accent: #3b82f6; --accent-strong: #2563eb; --accent-strong-hover: #1d4ed8;
+  --accent-contrast: #ffffff;
+  /* Derived, never literal: tokens.css builds tints with color-mix toward
+     the current surface so they stay correct in dark mode too. */
+  --accent-tint: color-mix(in oklab, var(--accent) 10%, var(--bg-surface));
+  --danger-ink: #c62828; --focus: #3b82f6;
+  --shadow-lg: 0 4px 12px -2px rgba(20,20,25,.12), 0 16px 40px -12px rgba(20,20,25,.18);
+  /* One step above --shadow-lg: a popover must out-elevate the card holding it. */
+  --shadow-pop: 0 8px 20px -4px rgba(20,20,25,.16), 0 24px 56px -16px rgba(20,20,25,.26);
+  --editorial-serif: var(--font-sans);
+}
+
+/* 深色：tokens.css 只为 dark 重定义了 --tl-shadow-panel，没动 --tl-shadow-lg，
+   所以浅色下成立的卡片阴影在近黑背景上会消失。深色需要更浓的投影。 */
+[data-skin="refined"][data-theme="dark"] {
+  --bg-app: #161617; --bg-surface: #1f1f21; --bg-subtle: #1a1a1c;
+  --bg-hover: #2a2a2d; --bg-sunken: #121214;
+  --hairline: #2e2e32; --hairline-soft: #26262a; --hairline-strong: #3c3c42;
+  --ink-1: #f5f5f7; --ink-2: #a8a8ae; --ink-3: #87878e; --ink-4: #5a5a61;
+  --accent: #3b82f6; --accent-strong: #4f8ef7; --accent-strong-hover: #6ba0f9;
+  --accent-contrast: #101418;
+  --accent-tint: color-mix(in oklab, var(--accent) 16%, var(--bg-surface));
+  --danger-ink: #ff8a80; --focus: #6ba0f9;
+  --shadow-lg: 0 4px 12px -2px rgba(0,0,0,.5), 0 16px 40px -12px rgba(0,0,0,.6);
+  --shadow-pop: 0 8px 20px -4px rgba(0,0,0,.6), 0 24px 56px -16px rgba(0,0,0,.7);
+}
+
+[data-skin="protool"] {
+  --bg-app: #f6f6f4; --bg-surface: #ffffff; --bg-subtle: #fafaf8;
+  --bg-hover: #f2f2ef; --bg-sunken: #ebebe8;
+  --hairline: #e2e2dd; --hairline-soft: #eaeae6; --hairline-strong: #d4d4ce;
+  --ink-1: #1a1a17; --ink-2: #5e5e58; --ink-3: #77746c; --ink-4: #bdbdb5;
+  --accent: #5b5bd6; --accent-strong: #4b4bc6; --accent-strong-hover: #3d3db0;
+  --accent-contrast: #ffffff;
+  --accent-tint: color-mix(in oklab, var(--accent) 10%, var(--bg-surface));
+  --danger-ink: #a83232; --focus: #5b5bd6;
+  --shadow-lg: 0 2px 6px rgba(20,20,18,.08), 0 18px 36px -14px rgba(20,20,18,.16);
+  --shadow-pop: 0 6px 16px -2px rgba(20,20,18,.12), 0 22px 48px -14px rgba(20,20,18,.22);
+  --editorial-serif: var(--font-sans);
+  --control-h: 1.75rem; /* 28 */
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 10px;
+}
+
+[data-skin="protool"][data-theme="dark"] {
+  --bg-app: #151514; --bg-surface: #1d1d1b; --bg-subtle: #191918;
+  --bg-hover: #272724; --bg-sunken: #101010;
+  --hairline: #2c2c29; --hairline-soft: #242422; --hairline-strong: #3a3a36;
+  --ink-1: #f2f2ee; --ink-2: #a5a59d; --ink-3: #85857d; --ink-4: #585851;
+  --accent: #8b8bf0; --accent-strong: #9c9cf4; --accent-strong-hover: #b0b0f8;
+  --accent-contrast: #141413;
+  --accent-tint: color-mix(in oklab, var(--accent) 16%, var(--bg-surface));
+  --danger-ink: #e88a8a; --focus: #b0b0f8;
+  --shadow-lg: 0 2px 6px rgba(0,0,0,.5), 0 18px 36px -14px rgba(0,0,0,.6);
+  --shadow-pop: 0 6px 16px -2px rgba(0,0,0,.55), 0 22px 48px -14px rgba(0,0,0,.7);
+}
+
+[data-skin="editorial"] {
+  --bg-app: #f7f3ec; --bg-surface: #fffdf8; --bg-subtle: #faf6ee;
+  --bg-hover: #f4eee4; --bg-sunken: #efe8db;
+  --hairline: #e6ddcd; --hairline-soft: #efe7d9; --hairline-strong: #d8ccb7;
+  --ink-1: #2f2a24; --ink-2: #6b6156; --ink-3: #7a7168; --ink-4: #bdb3a4;
+  --accent: #b4553f; --accent-strong: #9a4736; --accent-strong-hover: #853c2d;
+  --accent-contrast: #fffdf8;
+  --accent-tint: color-mix(in oklab, var(--accent) 10%, var(--bg-surface));
+  --danger-ink: #9a3b2a; --focus: #b4553f;
+  --shadow-lg: 0 4px 10px -2px rgba(60,45,30,.10), 0 20px 44px -16px rgba(60,45,30,.20);
+  --shadow-pop: 0 8px 18px -4px rgba(60,45,30,.14), 0 26px 52px -18px rgba(60,45,30,.26);
+  --editorial-serif: var(--font-serif);
+}
+
+[data-skin="editorial"][data-theme="dark"] {
+  --bg-app: #1a1713; --bg-surface: #221e19; --bg-subtle: #1e1a15;
+  --bg-hover: #2b261f; --bg-sunken: #14110e;
+  --hairline: #342e26; --hairline-soft: #2a251e; --hairline-strong: #453d32;
+  --ink-1: #f3ece2; --ink-2: #b5a999; --ink-3: #948a7c; --ink-4: #665d52;
+  --accent: #d4795f; --accent-strong: #e0896f; --accent-strong-hover: #eda184;
+  --accent-contrast: #1a1713;
+  --accent-tint: color-mix(in oklab, var(--accent) 16%, var(--bg-surface));
+  --danger-ink: #e09a8a; --focus: #eda184;
+  --shadow-lg: 0 4px 10px -2px rgba(0,0,0,.5), 0 20px 44px -16px rgba(0,0,0,.65);
+  --shadow-pop: 0 8px 18px -4px rgba(0,0,0,.55), 0 26px 52px -18px rgba(0,0,0,.7);
+}
+
+/* ============================================================================
+   PAGE CHROME
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: #111114; color: #f2f2f4;
+  font: .875rem/1.6 var(--font-sans);
+  padding: 0 0 80px;
+}
+.page-head {
+  padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid #26262c;
+  position: sticky; top: 0; z-index: 50; background: #111114;
+}
+.page-head h1 { margin: 0 0 .375rem; font-size: 1.25rem; letter-spacing: -.01em; }
+.page-head p { margin: 0; color: #8b8b95; font-size: .8125rem; max-width: 62rem; }
+.page-head code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .75rem;
+}
+.skin-switch { display: flex; gap: .25rem; margin-top: 1rem; }
+.skin-switch button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .78rem;
+  padding: .375rem .875rem; border-radius: 7px; cursor: pointer;
+}
+.skin-switch button:hover { background: #232329; }
+.skin-switch button[aria-pressed="true"] {
+  background: #2b2b34; border-color: #4a4a58; color: #fff;
+}
+
+.stage { padding: 1.75rem 2rem 0; }
+.cap {
+  display: flex; align-items: baseline; gap: .625rem;
+  margin: 0 0 .875rem; color: #8b8b95; font-size: .78rem;
+}
+.cap b { color: #e8e8ee; font-size: .875rem; font-weight: 600; }
+.cap .rule { flex: 1; height: 1px; background: #26262c; }
+
+/* 画布不裁切：展开态的浮层会合法地超出捕获条 */
+.canvas {
+  position: relative;
+  border: 1px solid #26262c; border-radius: 14px;
+  background: var(--bg-app);
+  padding: 2.5rem 0 3rem;
+  display: grid; place-items: start center;
+}
+
+/* ============================================================================
+   捕获条 v2
+   滴答的分组：顶部工具栏 / 中部输入 / 底部归属
+   ========================================================================== */
+.capture {
+  inline-size: min(35rem, calc(100vw - 4rem));
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--hairline);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  position: relative;
+  display: flex; flex-direction: column;
+}
+/* `hidden` must beat the flex display above, or Esc-to-dismiss silently does
+   nothing — a display value always wins over the UA's [hidden] rule. */
+.capture[hidden] { display: none; }
+
+/* ---- 顶部工具栏：日期与提醒 ---- */
+.capture__top {
+  position: relative;
+  /* The time chip now sits BELOW the title, which is the order Google, Apple,
+     Notion, Linear and Things all use; only TickTick puts time first. Swap the
+     padding so the chip hugs the title above it rather than the card edge. */
+  display: flex; align-items: center; gap: var(--sp-1);
+  padding: 0 var(--sp-4) var(--sp-2);
+}
+.capture__top-label {
+  font-size: var(--text-sm); color: var(--ink-2);
+  margin-inline-end: auto; padding-inline-start: var(--sp-1);
+}
+
+/* ---- 中部：输入区，给足高度 ---- */
+.capture__input {
+  inline-size: 100%;
+  border: 0; background: transparent; resize: none;
+  padding: var(--sp-3) var(--sp-4);
+  font: inherit; font-size: var(--text-lg); line-height: 1.5;
+  color: var(--ink-1);
+  min-block-size: 5.5rem;      /* 88px：容纳 3 行 */
+  max-block-size: 11rem;       /* 176px：超出内部滚动 */
+  overflow-y: auto;
+  display: block;
+  font-family: var(--editorial-serif);
+  /* No `outline: none`: this is the Ctrl+N landing point and the one control
+     in the whole design that must never lose its focus ring. A borderless
+     field still needs a visible ring — give it the same 2px token ring every
+     other control uses, inset so it reads as part of the field. */
+  outline: none;
+  border-radius: var(--radius-md);
+}
+.capture__input:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+.capture__input::placeholder { color: var(--ink-3); font-family: var(--font-sans); }
+
+/* 输入区下方的错误行 / 提示行 */
+.capture__msg {
+  display: none;
+  margin: 0 var(--sp-4) var(--sp-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  align-items: baseline; gap: .375rem;
+}
+.capture__msg[data-kind="error"] { display: flex; color: var(--danger-ink); }
+.capture__msg[data-kind="hint"]  { display: flex; color: var(--ink-2); }
+
+/* 字段标签（可见，不用 placeholder 当标签） */
+.capture__label {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+/* 输入框的可访问标签：视觉隐藏但保留在无障碍树里 */
+.capture__visually-hidden {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ---- 底部：归属 + 提交 ---- */
+/* 备注：常驻 DOM，菜单只切显隐 —— 隐藏不等于销毁 */
+.capture__notes {
+  inline-size: calc(100% - 2rem);
+  margin: 0 1rem .75rem;
+  border: 0;
+  background: var(--bg-subtle);
+  border-radius: var(--radius-md);
+  padding: .5rem .625rem;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--ink-1);
+  resize: none;
+  line-height: 1.5;
+  min-block-size: 2.75rem;
+  max-block-size: 8rem;
+  outline: none;
+}
+.capture__notes:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.capture__notes[hidden] { display: none; }
+
+.capture__foot {
+  display: flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3) var(--sp-3);
+  border-block-start: 1px solid var(--hairline-soft);
+}
+
+/* 清单 chip —— 高频，常驻底部 */
+.list-chip {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-2); font: inherit; font-size: var(--text-sm);
+  block-size: var(--control-h); padding: 0 var(--sp-2);
+  border-radius: var(--radius-md);
+  display: inline-flex; align-items: center; gap: .375rem;
+  cursor: pointer; white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease);
+}
+.list-chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.list-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.list-chip__dot {
+  inline-size: .375rem; block-size: .375rem; border-radius: 50%;
+  background: var(--accent); flex: none;
+}
+
+/* 图标按钮 */
+.icon-btn {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-2);
+  inline-size: var(--control-h); block-size: var(--control-h);
+  border-radius: var(--radius-md);
+  display: inline-grid; place-items: center;
+  cursor: pointer; position: relative;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast);
+  flex: none;
+}
+.icon-btn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.icon-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.icon-btn[aria-expanded="true"] { background: var(--accent-tint); color: var(--accent-strong); }
+
+/* 日期 chip：唯一带文字的项 */
+.when {
+  appearance: none;
+  /* WCAG 1.4.11: the ONLY affordance for opening the date popover must be
+     identifiable as a control. A bg-subtle-on-surface fill measured 1.04:1 —
+     invisible. A full 3:1 border would look like an alarm, so the boundary is
+     carried by a hairline + the icon and label staying at ink-1; the fill is
+     there for the click target, not for identity. Increase the fill one step
+     and add a real border so it reads as a button in all three skins. */
+  border: 1px solid var(--hairline-strong);
+  background: var(--bg-subtle);
+  color: var(--ink-1); font: inherit; font-size: var(--text-sm); font-weight: 500;
+  block-size: var(--control-h); padding: 0 .625rem;
+  border-radius: var(--radius-md);
+  display: inline-flex; align-items: center; gap: .375rem;
+  cursor: pointer; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast);
+}
+.when:hover { background: var(--bg-hover); border-color: var(--ink-3); }
+.when:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.when svg { flex: none; color: var(--ink-2); }
+.when__sep { color: var(--ink-4); margin: 0 -.125rem; }
+.when__day { color: var(--ink-2); }
+
+.capture__spacer { flex: 1; }
+
+.add-btn {
+  appearance: none; border: 0;
+  background: var(--accent-strong); color: var(--accent-contrast);
+  font: inherit; font-size: var(--text-sm); font-weight: 600;
+  block-size: var(--control-h); padding: 0 var(--sp-4);
+  border-radius: var(--radius-md); cursor: pointer; flex: none;
+  transition: background var(--dur-fast) var(--ease);
+}
+.add-btn:hover { background: var(--accent-strong-hover); }
+.add-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.add-btn[aria-disabled="true"] {
+  background: var(--bg-sunken);
+  /* ink-2 on sunken measured 4.46:1 in refined — a hair under the 4.5 floor.
+     Disabled state is communicated by the flat fill + default cursor, not by
+     fading the label below legibility, so the label stays at full ink-1. */
+  color: var(--ink-1);
+  cursor: default;
+}
+
+/* ============================================================================
+   浮层
+   ========================================================================== */
+.pop {
+  position: absolute; z-index: 20;
+  background: var(--bg-surface);
+  /* No border, and a deeper shadow than the capture bar. The bar is already
+     surface + 1px hairline + shadow; repeating all three here would paint two
+     identical cards on top of each other and the popover would read as part of
+     the bar rather than as a layer above it. Elevation, not outline, is what
+     separates the two. */
+  border: 0;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 0 0 1px var(--hairline-strong), var(--shadow-pop);
+  padding: var(--sp-3);
+  display: none; font-size: var(--text-sm);
+}
+.pop[data-open="true"] { display: block; }
+
+/* 日期浮层挂在顶部工具栏的 chip 下方 */
+.pop--when {
+  /* The chip row sits directly under the title, so its height is
+     title(min 5.5rem) + chip padding. Offset from the card top by exactly that
+     so the popover opens at the chip's lower edge and never covers the title.
+     (Anchoring with 100% would resolve against .capture, not the row.) */
+  inset-block-start: calc(5.5rem + var(--sp-3) + var(--control-h) + 6px);
+  inset-inline-start: var(--sp-3);
+  inline-size: 19rem;   /* 304 */
+  max-block-size: min(24rem, 55vh);
+  overflow-y: auto;
+}
+/* 更多菜单挂底部 */
+.pop--more {
+  inset-block-end: var(--sp-10);
+  inset-inline-start: var(--sp-3);
+  inline-size: 15rem;
+}
+/* 清单面板 */
+.pop--list {
+  inset-block-end: var(--sp-10);
+  inset-inline-start: var(--sp-3);
+  inline-size: 14rem;
+  padding: var(--sp-2);
+}
+
+/* 浮层标题：给 role="group" 一个可被 aria-labelledby 引用的真实节点 */
+.pop__title {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.pop__label {
+  font-size: var(--text-sm); font-weight: 600; color: var(--ink-2);
+  margin: 0 0 var(--sp-2);
+}
+.pop__label:not(:first-child) { margin-block-start: var(--sp-3); }
+
+.chip-row { display: flex; gap: .25rem; flex-wrap: wrap; }
+
+.chip {
+  appearance: none; border: 1px solid var(--hairline);
+  background: var(--bg-surface); color: var(--ink-1);
+  font: inherit; font-size: var(--text-sm);
+  block-size: 1.75rem; padding: 0 .625rem;
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: background var(--dur-fast), border-color var(--dur-fast);
+  display: inline-flex; align-items: center; gap: .25rem;
+}
+.chip:hover { background: var(--bg-hover); border-color: var(--hairline-strong); }
+.chip[aria-pressed="true"] {
+  background: var(--accent-tint); border-color: var(--accent);
+  color: var(--accent-strong); font-weight: 600;
+}
+.chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.chip[aria-invalid="true"] { border-color: var(--danger-ink); }
+
+/* 时间行 */
+.time-row { display: flex; align-items: center; gap: .375rem; }
+.time-input {
+  appearance: none;
+  /* §5.1: a field at rest is a quiet ground with a hairline, and the border
+     only strengthens on focus. Starting from --hairline-strong made every
+     time field read as an error/alarm state in an otherwise calm popover. */
+  border: 1px solid var(--hairline);
+  background: var(--bg-subtle); color: var(--ink-1);
+  font: inherit; font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums; text-align: center;
+  block-size: 1.75rem; padding: 0 .375rem;
+  border-radius: var(--radius-sm);
+  inline-size: 4rem;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast);
+}
+.time-input:hover { border-color: var(--hairline-strong); }
+.time-input:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px;
+  border-color: var(--accent);
+}
+.time-input[aria-invalid="true"] { border-color: var(--danger-ink); }
+.time-sep { color: var(--ink-3); }
+.end-date-row {
+  display: flex; align-items: center; gap: .5rem;
+  margin-block-start: var(--sp-2);
+}
+.end-date-row[hidden] { display: none; }
+.end-date-row__label {
+  font-size: var(--text-xs); color: var(--ink-2);
+  white-space: nowrap;
+}
+.date-input {
+  appearance: none; border: 1px solid var(--hairline);
+  background: var(--bg-subtle); color: var(--ink-1);
+  font: inherit; font-size: var(--text-sm);
+  block-size: 1.75rem; padding: 0 .375rem;
+  border-radius: var(--radius-sm);
+  inline-size: 9rem;
+}
+.date-input:hover { border-color: var(--hairline-strong); }
+.date-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.day-badge {
+  font-size: var(--text-2xs); font-weight: 600;
+  color: var(--accent-strong); background: var(--accent-tint);
+  padding: .0625rem .25rem; border-radius: 4px;
+  margin-inline-start: .125rem;
+}
+
+/* 浮层内错误行（离操作源 ~0px） */
+.pop__error {
+  display: none; margin: var(--sp-2) 0 0;
+  font-size: var(--text-xs); color: var(--danger-ink); line-height: 1.4;
+}
+.pop__error[data-show="true"] { display: block; }
+
+/* 菜单 / 列表面板项 */
+.menu-item {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-1); font: inherit; font-size: var(--text-sm);
+  inline-size: 100%; block-size: 1.875rem; padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; gap: var(--sp-2);
+  cursor: pointer; text-align: start;
+}
+.menu-item:hover { background: var(--bg-hover); }
+.menu-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.menu-item__value { margin-inline-start: auto; color: var(--ink-3); font-size: var(--text-xs); }
+/* Hover darkens the row AND the value: ink-3 on bg-hover measured 4.23:1 in all
+   three skins (below the 4.5 floor). Bumping only the hovered value to ink-2
+   keeps the resting hierarchy intact while fixing the state users actually read. */
+.menu-item:hover .menu-item__value { color: var(--ink-2); }
+.menu-item[aria-checked="true"] .menu-item__value { color: var(--accent-strong); font-weight: 600; }
+.menu-item__dot {
+  inline-size: .375rem; block-size: .375rem; border-radius: 50%; flex: none;
+}
+
+/* ============================================================================
+   右侧 inspector（编辑已有日程）
+   ========================================================================== */
+.sheet {
+  inline-size: min(23.75rem, calc(100vw - 2rem));  /* 380 = TaskDetailPanel */
+  min-block-size: 30rem;
+  background: var(--bg-surface);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--hairline);
+  color: var(--ink-1); font-family: var(--font-sans);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sheet__head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5) var(--sp-3);
+  border-block-end: 1px solid var(--hairline-soft);
+}
+.sheet__title-mini {
+  margin: 0; font-size: var(--text-md); font-weight: 500; color: var(--ink-2);
+}
+.sheet__body { padding: var(--sp-4) var(--sp-5); flex: 1; }
+.sheet__title {
+  /* An editable field, not static text: title is the third most-edited property
+     after time, and the one an IME Enter most often mangles. A textarea with
+     rows=1 grows with its content the same way the capture bar's does. */
+  display: block;
+  inline-size: 100%;
+  border: 0; background: transparent; resize: none;
+  font-size: var(--text-lg); line-height: 1.45;
+  margin: 0 0 var(--sp-3); font-weight: 500;
+  color: var(--ink-1);
+  font-family: var(--editorial-serif);
+  field-sizing: content;
+  max-block-size: 5rem;
+  outline: none;
+  border-radius: var(--radius-sm);
+}
+.sheet__title:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sheet__visually-hidden {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+.sheet__when {
+  display: inline-flex; align-items: center; gap: .5rem;
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-2); font: inherit; font-size: var(--text-body);
+  padding: 0; cursor: pointer; border-radius: var(--radius-sm);
+  font-variant-numeric: tabular-nums;
+}
+.sheet__when:hover { color: var(--ink-1); }
+.sheet__when:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+
+.sheet__fields {
+  margin-block-start: var(--sp-4);
+  border-block-start: 1px solid var(--hairline-soft);
+  padding-block-start: var(--sp-1);
+}
+.field-row {
+  display: flex; align-items: center; gap: var(--sp-3);
+  min-block-size: 2.25rem;
+  border-block-end: 1px solid var(--hairline-soft);
+}
+.field-row:last-child { border-block-end: 0; }
+.field-row dt {
+  inline-size: 4rem; flex: none;
+  font-size: var(--text-sm); color: var(--ink-2);
+}
+.field-row dd { margin: 0; flex: 1; min-inline-size: 0; font-size: var(--text-sm); }
+.field-row .select-value {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-1); font: inherit; font-size: var(--text-sm);
+  display: flex; align-items: center; gap: .375rem; cursor: pointer;
+  padding: 0; block-size: 1.75rem;
+}
+.field-row .select-value svg { color: var(--ink-3); }
+.field-row textarea {
+  inline-size: 100%; border: 0; background: transparent;
+  color: var(--ink-1); font: inherit; font-size: var(--text-sm);
+  resize: none; padding: var(--sp-2) 0;
+  line-height: 1.55; field-sizing: content; max-block-size: 8rem;
+  outline: none;
+  border-radius: var(--radius-sm);
+}
+.field-row textarea:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+.field-row textarea::placeholder { color: var(--ink-3); }
+
+.sheet__foot {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-block-start: 1px solid var(--hairline-soft);
+  background: var(--bg-subtle);
+}
+.btn-ghost {
+  appearance: none; border: 0; background: transparent;
+  color: var(--ink-2); font: inherit; font-size: var(--text-sm);
+  block-size: var(--control-h); padding: 0 var(--sp-3);
+  border-radius: var(--radius-md); cursor: pointer;
+}
+.btn-ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+.btn-ghost:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn-ghost--danger { color: var(--danger-ink); }
+.btn-primary {
+  appearance: none; border: 0;
+  background: var(--accent-strong); color: var(--accent-contrast);
+  font: inherit; font-size: var(--text-sm); font-weight: 600;
+  block-size: var(--control-h); padding: 0 var(--sp-4);
+  border-radius: var(--radius-md); cursor: pointer;
+}
+.btn-primary:hover { background: var(--accent-strong-hover); }
+.btn-primary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.spacer { flex: 1; }
+
+/* 注释 */
+.annot {
+  margin: .875rem 0 2.5rem; color: #8b8b95; font-size: .78rem;
+  display: grid; gap: .375rem; max-width: 54rem;
+}
+.annot li { margin: 0; }
+.annot code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .72rem;
+}
+.annot b { color: #d8d8e0; font-weight: 600; }
+.annot .bad { color: #f0a0a0; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<header class="page-head">
+  <h1>Capture First · 新建日程设计稿 <span style="color:#6b6b78;font-weight:400">v2</span></h1>
+  <p>
+    <b>新建日程不是配置表单，是一次带默认值的快速落位。</b>
+    按 <code>Ctrl+N</code> 打开，光标已在输入框，打标题按 Enter 就完成 ——
+    默认「今天 · 下一个整点 + 1 小时」，想改才展开。
+    编辑已有日程走<b>右侧 380px inspector</b>（字段即存，无保存按钮）。
+  </p>
+  <p style="margin-top:.5rem;color:#6b6b78">
+    v2 依据：4 份独立评审 + 滴答清单实机对照。分组改为<b>顶部时间 / 中部输入 / 底部归属</b>，
+    补回跨天、错误态、提交失败，删除域模型里不存在的「重复 / 提醒 / 优先级」。
+  </p>
+  <div class="skin-switch" role="group" aria-label="皮肤">
+    <button type="button" data-set-skin="refined" aria-pressed="true">A · Refined</button>
+    <button type="button" data-set-skin="protool" aria-pressed="false">B · Pro Tool</button>
+    <button type="button" data-set-skin="editorial" aria-pressed="false">C · Editorial</button>
+    <span style="width:1px;background:#2e2e36;margin-inline:.25rem" aria-hidden="true"></span>
+    <button type="button" data-set-theme="light" aria-pressed="true">明</button>
+    <button type="button" data-set-theme="dark" aria-pressed="false">暗</button>
+  </div>
+</header>
+
+<!-- ============================ 01 默认态 ============================ -->
+<section class="stage">
+  <p class="cap"><b>01</b> 捕获条 · 默认态 <span class="rule"></span> <span>Ctrl+N · 空状态自带时间</span></p>
+
+  <div class="canvas">
+    <div class="capture" id="capture-1" role="dialog" aria-modal="false" aria-labelledby="cap-1-label">
+            <span class="capture__label" id="cap-1-label">新建日程</span>
+      <label class="capture__visually-hidden" for="cap-1-input">标题</label>
+      <textarea class="capture__input" id="cap-1-input" rows="3" placeholder="例如：产品评审"></textarea>
+
+      <div class="capture__top">
+              <button type="button" class="when" aria-expanded="false" aria-haspopup="dialog" data-pop="when-1">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <rect x="2" y="3.5" width="12" height="10.5" rx="2.5"/><path d="M2 7h12M5.5 2v3M10.5 2v3"/>
+                </svg>
+                <span data-when-day>今天</span>
+                <span class="when__sep">·</span>
+                <span data-when-time>15:00 – 16:00</span>
+              </button>
+            </div>
+
+      <p class="capture__msg" data-kind="error" role="alert" data-err hidden></p>
+
+              <textarea class="capture__notes" rows="2" placeholder="添加备注…" aria-label="备注" hidden></textarea>
+
+
+      <div class="capture__foot">
+        <button type="button" class="list-chip" data-pop="list-1" aria-expanded="false" aria-haspopup="listbox">
+          <span class="list-chip__dot" aria-hidden="true"></span>
+          <span data-list-name>收集箱</span>
+        </button>
+        <button type="button" class="icon-btn" aria-label="更多选项" title="更多选项" aria-expanded="false" aria-haspopup="menu" data-pop="more-1">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/>
+          </svg>
+        </button>
+        <span class="capture__spacer"></span>
+        <button type="button" class="add-btn" aria-disabled="true" data-add>新建</button>
+      </div>
+
+      <!-- 日期浮层 -->
+      <div class="pop pop--when" id="when-1" role="group" aria-labelledby="when-1-label">
+        <p class="pop__title" id="when-1-label">日期与时间</p>
+        <p class="pop__label">日期</p>
+        <div class="chip-row">
+          <button type="button" class="chip" aria-pressed="true" data-day="today">今天</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="tomorrow">明天</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="monday">下周一</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="custom">自定…</button>
+          <input type="date" class="chip-date" data-day-custom aria-label="选择日期" hidden>
+        </div>
+        <p class="pop__label">时间</p>
+        <div class="time-row">
+          <input class="time-input" value="15:00" aria-label="开始时间" data-start>
+          <span class="time-sep">–</span>
+          <input class="time-input" value="16:00" aria-label="结束时间" data-end>
+        </div>
+        <!-- 结束日期：仅当跨天时出现。v2 曾只靠「+1 天」标签，三天出差无路可走。 -->
+        <div class="end-date-row" data-end-date-row hidden>
+          <label class="end-date-row__label" for="end-date-1">结束日期</label>
+          <input class="date-input" id="end-date-1" type="date" data-end-date>
+        </div>
+        <p class="pop__error" role="alert" data-time-error>结束时间需晚于开始时间</p>
+        <p class="pop__label">时长</p>
+        <div class="chip-row">
+          <button type="button" class="chip" aria-pressed="false" data-dur="30">30 分钟</button>
+          <button type="button" class="chip" aria-pressed="true" data-dur="60">1 小时</button>
+          <button type="button" class="chip" aria-pressed="false" data-dur="120">2 小时</button>
+          <button type="button" class="chip" aria-pressed="false" data-allday>全天</button>
+        </div>
+      </div>
+
+      <!-- 更多菜单 -->
+      <div class="pop pop--more" id="more-1" role="menu" aria-label="更多选项">
+        <button type="button" class="menu-item" role="menuitem" data-toggle-notes>
+          备注<span class="menu-item__value" data-notes-state>—</span>
+        </button>
+      </div>
+
+      <!-- 列表面板 -->
+      <div class="pop pop--list" id="list-1" role="listbox" aria-label="选择清单" tabindex="-1">
+        <button type="button" class="menu-item" role="option" aria-checked="true" data-list="收集箱">
+          <span class="menu-item__dot" style="background:#5b8def"></span>收集箱
+          <span class="menu-item__value">✓</span>
+        </button>
+        <button type="button" class="menu-item" role="option" aria-checked="false" data-list="工作">
+          <span class="menu-item__dot" style="background:#3aa88b"></span>工作
+        </button>
+        <button type="button" class="menu-item" role="option" aria-checked="false" data-list="学习">
+          <span class="menu-item__dot" style="background:#8b79c9"></span>学习
+        </button>
+        <button type="button" class="menu-item" role="option" aria-checked="false" data-list="生活">
+          <span class="menu-item__dot" style="background:#d99a3d"></span>生活
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>标题在上、时间在下。</b>这是 Google / Apple / Notion / Linear / Things 的顺序；九家竞品里只有滴答把时间放在最上面。v1 曾照滴答做，K 的实机截图取证后改回主流顺序。</li>
+    <li><b>分组是「标题 → 时间 → 归属」。</b>v1 把时间塞进图标行、清单塞进 ⋯，分组逻辑借鉴错了对象。</li>
+    <li><b>输入区 88px 高（3 行）。</b>v1 只有一行，写不下稍长一点的标题。</li>
+    <li><b>清单常驻底部</b>，不是藏进 ⋯ —— 它和"这条归哪"是一体的。</li>
+    <li><b>「新建」而不是「添加」</b>：本应用新建日程一律叫「新建日程」（<code>shell:topBar.newEvent</code>），"添加"是任务的动作。</li>
+    <li><b>没有「准备做什么？」</b>：这是任务的问句。日程用可见标签「标题」+ 占位示例。</li>
+    <li><b>删掉了「重复 / 提醒 / 优先级」</b>：<code>CalendarEvent</code> 域模型里没有这些字段，画了等于承诺做不到的功能。</li>
+  </ul>
+</section>
+
+<!-- ============================ 02 展开态 ============================ -->
+<section class="stage">
+  <p class="cap"><b>02</b> 日期时间浮层 · 跨天自动标记 <span class="rule"></span> <span>点顶部 chip</span></p>
+
+  <div class="canvas" style="padding: 2.5rem 0 26rem">
+    <div class="capture" id="capture-2" role="dialog" aria-modal="false" aria-labelledby="cap-2-label">
+      <span class="capture__label" id="cap-2-label">新建日程</span>
+      <label class="capture__visually-hidden" for="cap-2-input">标题</label>
+      <textarea class="capture__input" id="cap-2-input" rows="3">夜间值班</textarea>
+
+      <div class="capture__top">
+        <button type="button" class="when" aria-expanded="true" aria-haspopup="dialog" data-pop="when-2">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2" y="3.5" width="12" height="10.5" rx="2.5"/><path d="M2 7h12M5.5 2v3M10.5 2v3"/>
+          </svg>
+          <span data-when-day>今天</span>
+          <span class="when__sep">·</span>
+          <span data-when-time>23:00 – 01:00</span>
+        </button>
+      </div>
+
+      <textarea class="capture__notes" rows="2" placeholder="添加备注…" aria-label="备注" hidden></textarea>
+
+
+      <div class="capture__foot">
+        <button type="button" class="list-chip" data-pop="list-2" aria-expanded="false" aria-haspopup="listbox">
+          <span class="list-chip__dot" aria-hidden="true"></span>
+          <span data-list-name>收集箱</span>
+        </button>
+        <button type="button" class="icon-btn" aria-label="更多选项" title="更多选项" aria-expanded="false" aria-haspopup="menu" data-pop="more-2">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/>
+          </svg>
+        </button>
+        <span class="capture__spacer"></span>
+        <button type="button" class="add-btn" data-add>新建</button>
+      </div>
+
+      <div class="pop pop--when" id="when-2" role="group" aria-labelledby="when-2-label" data-open="true">
+        <p class="pop__title" id="when-2-label">日期与时间</p>
+        <p class="pop__label">日期</p>
+        <div class="chip-row">
+          <button type="button" class="chip" aria-pressed="true" data-day="today">今天</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="tomorrow">明天</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="monday">下周一</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="custom">自定…</button>
+          <input type="date" class="chip-date" data-day-custom aria-label="选择日期" hidden>
+        </div>
+        <p class="pop__label">时间</p>
+        <div class="time-row">
+          <input class="time-input" value="23:00" aria-label="开始时间" data-start>
+          <span class="time-sep">–</span>
+          <input class="time-input" value="01:00" aria-label="结束时间" data-end>
+        </div>
+        <div class="end-date-row" data-end-date-row>
+          <label class="end-date-row__label" for="end-date-2">结束日期</label>
+          <input class="date-input" id="end-date-2" type="date" value="2026-11-27" data-end-date>
+        </div>
+        <p class="pop__error" role="alert" data-time-error>结束时间需晚于开始时间</p>
+        <p class="pop__label">时长</p>
+        <div class="chip-row">
+          <button type="button" class="chip" aria-pressed="false" data-dur="30">30 分钟</button>
+          <button type="button" class="chip" aria-pressed="false" data-dur="60">1 小时</button>
+          <button type="button" class="chip" aria-pressed="false" data-dur="120">2 小时</button>
+          <button type="button" class="chip" aria-pressed="false" data-allday>全天</button>
+        </div>
+      </div>
+
+      <div class="pop pop--more" id="more-2" role="menu" aria-label="更多选项">
+        <button type="button" class="menu-item" role="menuitem" data-toggle-notes>
+          备注<span class="menu-item__value" data-notes-state>—</span>
+        </button>
+      </div>
+
+      <div class="pop pop--list" id="list-2" role="listbox" aria-label="选择清单">
+        <button type="button" class="menu-item" role="option" aria-checked="true" data-list="收集箱">
+          <span class="menu-item__dot" style="background:#5b8def"></span>收集箱
+          <span class="menu-item__value">✓</span>
+        </button>
+        <button type="button" class="menu-item" role="option" aria-checked="false" data-list="工作">
+          <span class="menu-item__dot" style="background:#3aa88b"></span>工作
+        </button>
+        <button type="button" class="menu-item" role="option" aria-checked="false" data-list="学习">
+          <span class="menu-item__dot" style="background:#8b79c9"></span>学习
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>跨天自动标记「+1 天」。</b>结束时间 ≤ 开始时间时，结束自动落到次日，chip 显示 <code>今天 · 23:00 – 01:00</code>。v1 只有日期 + 两个时间框、没有结束日期，<span class="bad">跨天在设计上就做不到</span>。</li>
+    <li><b>时间错误提示在时间行正下方</b>（离操作源 0px），不是卡片底部。</li>
+    <li><b>「全天」是时长的一种</b>，不是独立开关 —— 选它时时间行整体换成「今天 · 全天（1 天）」，时间输入消失而非变灰。</li>
+    <li><b>时长芯片 30 分 / 1 小时 / 2 小时</b>：比"改结束时间"快，也是竞品通行做法。</li>
+  </ul>
+</section>
+
+<!-- ============================ 03 提交失败 ============================ -->
+<section class="stage">
+  <p class="cap"><b>03</b> 提交失败 · 输入不丢 <span class="rule"></span> <span>v1 完全没画</span></p>
+
+  <div class="canvas">
+    <div class="capture" id="capture-3" role="dialog" aria-modal="false" aria-labelledby="cap-3-label">
+      <span class="capture__label" id="cap-3-label">新建日程</span>
+      <label class="capture__visually-hidden" for="cap-3-input">标题</label>
+      <textarea class="capture__input" id="cap-3-input" rows="3">产品评审</textarea>
+
+      <div class="capture__top">
+        <button type="button" class="when" aria-expanded="false" aria-haspopup="dialog" data-pop="when-3">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2" y="3.5" width="12" height="10.5" rx="2.5"/><path d="M2 7h12M5.5 2v3M10.5 2v3"/>
+          </svg>
+          <span data-when-day>今天</span>
+          <span class="when__sep">·</span>
+          <span data-when-time>15:00 – 16:00</span>
+        </button>
+      </div>
+
+      <p class="capture__msg" data-kind="error" role="alert">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="flex:none;translate:0 2px">
+          <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/>
+        </svg>
+        保存失败，请检查后重试。内容已保留。
+      </p>
+
+              <textarea class="capture__notes" rows="2" placeholder="添加备注…" aria-label="备注" hidden></textarea>
+
+
+      <div class="capture__foot">
+        <button type="button" class="list-chip" data-pop="list-3" aria-expanded="false" aria-haspopup="listbox">
+          <span class="list-chip__dot" aria-hidden="true"></span>
+          <span data-list-name>收集箱</span>
+        </button>
+        <button type="button" class="icon-btn" aria-label="更多选项" title="更多选项" aria-expanded="false" aria-haspopup="menu" data-pop="more-3">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/>
+          </svg>
+        </button>
+        <span class="capture__spacer"></span>
+        <button type="button" class="add-btn" data-add>重试</button>
+      </div>
+
+      <div class="pop pop--when" id="when-3" role="group" aria-labelledby="when-3-label">
+        <p class="pop__title" id="when-3-label">日期与时间</p>
+        <p class="pop__label">日期</p>
+        <div class="chip-row">
+          <button type="button" class="chip" aria-pressed="true" data-day="today">今天</button>
+          <button type="button" class="chip" aria-pressed="false" data-day="tomorrow">明天</button>
+        </div>
+      </div>
+      <div class="pop pop--more" id="more-3" role="menu" aria-label="更多选项">
+        <button type="button" class="menu-item" role="menuitem" data-toggle-notes>
+          备注<span class="menu-item__value" data-notes-state>—</span>
+        </button>
+      </div>
+      <div class="pop pop--list" id="list-3" role="listbox" aria-label="选择清单">
+        <button type="button" class="menu-item" role="option" aria-checked="true" data-list="收集箱">
+          <span class="menu-item__dot" style="background:#5b8def"></span>收集箱
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>错误行在输入框正下方</b>，紧挨用户刚打的字，不是卡片底部。</li>
+    <li><b>输入内容一个字都不丢</b>，日期时间与清单也保持原样。</li>
+    <li><b>主按钮变成「重试」</b>，而不是继续显示「新建」让用户怀疑没点上。</li>
+    <li>v1 <span class="bad">全页 <code>role="alert"</code> = 0</span>，四条故障（时间倒挂 / 写库失败 / 服务不可用 / 空标题回车）全部无处落地。</li>
+  </ul>
+</section>
+
+<!-- ============================ 04 编辑已有日程 ============================ -->
+<section class="stage">
+  <p class="cap"><b>04</b> 编辑已有日程 · 右侧 inspector <span class="rule"></span> <span>点日历上的事件 · 字段即存</span></p>
+
+  <div class="canvas" style="place-items: end center; padding: 2rem 2rem">
+    <div class="sheet">
+      <div class="sheet__head">
+        <h2 class="sheet__title-mini">编辑日程</h2>
+        <button type="button" class="icon-btn" aria-label="关闭" title="关闭">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+        </button>
+      </div>
+
+      <div class="sheet__body">
+        <label class="sheet__visually-hidden" for="sheet-title">标题</label>
+        <textarea class="sheet__title" id="sheet-title" rows="1">产品评审</textarea>
+
+        <button type="button" class="sheet__when">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2" y="3.5" width="12" height="10.5" rx="2.5"/><path d="M2 7h12M5.5 2v3M10.5 2v3"/>
+          </svg>
+          11月26日 周三 · 14:00 – 15:00
+        </button>
+
+        <dl class="sheet__fields">
+          <div class="field-row">
+            <dt>清单</dt>
+            <dd>
+              <button type="button" class="select-value">
+                <span style="inline-size:.375rem;block-size:.375rem;border-radius:50%;background:var(--accent);display:inline-block"></span>
+                收集箱
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><path d="M3 4.5L6 7.5l3-3"/></svg>
+              </button>
+            </dd>
+          </div>
+          <div class="field-row" style="align-items:flex-start">
+            <dt style="padding-block-start:.5rem">备注</dt>
+            <dd><textarea rows="2" placeholder="添加备注…"></textarea></dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="sheet__foot">
+        <button type="button" class="btn-ghost btn-ghost--danger">删除</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn-ghost">关闭</button>
+        <button type="button" class="btn-primary">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>不再是居中弹窗。</b>编辑日程最常见的动作是"挪时间"，看不见日历就没法挪。</li>
+    <li><b>380px 复用 <code>TaskDetailPanel</code> 的几何</b>（<code>styles.css:1193-1205</code>），用户只需学一次。</li>
+    <li><b>没有「保存」。</b>字段即存 —— <code>Shell.tsx:443</code> 自己写着"没有 mod+s，因为服务层自动保存"，日历是唯一还挂保存按钮的写界面，是例外。</li>
+    <li><b>没有「重复」「提醒」「优先级」</b>：域模型没有。剩「清单 / 备注」两行，够了。</li>
+    <li><b>「完成」而非「保存」</b>：它只表示"我改完了"，不表示"提交"。</li>
+  </ul>
+</section>
+
+<script>
+/* ---- 皮肤 ---- */
+document.querySelectorAll('[data-set-skin]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-skin', btn.getAttribute('data-set-skin'));
+    document.querySelectorAll('[data-set-skin]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+
+/* ---- 明暗切换 ---- */
+document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-theme', btn.getAttribute('data-set-theme'));
+    document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+
+/* ---- 浮层互斥 + 焦点管理 ---- */
+function closeAll(scope, restoreTo) {
+  var wasOpen = null;
+  scope.querySelectorAll('.pop[data-open="true"]').forEach(function (p) {
+    p.removeAttribute('data-open');
+    var trigger = scope.querySelector('[data-pop="' + p.id + '"]');
+    if (trigger) { trigger.setAttribute('aria-expanded', 'false'); wasOpen = trigger; }
+  });
+  if (restoreTo && wasOpen) {
+    /* Defer one frame: the Esc keydown that triggered this close is still
+       bubbling, and a later document-level listener can move focus to <body>
+       after we set it. Focusing on the next frame wins that race. */
+    var target = wasOpen;
+    requestAnimationFrame(function () { target.focus(); });
+  }
+  return wasOpen;
+}
+
+/* ---- 菜单 / 浮层的键盘模型 ----
+   menu.md 的要求：一个 Tab 停靠点、方向键导航、Home/End、Esc 关闭并把焦点还给
+   触发器。没有原生 focusgroup 时手写这一层，且必须对 role="menu" 与 role="group"
+   两种面板一视同仁。 */
+function itemsOf(pop) {
+  return Array.prototype.slice.call(
+    pop.querySelectorAll('button:not(:disabled), input:not(:disabled), [tabindex]:not([tabindex="-1"])')
+  ).filter(function (el) { return el.offsetParent !== null; });
+}
+
+function closeAndRestore(pop) {
+  var scope = pop.closest('.capture');
+  var trigger = scope && scope.querySelector('[data-pop="' + pop.id + '"]');
+  pop.removeAttribute('data-open');
+  if (trigger) {
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.focus();
+  }
+}
+
+/* 方向键 / Home / End 只对「真正的菜单」生效，而且只在焦点已经在菜单内部时。
+   日期浮层是一个装着两个原生 input 的表单面板，不是单一停靠点的复合控件——
+   对它套 arrow-key 导航会吞掉输入框的 ↑↓、并把 Tab 变成「关浮层」。
+   Esc 单独处理，对任何浮层都成立（它是"关掉这一层"而不是"在层内移动"）。 */
+document.addEventListener('keydown', function (e) {
+  var pop = document.querySelector('.pop[data-open="true"]');
+  if (!pop) return;
+
+  var inPop = pop.contains(document.activeElement);
+  var isMenu = pop.getAttribute('role') === 'menu';
+  /* 有原生可编辑控件获得焦点的浮层，方向键归控件自己 */
+  var editing = document.activeElement &&
+    (/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName) ||
+     document.activeElement.isContentEditable);
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();   /* 只关这一层，别让外层的 Esc 也跑 */
+    closeAndRestore(pop);
+    return;
+  }
+
+  if (!isMenu || !inPop) {
+    /* 表单型浮层：Tab 照常前进并关闭浮层；有输入焦点时方向键不动 */
+    if (e.key === 'Tab') closeAndRestore(pop);
+    return;
+  }
+
+  var items = itemsOf(pop);
+  if (items.length === 0) return;
+  var idx = items.indexOf(document.activeElement);
+
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (idx === -1) { items[0].focus(); return; }
+    var next = e.key === 'ArrowDown'
+      ? (idx + 1) % items.length
+      : (idx - 1 + items.length) % items.length;
+    items[next].focus();
+    return;
+  }
+  if (e.key === 'Home') { e.preventDefault(); items[0].focus(); return; }
+  if (e.key === 'End') { e.preventDefault(); items[items.length - 1].focus(); return; }
+  if (e.key === 'Tab') {
+    /* Tab 离开菜单即关闭，焦点照常前进 —— menu.md: "Tab. Leaves the menu system." */
+    closeAndRestore(pop);
+  }
+});
+
+/* 捕获条本身也需要一条键盘可用的退出路径。H 的实测指出：v6 之前只有浮层能被
+   Esc 关掉，浮层关着时按 Esc 什么都不会发生——一个没有 ✕ 的对话框等于键盘死路。
+   规则：有浮层 → 关浮层（上面的处理器管）；没有浮层 → 收起捕获条。 */
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Escape') return;
+  /* `stopPropagation` does NOT stop a second listener on the SAME element —
+     the capture-bar dismiss handler below is also bound to `document`, so it
+     ran too and collapsed the whole bar right after the popover closed.
+     `defaultPrevented` is the shared signal between the two listeners. */
+  if (e.defaultPrevented) return;
+  if (document.querySelector('.pop[data-open="true"]')) return;  /* 上一层处理 */
+  var scope = document.activeElement && document.activeElement.closest
+    ? document.activeElement.closest('.capture')
+    : null;
+  if (!scope) return;
+  e.preventDefault();
+  scope.setAttribute('hidden', '');
+  var opener = scope.getAttribute('data-opener');
+  if (opener) {
+    var el = document.getElementById(opener);
+    if (el) el.focus();
+  }
+});
+
+document.querySelectorAll('[data-pop]').forEach(function (trigger) {
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    var scope = trigger.closest('.capture');
+    var pop = scope.querySelector('#' + trigger.getAttribute('data-pop'));
+    var isOpen = pop.getAttribute('data-open') === 'true';
+    closeAll(scope);
+    if (!isOpen) {
+      pop.setAttribute('data-open', 'true');
+      trigger.setAttribute('aria-expanded', 'true');
+      /* menu.md: keyboard open enters the menu. Pointer open leaves focus on
+         the trigger. `detail === 0` means the click came from the keyboard. */
+      if (e.detail === 0) {
+        var items = itemsOf(pop);
+        if (items[0]) requestAnimationFrame(function () { items[0].focus(); });
+      }
+    }
+  });
+
+  /* ArrowDown on a closed trigger opens and enters —— menu.md */
+  trigger.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowDown') return;
+    e.preventDefault();
+    trigger.click();
+    var scope = trigger.closest('.capture');
+    var pop = scope.querySelector('#' + trigger.getAttribute('data-pop'));
+    var items = itemsOf(pop);
+    if (items[0]) requestAnimationFrame(function () { items[0].focus(); });
+  });
+});
+
+document.addEventListener('click', function (e) {
+  document.querySelectorAll('.capture').forEach(function (scope) {
+    if (!scope.contains(e.target)) closeAll(scope);
+  });
+});
+
+/* Esc 的分层已并入上面的「菜单 / 浮层的键盘模型」处理器：
+   那里统一做 preventDefault + stopPropagation + closeAndRestore，
+   一条规则覆盖 menu / group / listbox 三种面板，避免两条监听器互相抢。 */
+
+/* ---- 日期 chip：预设 / 时长 / 跨天 ---- */
+function minutes(hhmm) {
+  if (!/^\d{1,2}:\d{2}$/.test(hhmm)) return null;
+  var p = hhmm.split(':');
+  var h = +p[0], m = +p[1];
+  if (h > 23 || m > 59) return null;
+  return h * 60 + m;
+}
+function hhmm(mins) {
+  mins = ((mins % 1440) + 1440) % 1440;
+  return String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
+}
+
+function syncWhen(scope) {
+  var startEl = scope.querySelector('[data-start]');
+  var endEl = scope.querySelector('[data-end]');
+  var endDateRow = scope.querySelector('[data-end-date-row]');
+  var endDateEl = scope.querySelector('[data-end-date]');
+  var err = scope.querySelector('[data-time-error]');
+  var chipTime = scope.querySelector('[data-when-time]');
+  var chipDay = scope.querySelector('[data-when-day]');
+  if (!startEl || !endEl) return;
+
+  var s = minutes(startEl.value);
+  var en = minutes(endEl.value);
+  var invalid = s === null || en === null;
+
+  startEl.setAttribute('aria-invalid', String(invalid));
+  endEl.setAttribute('aria-invalid', String(invalid));
+  if (err) err.setAttribute('data-show', String(invalid));
+
+  if (invalid) {
+    /* 时间非法时也要收起结束日期行，否则界面停在一个矛盾的半态 */
+    if (endDateRow) endDateRow.hidden = true;
+    return;
+  }
+
+  /* 跨天判定：结束时间 ≤ 开始时间 → 结束落到次日。
+     但用户也可以手动把结束日期改到更远的某天（三天出差），
+     此时以 data-end-date 为准，不再自动推断。 */
+  var crosses = en < s;
+  var multiDay = Boolean(endDateEl && endDateEl.value);
+  if (endDateRow) endDateRow.hidden = !(crosses || multiDay);
+
+  if (chipTime) {
+    chipTime.textContent = startEl.value + ' – ' + endEl.value;
+  }
+  if (chipDay && multiDay && crosses) {
+    chipDay.textContent = '今天';   /* 由下面的 +N 说明具体跨几天 */
+  }
+
+  var add = scope.querySelector('[data-add]');
+  var input = scope.querySelector('.capture__input');
+  if (add) {
+    var empty = !input || input.value.trim().length === 0;
+    add.setAttribute('aria-disabled', String(empty || invalid));
+  }
+}
+
+document.querySelectorAll('.capture').forEach(function (scope) {
+  var startEl = scope.querySelector('[data-start]');
+  var endEl = scope.querySelector('[data-end]');
+
+  [startEl, endEl].forEach(function (el) {
+    if (!el) return;
+    el.addEventListener('input', function () { syncWhen(scope); });
+    el.addEventListener('blur', function () {
+      /* 失焦即格式化：9:00 → 09:00 */
+      var v = el.value.trim();
+      var m = /^(\d{1,2}):(\d{1,2})$/.exec(v);
+      if (m) el.value = String(+m[1]).padStart(2, '0') + ':' + String(+m[2]).padStart(2, '0');
+      syncWhen(scope);
+    });
+  });
+
+  /* 日期预设 */
+  scope.querySelectorAll('[data-day]').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      scope.querySelectorAll('[data-day]').forEach(function (c) {
+        c.setAttribute('aria-pressed', String(c === chip));
+      });
+      var label = scope.querySelector('[data-when-day]');
+      if (label) {
+        label.textContent = chip.dataset.day === 'today' ? '今天'
+          : chip.dataset.day === 'tomorrow' ? '明天'
+          : chip.dataset.day === 'monday' ? '下周一' : '自定';
+      }
+      /* 预设后浮层保持打开，接着调时间 */
+    });
+  });
+
+  /* 时长芯片：改写结束时间 */
+  scope.querySelectorAll('[data-dur]').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      var s = startEl ? minutes(startEl.value) : null;
+      if (s === null || !endEl) return;
+      endEl.value = hhmm(s + Number(chip.dataset.dur));
+      scope.querySelectorAll('[data-dur]').forEach(function (c) {
+        c.setAttribute('aria-pressed', String(c === chip));
+      });
+      var allDay = scope.querySelector('[data-allday]');
+      if (allDay) allDay.setAttribute('aria-pressed', 'false');
+      syncWhen(scope);
+    });
+  });
+
+  /* 全天 */
+  var allDayChip = scope.querySelector('[data-allday]');
+  if (allDayChip) {
+    var snapshot = null;
+    allDayChip.addEventListener('click', function () {
+      var on = allDayChip.getAttribute('aria-pressed') !== 'true';
+      allDayChip.setAttribute('aria-pressed', String(on));
+      var timeRow = scope.querySelector('.time-row');
+      var chipTime = scope.querySelector('[data-when-time]');
+      if (on) {
+        /* 快照，取消时原样还原（v1 与现状都会漏这一步） */
+        snapshot = { start: startEl.value, end: endEl.value };
+        if (timeRow) timeRow.style.visibility = 'hidden';
+        if (chipTime) chipTime.textContent = '全天';
+      } else {
+        if (snapshot) { startEl.value = snapshot.start; endEl.value = snapshot.end; }
+        if (timeRow) timeRow.style.visibility = '';
+        syncWhen(scope);
+      }
+    });
+  }
+});
+
+/* ---- 更多菜单：备注是「显示/隐藏」，不是「创建/销毁」 ----
+   先前的写法点两次会把已输入的备注连同 DOM 一起删掉，而日历写入不进撤销栈，
+   等于一个静默的数据丢失开关。改成：备注框始终存在，菜单项只切换显隐，
+   内容永久保留。 */
+document.querySelectorAll('[data-toggle-notes]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var scope = btn.closest('.capture');
+    closeAll(scope);
+    var notes = scope.querySelector('.capture__notes');
+    if (!notes) return;
+    var hidden = notes.hasAttribute('hidden');
+    if (hidden) notes.removeAttribute('hidden');
+    else notes.setAttribute('hidden', '');
+    var st = scope.querySelector('[data-notes-state]');
+    if (st) st.textContent = hidden ? '已添加' : '—';
+    if (hidden) notes.focus();
+  });
+});
+
+/* 备注框由 HTML 预置在每个捕获条里（见模板），这里只负责高度跟随 */
+document.querySelectorAll('.capture__notes').forEach(function (notes) {
+  notes.addEventListener('input', function () {
+    notes.style.height = 'auto';
+    notes.style.height = Math.min(notes.scrollHeight, 128) + 'px';
+    var st = notes.closest('.capture').querySelector('[data-notes-state]');
+    if (st) st.textContent = notes.value.trim() ? '已添加' : '—';
+  });
+});
+
+/* ---- 清单选择 ---- */
+document.querySelectorAll('[data-list]').forEach(function (opt) {
+  opt.addEventListener('click', function () {
+    var scope = opt.closest('.capture');
+    scope.querySelectorAll('[data-list]').forEach(function (o) {
+      o.setAttribute('aria-checked', String(o === opt));
+      var v = o.querySelector('.menu-item__value');
+      if (v) v.textContent = o === opt ? '✓' : '';
+    });
+    var name = scope.querySelector('[data-list-name]');
+    if (name) name.textContent = opt.dataset.list;
+    closeAll(scope, true);
+  });
+});
+
+/* ---- 输入：自动增高 + 主按钮可用态 ---- */
+document.querySelectorAll('.capture').forEach(function (scope) {
+  var input = scope.querySelector('.capture__input');
+  var add = scope.querySelector('[data-add]');
+  var err = scope.querySelector('[data-err]');
+  if (!input || !add) return;
+
+  function sync() {
+    var empty = input.value.trim().length === 0;
+    var hasStart = scope.querySelector('[data-start]');
+    var timeOk = !hasStart || minutes(hasStart.value) !== null;
+    add.setAttribute('aria-disabled', String(empty || !timeOk));
+    if (err) err.hidden = !empty ? true : true;  /* 静默，不主动报错 */
+  }
+
+  input.addEventListener('input', sync);
+
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      /* IME 组词中的回车不提交 —— 指南 ime-safe-enter-submit */
+      if (e.isComposing || e.keyCode === 229) return;
+      e.preventDefault();
+      if (add.getAttribute('aria-disabled') === 'true') {
+        /* 空标题：给可感知回应，而不是静默 */
+        if (err) {
+          err.hidden = false;
+          err.textContent = '先写个标题';
+        }
+        return;
+      }
+      submit();
+    }
+  });
+
+  function submit() {
+    if (add.dataset.busy === 'true') return;  /* 防连点 */
+    add.dataset.busy = 'true';
+    var label = add.textContent;
+    add.textContent = '新建中…';
+    setTimeout(function () {
+      add.textContent = label;
+      add.dataset.busy = 'false';
+      /* 成功：清空标题、保留日期与清单、轻提示 */
+      input.value = '';
+      if (err) err.hidden = true;
+      sync();
+      input.focus();
+    }, 900);
+  }
+
+  add.addEventListener('click', function () {
+    if (add.getAttribute('aria-disabled') === 'true') {
+      if (err) { err.hidden = false; err.textContent = '先写个标题'; }
+      return;
+    }
+    submit();
+  });
+
+  sync();
+});
+
+/* 初始同步 */
+document.querySelectorAll('.capture').forEach(syncWhen);
+</script>
+</body>
+</html>
