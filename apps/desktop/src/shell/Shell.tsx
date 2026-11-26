@@ -37,6 +37,7 @@ import {
 } from '@todolist/features';
 import type {
   BackupData,
+  CaptureMode,
   MergeMode,
   Notifier,
   SidebarFilter,
@@ -172,7 +173,9 @@ function ShellBody({
     date: LocalDate;
     time?: string;
     anchor: SlotAnchor | null;
-  }>({ open: false, date: today, anchor: null });
+    /** Which object the bar opens on; the user can flip it in the bar. */
+    mode: CaptureMode;
+  }>({ open: false, date: today, anchor: null, mode: 'event' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   // Escape returns focus to whatever was focused when the help sheet opened.
   const helpInvokerRef = useRef<HTMLElement | null>(null);
@@ -374,7 +377,7 @@ function ShellBody({
    */
   const openQuickEvent = useCallback(
     (date: LocalDate, time: string, anchor: SlotAnchor) =>
-      setQuick({ open: true, date, time, anchor }),
+      setQuick({ open: true, date, time, anchor, mode: 'event' }),
     [],
   );
   /**
@@ -384,6 +387,12 @@ function ShellBody({
    * on it), and the default time is the next whole hour rather than a fixed
    * 09:00 — that default is what makes the bar usable without touching a
    * single field.
+   *
+   * The opening mode follows the view you are looking at. On the quadrant
+   * board (or the flat task list) that is 任务; on a calendar grid it is 日程.
+   * Before this, Ctrl+N always built a CalendarEvent — including on the
+   * quadrant board, which renders no events at all, so the thing you had just
+   * captured was nowhere to be seen.
    */
   const openCaptureBar = useCallback(() => {
     const now = new Date();
@@ -396,8 +405,14 @@ function ShellBody({
       nextHour.getDate() !== now.getDate()
         ? (addDays(cursor, 1) as LocalDate)
         : cursor;
-    setQuick({ open: true, date: target, time: `${hh}:00`, anchor: null });
-  }, [cursor]);
+    setQuick({
+      open: true,
+      date: target,
+      time: `${hh}:00`,
+      anchor: null,
+      mode: view === 'quadrant' || taskListMode ? 'task' : 'event',
+    });
+  }, [cursor, view, taskListMode]);
   const closeQuickEvent = useCallback(() => {
     setQuick((q) => ({ ...q, open: false }));
     // The composer writes straight through the events service, so refresh the
@@ -692,6 +707,8 @@ function ShellBody({
         date={quick.date}
         time={quick.time}
         anchor={quick.anchor}
+        mode={quick.mode}
+        defaultListId={activeListId}
         today={today}
         lists={lists}
         onClose={closeQuickEvent}

@@ -11,6 +11,7 @@ export * from './calendar/MultiWeekView';
 export * from './calendar/YearView';
 export * from './calendar/year-math';
 export * from './calendar/EventEditor';
+export * from './calendar/QuickEventComposer';
 export * from './calendar/TimelineView';
 export * from './quadrant/QuadrantScreen';
 export * from './quadrant/QuadrantRow';
@@ -19,6 +20,9 @@ export * from './undo/UndoProvider';
 export * from './undo/undo-stack';
 export * from './shortcuts/useShortcuts';
 export * from './shortcuts/ShortcutHelp';
+
+// Settings
+export * from './settings/SettingsDialog';
 
 // Lists & search
 export * from './lists/ListSidebar';
@@ -41,6 +45,7 @@ export * from './pickers/picker-math';
 
 // Calendar writing
 export * from './calendar/EventEditor';
+export * from './calendar/QuickEventComposer';
 export * from './calendar/DayView';
 
 // Data transfer & reminders

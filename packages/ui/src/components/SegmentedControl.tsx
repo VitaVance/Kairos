@@ -1,9 +1,17 @@
 import { useRef } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export interface SegmentedOption<T extends string> {
   value: T;
   label: string;
+  /**
+   * Optional decoration before the label — a colour dot for a quadrant, an
+   * icon for a mode. It is `aria-hidden` at the call site: the label carries
+   * the meaning, and the guide is explicit that an icon must not be the only
+   * semantic carrier.
+   */
+  leading?: ReactNode;
 }
 
 export interface SegmentedControlProps<T extends string> {
@@ -69,6 +77,7 @@ export function SegmentedControl<T extends string>({
             onClick={() => onChange(opt.value)}
             onKeyDown={(e) => onKeyDown(e, i)}
           >
+            {opt.leading}
             {opt.label}
           </button>
         );

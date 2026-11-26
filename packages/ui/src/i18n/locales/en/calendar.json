@@ -33,7 +33,13 @@
       "notes": "Notes"
     },
     "titlePlaceholder": "Event title",
+    "composerPlaceholder": "What are you planning?",
     "allDay": "All day",
+    "quick": {
+      "add": "Add",
+      "custom": "Custom",
+      "dateAria": "Choose the date"
+    },
     "noList": "No list",
     "notesPlaceholder": "Notes (optional)",
     "titleRequired": "Enter a title for the event",
@@ -45,7 +51,26 @@
     "confirmDiscardMessage": "Discard unsaved changes?",
     "back": "Back",
     "discard": "Discard",
-    "saving": "Saving…"
+    "saving": "Saving…",
+    "capture": {
+      "type": "Type",
+      "typeTask": "Task",
+      "typeEvent": "Event",
+      "titleTask": "Task title",
+      "titleEvent": "Event title",
+      "placeholderTask": "What needs doing?",
+      "placeholderEvent": "What are you scheduling?",
+      "quadrant": "Quadrant",
+      "addTask": "Add",
+      "createEvent": "Create",
+      "retry": "Retry",
+      "saveFailed": "Couldn't save. Your text is kept — try again.",
+      "noListTask": "No list available, so the task has nowhere to go",
+      "q1": "Urgent & important",
+      "q2": "Important, not urgent",
+      "q3": "Urgent, not important",
+      "q4": "Neither"
+    }
   },
   "multiDay": {
     "spanLabel": "Days shown"

@@ -33,7 +33,13 @@
       "notes": "备注"
     },
     "titlePlaceholder": "日程标题",
+    "composerPlaceholder": "准备做什么？",
     "allDay": "全天",
+    "quick": {
+      "add": "添加",
+      "custom": "自定",
+      "dateAria": "选择日期"
+    },
     "noList": "无清单",
     "notesPlaceholder": "备注（可选）",
     "titleRequired": "请填写日程标题",
@@ -45,7 +51,26 @@
     "confirmDiscardMessage": "有未保存的修改，确定要放弃吗？",
     "back": "返回",
     "discard": "放弃",
-    "saving": "保存中…"
+    "saving": "保存中…",
+    "capture": {
+      "type": "类型",
+      "typeTask": "任务",
+      "typeEvent": "日程",
+      "titleTask": "任务标题",
+      "titleEvent": "日程标题",
+      "placeholderTask": "要做什么？",
+      "placeholderEvent": "要安排什么？",
+      "quadrant": "象限",
+      "addTask": "添加",
+      "createEvent": "新建",
+      "retry": "重试",
+      "saveFailed": "保存失败，内容已保留。请重试。",
+      "noListTask": "没有可用的清单，无法创建任务",
+      "q1": "重要且紧急",
+      "q2": "重要不紧急",
+      "q3": "不重要但紧急",
+      "q4": "不重要不紧急"
+    }
   },
   "multiDay": {
     "spanLabel": "显示天数"
