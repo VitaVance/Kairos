@@ -29,6 +29,11 @@ export function eventToEntry(event: CalendarEvent, color: string): CalendarEntry
     done: false,
     // Events are intervals, not buckets; there is no half-day to carry.
     period: null,
+    // Carried so the event inspector can edit these in place. Before this they
+    // were dropped here, which is why opening an event showed a blank notes
+    // field and a "no list" value that would have been written back on save.
+    notes: event.notes,
+    listId: event.listId,
   };
 }
 

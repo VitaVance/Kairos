@@ -4,16 +4,164 @@
    they never collide with the shared `wv-` / `mv-` rules in styles.css.
    ========================================================================== */
 
-/* ---------------- Event editor dialog ---------------- */
+/* ---------------- Shared "coloured event block" language ----------------
+   One treatment for every entry surface: month / multi-week chips, timed
+   blocks in week / multi-day / day, all-day strips, and the timeline rows.
+   Each block is a soft tint of the entry's own hue over the *current surface*
+   (never white — see --tl-tint-base in tokens.css: mixing toward literal white
+   bakes a glaring bar in dark mode), with a solid 3px leading bar in the full
+   hue. The title takes near-ink, the time a muted tone, so hierarchy reads at
+   a glance instead of title-and-time sitting at the same weight.
+
+   The ratio, bar width, radius and ink pairs are the shared tier-3
+   `--tl-block-*` tokens in packages/ui/src/tokens.css; this sheet only
+   consumes them. That is the whole point of the shared language: the month
+   grid, the week/day blocks, the all-day strips and the agenda all paint the
+   same object. Dark mode raises the tint there (a hue share reads weaker on a
+   dark card); nothing about the language is redefined here. */
+
+/* `box-sizing: border-box` keeps the 3px bar inside the chip's declared width
+   (the base chip was content-box, so the bar would add a pixel past 100%). */
+.mv__events .tl-chip,
+.mwv__events .tl-chip,
+.wv__allday-cell .tl-chip,
+.mdv__allday-cell .tl-chip,
+.cal-day__allday .tl-chip,
+.wv__block .tl-chip,
+.mdv__block .tl-chip,
+.cal-day__block .tl-chip {
+  box-sizing: border-box;
+  border-inline-start: var(--tl-block-bar) solid var(--chip-color);
+  border-radius: var(--tl-block-radius);
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint), var(--tl-surface));
+  color: var(--tl-block-title-ink);
+}
+
+/* Title carries a step more weight than its time on every surface. */
+.mv__events .tl-chip__title,
+.mwv__events .tl-chip__title,
+.wv__allday-cell .tl-chip__title,
+.mdv__allday-cell .tl-chip__title,
+.cal-day__allday .tl-chip__title,
+.wv__block .tl-chip__title,
+.mdv__block .tl-chip__title,
+.cal-day__block .tl-chip__title {
+  font-weight: var(--tl-font-weight-medium);
+}
+
+/* Time: muted but still readable on the tint; the ink pair lives in
+   tokens.css (--tl-block-time-ink). */
+.mv__events .tl-chip__time,
+.mwv__events .tl-chip__time,
+.wv__allday-cell .tl-chip__time,
+.mdv__allday-cell .tl-chip__time,
+.cal-day__allday .tl-chip__time,
+.wv__block .tl-chip__time,
+.mdv__block .tl-chip__time,
+.cal-day__block .tl-chip__time {
+  color: var(--tl-block-time-ink);
+}
+
+/* The shared rule is unlayered, so it outranks the base chip's layered hover
+   fill; restate the hover step here or hover would feel dead. Done chips are
+   excluded — they keep their muted wash on hover. */
+.mv__events button.tl-chip:not(.tl-chip--done):hover,
+.mwv__events button.tl-chip:not(.tl-chip--done):hover,
+.wv__allday-cell button.tl-chip:not(.tl-chip--done):hover,
+.mdv__allday-cell button.tl-chip:not(.tl-chip--done):hover,
+.cal-day__allday button.tl-chip:not(.tl-chip--done):hover,
+.wv__block button.tl-chip:not(.tl-chip--done):hover,
+.mdv__block button.tl-chip:not(.tl-chip--done):hover,
+.cal-day__block button.tl-chip:not(.tl-chip--done):hover {
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint-hover), var(--tl-surface));
+}
+
+/* The 3px leading bar already carries the entry's hue, so the all-day dot is a
+   second, redundant signal. Drop it here only; its box is a flex item, so the
+   title simply starts 10px earlier and no height changes. */
+.mwv__events .tl-chip--allday .tl-chip__dot,
+.wv__allday-cell .tl-chip--allday .tl-chip__dot,
+.mdv__allday-cell .tl-chip--allday .tl-chip__dot,
+.cal-day__allday .tl-chip--allday .tl-chip__dot {
+  display: none;
+}
+
+/* Done entries recede a step further — a weaker wash and a half-strength bar —
+   while keeping tinted-block identity and a readable, muted, struck title. */
+.mv__events .tl-chip--done,
+.mwv__events .tl-chip--done,
+.wv__allday-cell .tl-chip--done,
+.mdv__allday-cell .tl-chip--done,
+.cal-day__allday .tl-chip--done,
+.wv__block .tl-chip--done,
+.mdv__block .tl-chip--done,
+.cal-day__block .tl-chip--done {
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint-muted), var(--tl-surface));
+  border-inline-start-color: color-mix(
+    in oklab,
+    var(--chip-color) var(--tl-block-bar-muted),
+    var(--tl-surface)
+  );
+}
+
+.mv__events .tl-chip--done .tl-chip__title,
+.mwv__events .tl-chip--done .tl-chip__title,
+.wv__allday-cell .tl-chip--done .tl-chip__title,
+.mdv__allday-cell .tl-chip--done .tl-chip__title,
+.cal-day__allday .tl-chip--done .tl-chip__title,
+.wv__block .tl-chip--done .tl-chip__title,
+.mdv__block .tl-chip--done .tl-chip__title,
+.cal-day__block .tl-chip--done .tl-chip__title {
+  color: var(--tl-block-time-ink);
+  text-decoration: line-through;
+}
+
+/* Timed blocks (week / multi-day / day) — hierarchy, not geometry.
+   The wrapper takes a slightly larger corner than the compact chips so the
+   object reads as a rounded slot; the chip inside drops its shadow, because a
+   soft shadow *under* a 14% wash rendered as a smudgy double edge around the
+   tint. The hover cue is now a tint step alone (the chip's own hover rule);
+   no shadow and no saturation filter on lift.
+   The frame's shadow/filter live in the shared `.wv__block` rules in
+   styles.css, which this task leaves untouched, so the selectors below double
+   the `.tl-chip` class — higher specificity, no `!important` — to win there
+   regardless of sheet order. */
+.wv__block,
+.mdv__block {
+  border-radius: 6px;
+}
+
+.wv__block .tl-chip.tl-chip,
+.mdv__block .tl-chip.tl-chip,
+.cal-day__block .tl-chip.tl-chip {
+  box-shadow: none;
+  transition: background-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.wv__block:hover .tl-chip.tl-chip,
+.wv__block .tl-chip.tl-chip:hover,
+.mdv__block:hover .tl-chip.tl-chip,
+.mdv__block .tl-chip.tl-chip:hover,
+.cal-day__block:hover .tl-chip.tl-chip,
+.cal-day__block .tl-chip.tl-chip:hover {
+  box-shadow: none;
+  filter: none;
+}
+
+/* ---------------- Event editor dialog ----------------
+   A composer, not an admin form: the title is the hero, the timing sits on one
+   compact row, and only the low-frequency fields fall below a hairline. The
+   dialog drops its visible frame in favour of a soft lift (--tl-shadow-panel)
+   and keeps a single hairline so the edge still registers on every surface. */
 .cal-dialog {
-  inline-size: min(460px, calc(100vw - 32px));
-  max-block-size: calc(100vh - 64px);
+  inline-size: min(480px, calc(100vw - var(--tl-space-8)));
+  max-block-size: calc(100vh - var(--tl-space-8) * 2);
   padding: 0;
-  border: 1px solid var(--tl-border);
+  border: 1px solid var(--tl-border-soft);
   border-radius: var(--tl-radius-xl);
   background: var(--tl-surface);
   color: var(--tl-text);
-  box-shadow: var(--tl-shadow-lg);
+  box-shadow: var(--tl-shadow-panel);
   overflow: auto;
   scrollbar-width: thin;
 }
@@ -32,21 +180,129 @@
 
 .cal-form__head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--tl-space-2);
+  min-block-size: var(--tl-control-h);
 }
 
 .cal-form__title {
   margin: 0;
-  font-size: var(--tl-font-size-lg);
-  font-weight: var(--tl-font-weight-semibold);
-  color: var(--tl-text);
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  color: var(--tl-text-secondary);
 }
 
-.cal-form__hint {
-  font-size: var(--tl-font-size-xs);
+.cal-form__close {
+  /* A quiet icon button: no border, no background until hovered. */
+  margin-inline-end: calc(var(--tl-space-1) * -1);
+  color: var(--tl-text-tertiary);
+}
+
+/* ---- The hero: one borderless capture field ---- */
+.cal-composer {
+  display: flex;
+  min-inline-size: 0;
+}
+
+.cal-composer__title {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--tl-space-1) 0;
+  border: 0;
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-medium);
+  line-height: var(--tl-line-height-snug);
+}
+
+.cal-composer__title::placeholder {
+  color: var(--tl-text-tertiary);
+  font-weight: var(--tl-font-weight-regular);
+}
+
+.cal-composer__title:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: var(--tl-space-1);
+  border-radius: var(--tl-radius-xs);
+}
+
+.cal-composer__title:disabled {
+  color: var(--tl-text-disabled);
+  cursor: not-allowed;
+}
+
+/* ---- Timing: start – end on one row, 全天 a quiet switch at the far right ---- */
+.cal-when {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-3);
+  min-inline-size: 0;
+}
+
+.cal-when__fields {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--tl-space-1);
+  min-inline-size: 0;
+}
+
+.cal-when__fields > .tk-picker-trigger {
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+/* Compact fields: the leading glyph belongs to a standalone form control, not
+   to a four-up timing row — dropping it is what lets date+time pairs sit on one
+   line at the dialog's width. */
+.cal-when .tk-picker-trigger > svg {
+  display: none;
+}
+
+.cal-when__dash {
+  flex: none;
+  padding-inline: var(--tl-space-hairline);
+  color: var(--tl-text-tertiary);
+  font-size: var(--tl-font-size-base);
+  line-height: 1;
+}
+
+.cal-switch {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--tl-space-1);
+  padding-inline-start: var(--tl-space-3);
+  border-inline-start: 1px solid var(--tl-border-soft);
   color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+}
+
+.cal-switch__label {
+  white-space: nowrap;
+}
+
+/* The one control height for the editor's compact fields. The date/time
+   trigger and the list select share it so the timing row and the meta column
+   line up; scoped here so the shared pickers elsewhere are unaffected. */
+.cal-when .tk-picker-trigger,
+.cal-meta .cal-select {
+  block-size: var(--tl-control-h);
+  box-sizing: border-box;
+}
+
+/* ---- Lower-frequency fields behind a hairline ---- */
+.cal-meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding-block-start: var(--tl-space-3);
+  border-block-start: 1px solid var(--tl-border-soft);
 }
 
 .cal-field {
@@ -56,35 +312,9 @@
   min-inline-size: 0;
 }
 
-/*
- * One control height for the whole form.
- *
- * Measured before: the title field was 34px (content-box + 1px borders), the
- * list select 32px (border-box), and the date/time trigger 30px — three
- * different heights stacked in the same 420px column. Normalised to 32px here,
- * scoped to the editor so the shared pickers used by the task panel are
- * unaffected.
- */
-.cal-form .tl-field,
-.cal-form .cal-select,
-.cal-form .tk-picker-trigger {
-  block-size: 32px;
-  box-sizing: border-box;
-}
-
 .cal-field__label {
   font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
-}
-
-.cal-field__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 124px;
-  gap: var(--tl-space-2);
-}
-
-.cal-field__row > .tk-picker-trigger {
-  inline-size: 100%;
 }
 
 .cal-input {
@@ -92,7 +322,7 @@
      the form column by 18px (measured: textarea 438 wide in a 420 column). */
   box-sizing: border-box;
   inline-size: 100%;
-  block-size: 32px;
+  block-size: var(--tl-control-h);
   min-inline-size: 0;
   padding: 0 var(--tl-space-2);
   border: 1px solid var(--tl-border-strong);
@@ -121,26 +351,14 @@
   cursor: not-allowed;
 }
 
+/* Notes: two lines that grow with their content, never with a drag handle. */
 .cal-input--area {
   block-size: auto;
-  min-block-size: 72px;
+  min-block-size: calc(2 * var(--tl-line-height-normal) * var(--tl-font-size-base) + 2 * var(--tl-space-2));
   padding: var(--tl-space-2);
   line-height: var(--tl-line-height-normal);
-  resize: vertical;
-}
-
-.cal-check {
-  display: flex;
-  align-items: center;
-  gap: var(--tl-space-2);
-  font-size: var(--tl-font-size-base);
-  color: var(--tl-text-secondary);
-  cursor: pointer;
-}
-
-.cal-check--disabled {
-  color: var(--tl-text-disabled);
-  cursor: not-allowed;
+  resize: none;
+  field-sizing: content;
 }
 
 .cal-note {
@@ -173,9 +391,17 @@
   margin-block-start: var(--tl-space-1);
 }
 
-/* Destructive action pushed to the leading edge, away from Save. */
+/* Destructive action pushed to the leading edge, away from Save. Ghost ink by
+   default — the delete carries danger only in its confirmation step — and the
+   one danger-toned exception is the hover, so it never outweighs 保存. */
 .cal-actions__delete {
   margin-inline-end: auto;
+  color: var(--tl-danger-ink);
+}
+
+.cal-actions__delete:hover:not(:disabled) {
+  background: var(--tl-danger-tint);
+  color: var(--tl-danger-ink);
 }
 
 /* ---------------- Branded native select ----------------
@@ -208,6 +434,317 @@
   gap: var(--tl-space-2);
 }
 
+/* ============================================================================
+   QUICK EVENT COMPOSER (cal-qec__*)
+   ----------------------------------------------------------------------------
+   A non-modal popover raised by a slot click on the day / week / multi-day
+   grids. It is intentionally NOT a <dialog>: the grid stays interactive behind
+   it and an outside pointerdown just dismisses it. Fixed positioning with
+   viewport-clamped coordinates (measured in the component) so it escapes the
+   grids' own scroll/overflow contexts. Tokens only — every palette and theme
+   resolves here with no palette-specific rules.
+   ========================================================================== */
+.cal-qec {
+  position: fixed;
+  z-index: var(--tl-z-popover);
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  box-sizing: border-box;
+  /* 400px, not 320: the bar now holds a multi-line title plus a duration row,
+     and at 320 the title's focus ring ran edge to edge, reading like a search
+     box rather than a capture surface. The design mockup uses 560; 400 is the
+     compromise that still fits a clicked time slot at 960px minimum width. */
+  inline-size: min(400px, calc(100vw - var(--tl-space-4) * 2));
+  padding: var(--tl-space-3);
+  border: 1px solid var(--tl-border-soft);
+  border-radius: var(--tl-radius-lg);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-lg);
+  animation: cal-qec-in var(--tl-duration-fast) var(--tl-ease-out);
+}
+
+@keyframes cal-qec-in {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--tl-space-1) * -1);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cal-qec {
+    animation: none;
+  }
+}
+
+/* Hero field — same borderless capture as the full editor's title. */
+.cal-qec__title {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-inline-size: 0;
+  padding: var(--tl-space-1) 0;
+  border: 0;
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-lg);
+  font-weight: var(--tl-font-weight-medium);
+  line-height: var(--tl-line-height-snug);
+}
+
+.cal-qec__title::placeholder {
+  color: var(--tl-text-tertiary);
+  font-weight: var(--tl-font-weight-regular);
+}
+
+.cal-qec__title:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: var(--tl-space-1);
+  border-radius: var(--tl-radius-xs);
+}
+
+.cal-qec__title:disabled {
+  color: var(--tl-text-disabled);
+  cursor: not-allowed;
+}
+
+/* Chip row: the date chip toggles the inline date row; the time chip is a
+   static read-out of the slot; 添加 sits at the trailing edge. */
+.cal-qec__chips {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+  flex-wrap: wrap;
+}
+
+.cal-qec__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+  block-size: var(--tl-control-h-sm);
+  padding: 0 var(--tl-space-2);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+button.cal-qec__chip:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+  border-color: var(--tl-border-strong);
+  color: var(--tl-text);
+}
+
+.cal-qec__chip[aria-expanded='true'] {
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+}
+
+.cal-qec__chip:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.cal-qec__chip--static {
+  cursor: default;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-qec__add {
+  margin-inline-start: auto;
+}
+
+/* Inline date section revealed by the date chip. */
+.cal-qec__date {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-2);
+  padding-block-start: var(--tl-space-2);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+
+.cal-qec__quick {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--tl-space-1);
+}
+
+.cal-qec__preset {
+  block-size: var(--tl-control-h-sm);
+  min-inline-size: 0;
+  padding-inline: var(--tl-space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-sm);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard),
+    border-color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.cal-qec__preset:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.cal-qec__preset[aria-pressed='true'] {
+  border-color: var(--tl-accent);
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.cal-qec__preset:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.cal-qec__cal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-1);
+}
+
+.cal-qec__cal-head {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+}
+
+.cal-qec__cal-label {
+  flex: 1;
+  text-align: center;
+  font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--tl-text);
+}
+
+.cal-qec__cal-nav {
+  display: grid;
+  place-items: center;
+  flex: none;
+  inline-size: var(--tl-control-h-sm);
+  block-size: var(--tl-control-h-sm);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.cal-qec__cal-nav:hover {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.cal-qec__cal-nav:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.cal-qec__cal-grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tl-space-dense);
+}
+
+.cal-qec__cal-week {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--tl-space-dense);
+}
+
+.cal-qec__cal-weekday {
+  display: grid;
+  place-items: center;
+  block-size: var(--tl-space-6);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-text-tertiary);
+}
+
+.cal-qec__cal-day {
+  block-size: var(--tl-control-h-sm);
+  min-inline-size: 0;
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition:
+    background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.cal-qec__cal-day:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+}
+
+.cal-qec__cal-day:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 0;
+}
+
+.cal-qec__cal-day--outside {
+  color: var(--tl-text-tertiary);
+}
+
+/* Today: a ring, so it never competes with the filled selected day. */
+.cal-qec__cal-day--today {
+  border-color: var(--tl-accent);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+.cal-qec__cal-day--selected {
+  background: var(--tl-accent-strong);
+  border-color: var(--tl-accent-strong);
+  color: var(--tl-accent-contrast);
+  font-weight: var(--tl-font-weight-semibold);
+}
+
+.cal-qec__cal-day--selected:hover:not(:disabled) {
+  background: var(--tl-accent-strong-hover);
+  border-color: var(--tl-accent-strong-hover);
+  color: var(--tl-accent-contrast);
+}
+
+.cal-qec__cal-day:disabled {
+  color: var(--tl-text-disabled);
+  cursor: not-allowed;
+}
+
+.cal-qec__error {
+  margin: 0;
+  color: var(--tl-danger-ink);
+  font-size: var(--tl-font-size-sm);
+}
+
 /* ---------------- All-day banner strips ----------------
    Week and multi-day views render all-day entries in a row above the timed
    grid instead of as degenerate midnight slivers. Tracks mirror the header's
@@ -215,7 +752,7 @@
 .wv__allday,
 .mdv__allday {
   display: grid;
-  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 48px repeat(7, minmax(0, 1fr));
   /* An empty grid row has no intrinsic height, and .wv is a column flex
      container whose items may shrink. Together those collapsed the strip to a
      hairline. Pin both: never shrink it, and give it a floor tall enough for
@@ -229,15 +766,15 @@
 
 .mdv__allday[data-days],
 .mdv[data-days='3'] .mdv__allday {
-  grid-template-columns: 56px repeat(3, minmax(0, 1fr));
+  grid-template-columns: 48px repeat(3, minmax(0, 1fr));
 }
 
 .mdv[data-days='5'] .mdv__allday {
-  grid-template-columns: 56px repeat(5, minmax(0, 1fr));
+  grid-template-columns: 48px repeat(5, minmax(0, 1fr));
 }
 
 .mdv[data-days='7'] .mdv__allday {
-  grid-template-columns: 56px repeat(7, minmax(0, 1fr));
+  grid-template-columns: 48px repeat(7, minmax(0, 1fr));
 }
 
 .wv__gutter-head,
@@ -247,7 +784,7 @@
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-inline-end: 6px;
+  padding-inline-end: var(--tl-space-2);
   font-size: var(--tl-font-size-xs);
   /* The strip is a stub above the grid, not body copy; secondary ink would
      shout. Tertiary is dimmer but still clears 3:1 on the subtle surface. */
@@ -344,7 +881,7 @@
 .cal-day__body {
   position: relative;
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr);
   /* Leading offset: the first hour label and the first block sit below the top
      edge instead of clipping against the header/scroll boundary. */
   padding-block-start: 8px;
@@ -368,22 +905,29 @@
   white-space: nowrap;
 }
 
+/* The compressed 00:00–06:00 band carries a single label centred in the band
+   instead of one label per (quarter-height) hour. */
+.cal-day__hourlabel--span {
+  transform: translateY(-50%);
+  text-align: end;
+}
+
+/* Half-hour rule inside each hour row. It is a per-row pseudo-element rather
+   than a repeating background gradient so the compressed 00:00–06:00 rows keep
+   their half-hour hairline at exactly half of *their* (shorter) height. */
+.cal-day__line::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: 50%;
+  block-size: 1px;
+  background: color-mix(in oklab, var(--tl-border-soft) 60%, transparent);
+  pointer-events: none;
+}
+
 .cal-day__col {
   position: relative;
   border-inline-start: 1px solid var(--tl-border-soft);
-  /* Faint half-hour rules between the structural hour rules drawn by
-     `.cal-day__line`, so the two weights stay clearly distinct. */
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--cal-hour, 58px) / 2),
-    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
-      calc(var(--cal-hour, 58px) / 2),
-    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
-      calc(var(--cal-hour, 58px) / 2 + 1px),
-    transparent calc(var(--cal-hour, 58px) / 2 + 1px),
-    transparent var(--cal-hour, 58px)
-  );
 }
 
 .cal-day__col--create {
@@ -392,8 +936,9 @@
 
 /* No global `box-sizing` reset exists, so pin each bordered row to its inline
    height; otherwise every row grows 1px and the hour scale drifts below the
-   labels and blocks. */
+   labels and blocks. `position: relative` hosts the half-hour pseudo-rule. */
 .cal-day__line {
+  position: relative;
   box-sizing: border-box;
   border-block-end: 1px solid var(--tl-border);
   pointer-events: none;
@@ -407,7 +952,9 @@
      column by 4px and `.cal-day` showed a horizontal scrollbar. */
   box-sizing: border-box;
   padding: 2px 3px;
-  border-radius: var(--tl-radius-sm);
+  /* One step rounder than the month chips: a timed block is an object, a month
+     chip is a dense label. */
+  border-radius: var(--tl-block-radius);
 }
 
 .cal-day__block:focus-visible {
@@ -418,7 +965,51 @@
 .cal-day__block .tl-chip {
   block-size: 100%;
   align-items: flex-start;
-  border-radius: var(--tl-radius-sm);
+  border-radius: var(--tl-block-radius);
+}
+
+/* ---- Timed-block content hierarchy (day / week / multi-day) ----
+   Tall blocks (>= 46px, class set from the computed height in JS) stack the
+   title over the time; short blocks show the title with the time right-aligned.
+   The shared chip's leading colour bar and tint are left untouched — only the
+   internal layout and ink change, using the tier-3 --tl-block-* tokens. */
+.cal-block .tl-chip {
+  block-size: 100%;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--tl-block-radius);
+  color: var(--tl-block-title-ink);
+}
+
+.cal-block .tl-chip__title {
+  font-weight: var(--tl-font-weight-medium);
+  line-height: var(--tl-line-height-tight);
+}
+
+.cal-block--tall .tl-chip {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+}
+
+.cal-block--tall .tl-chip__title {
+  /* Title stays a single ellipsised line; the time moves below it. */
+  max-inline-size: 100%;
+}
+
+.cal-block--tall .tl-chip__time {
+  margin-inline-start: 0;
+  color: var(--tl-block-time-ink);
+  font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-tight);
+}
+
+/* Short blocks: title truncates with an ellipsis, time stays right-aligned. */
+.cal-block--short .tl-chip__time {
+  margin-inline-start: auto;
+  color: var(--tl-block-time-ink);
 }
 
 /* The empty state is an overlay so the grid keeps its exact height; it is
@@ -443,6 +1034,48 @@
   padding: var(--tl-space-2) var(--tl-space-4);
   border-block-end: 1px solid var(--tl-border);
   background: var(--tl-surface-subtle);
+}
+
+/* ---------------- Current-time indicator (day + week) ----------------
+   A single accent rule spanning the today column, with a dot on its leading
+   edge. Decorative (`aria-hidden` on the element). Static — no pulse — so
+   there is nothing to disable under prefers-reduced-motion. Sits above the
+   hour lines but below the raised selection/ghost overlays. */
+.cal-now {
+  position: absolute;
+  inset-inline: 0;
+  z-index: var(--tl-z-raised);
+  block-size: 2px;
+  /* Half a pixel up so the 2px rule straddles the exact minute offset. */
+  margin-block-start: -1px;
+  background: var(--tl-accent);
+  pointer-events: none;
+}
+
+.cal-now__dot {
+  position: absolute;
+  inset-inline-start: -3px;
+  inset-block-start: 50%;
+  inline-size: 7px;
+  block-size: 7px;
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-accent);
+  translate: 0 -50%;
+}
+
+/* ---------------- Week view geometry ----------------
+   The week grid's base rules live in `features/src/styles.css` (60px gutter).
+   The compact 48px gutter is set here so it matches the day view and the
+   multi-day grid; the header, body and all-day strips share the same first
+   track, so columns stay aligned. */
+.wv__head,
+.wv__body {
+  grid-template-columns: 48px repeat(7, minmax(0, 1fr));
+}
+
+/* Right-aligned hour labels with an 8px gap to the column edge. */
+.wv__hour {
+  padding-inline-end: var(--tl-space-2);
 }
 
 /* ---------------- Week view drag affordances ---------------- */
@@ -899,17 +1532,17 @@
   /* Sizing box only: it sets the minimum width so the scroll area can scroll
      horizontally, while head and body carry the actual column tracks. */
   --mdv-min: 88px;
-  min-inline-size: calc(56px + 3 * var(--mdv-min));
+  min-inline-size: calc(48px + 3 * var(--mdv-min));
   /* The all-day strip is a third track set alongside head/body and must use the
      same minimums, or its columns drift out of alignment with the grid below. */
 }
 
 .mdv[data-days='5'] .mdv__grid {
-  min-inline-size: calc(56px + 5 * var(--mdv-min));
+  min-inline-size: calc(48px + 5 * var(--mdv-min));
 }
 
 .mdv[data-days='7'] .mdv__grid {
-  min-inline-size: calc(56px + 7 * var(--mdv-min));
+  min-inline-size: calc(48px + 7 * var(--mdv-min));
 }
 
 /* Head, all-day strip and body share identical tracks so their columns line up
@@ -919,19 +1552,19 @@
 .mdv__allday,
 .mdv__body {
   display: grid;
-  grid-template-columns: 56px repeat(3, minmax(var(--mdv-min), 1fr));
+  grid-template-columns: 48px repeat(3, minmax(var(--mdv-min), 1fr));
 }
 
 .mdv[data-days='5'] .mdv__head,
 .mdv[data-days='5'] .mdv__allday,
 .mdv[data-days='5'] .mdv__body {
-  grid-template-columns: 56px repeat(5, minmax(var(--mdv-min), 1fr));
+  grid-template-columns: 48px repeat(5, minmax(var(--mdv-min), 1fr));
 }
 
 .mdv[data-days='7'] .mdv__head,
 .mdv[data-days='7'] .mdv__allday,
 .mdv[data-days='7'] .mdv__body {
-  grid-template-columns: 56px repeat(7, minmax(var(--mdv-min), 1fr));
+  grid-template-columns: 48px repeat(7, minmax(var(--mdv-min), 1fr));
 }
 
 .mdv__head {
@@ -1015,10 +1648,8 @@
     to bottom,
     transparent 0,
     transparent calc(var(--wv-hour, 58px) / 2),
-    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
-      calc(var(--wv-hour, 58px) / 2),
-    color-mix(in oklab, var(--tl-border-soft) 60%, transparent)
-      calc(var(--wv-hour, 58px) / 2 + 1px),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent) calc(var(--wv-hour, 58px) / 2),
+    color-mix(in oklab, var(--tl-border-soft) 60%, transparent) calc(var(--wv-hour, 58px) / 2 + 1px),
     transparent calc(var(--wv-hour, 58px) / 2 + 1px),
     transparent var(--wv-hour, 58px)
   );
@@ -1050,7 +1681,7 @@
 .mdv__block:focus-visible {
   outline: 2px solid var(--tl-focus-ring);
   outline-offset: 2px;
-  border-radius: var(--tl-radius-sm);
+  border-radius: 6px;
 }
 
 /* Wider panel: more room per day. Wider still: the comfortable column. Both
@@ -1112,24 +1743,26 @@
 .yrv__legend-swatch {
   inline-size: 10px;
   block-size: 10px;
-  border-radius: 2px;
+  border-radius: var(--tl-radius-xs);
   box-shadow: inset 0 0 0 1px var(--tl-border-soft);
 }
 
+/* The legend swatches use the same 60%-of-heat fill as the cells, so the key
+   and the map stay one vocabulary after the wash was softened above. */
 .yrv__legend-swatch--h0 {
   background: var(--tl-heat-0);
 }
 .yrv__legend-swatch--h1 {
-  background: var(--tl-heat-1);
+  background: color-mix(in oklab, var(--tl-heat-1) 60%, var(--tl-surface));
 }
 .yrv__legend-swatch--h2 {
-  background: var(--tl-heat-2);
+  background: color-mix(in oklab, var(--tl-heat-2) 60%, var(--tl-surface));
 }
 .yrv__legend-swatch--h3 {
-  background: var(--tl-heat-3);
+  background: color-mix(in oklab, var(--tl-heat-3) 60%, var(--tl-surface));
 }
 .yrv__legend-swatch--h4 {
-  background: var(--tl-heat-4);
+  background: color-mix(in oklab, var(--tl-heat-4) 60%, var(--tl-surface));
 }
 
 .yrv__legend-label {
@@ -1164,34 +1797,24 @@
      so no week is ever clipped. border-box keeps the bottom pad inside the
      100% box rather than adding to it.
 
-     The gap is --tl-space-3 rather than --tl-space-4: three rows plus two
-     16px gutters and the bottom pad ran 8px past the container at 1440×900,
-     so the last row scrolled under the fold. At 12px the 3×4 grid fits the
-     container exactly and the rows flex up to consume it. */
-  /* `minmax(min-content, 1fr)`, not `minmax(0, 1fr)`. The zero floor let the
-     rows divide ANY available height, which is right at 1440×900 — but at the
-     960×640 window minimum a 4-row grid (the 4-column layout at 1440 becomes
-     3 columns here) squeezed each card to 96px while its six weeks plus the
-     weekday row needed ~130px, so all twelve cards clipped their own last
-     weeks. A `min-content` floor makes the card's intrinsic height a floor
-     again: rows still flex UP to fill a tall container, but a short container
-     makes `.yrv__container` scroll rather than crop a month. The earlier
-     650px-vs-593px measurement that motivated the zero floor predates the
-     smaller cell floor and the gap change; re-measured at 1440×900 the rows
-     land at ~218px, well inside the 686px container, so no scroll appears
-     there. */
+     1440×900 arithmetic (4-column layout): window 900 − 56 top bar = 844;
+     the content area's 12 + 96 padding leaves 736; `.yrv` spends 12 on the
+     meta gap and ~34 on the year/legend row, leaving a ~690px container. Two
+     16px gutters + the 8px bottom pad leave ~650px for three card rows, so a
+     card gets ~217px. The card's intrinsic height is 204px (below), leaving
+     ~13px of flex — all six week rows fit with no scrollbar. Even if the meta
+     row wraps its legend to a second line (42px), the container is still
+     682px and a card 214px: still above the 204px floor. */
   grid-auto-rows: minmax(min-content, 1fr);
   /* `block-size`, not `min-block-size`: the grid must be exactly as tall as the
-     container so `1fr` rows divide that height. `min-block-size: 100%` only set
-     a floor — the content was free to grow past it, which is why three rows
-     still measured 626px in a 593px box. */
+     container so `1fr` rows divide that height. */
   block-size: 100%;
   min-block-size: 0;
   box-sizing: border-box;
-  gap: var(--tl-space-3);
-  /* 8px, not 16: with the 11px day numerals the natural 3-row height is
-     ~686px at 1440×900, and a 16px pad pushed it 6px past the 688px
-     container so the grid scrolled instead of filling. */
+  /* 16px gutters (was 12): the cards were touching across the year; the extra
+     4px is what lets the rounded corners and hairline borders read as twelve
+     separate objects rather than one spreadsheet. */
+  gap: var(--tl-space-4);
   padding-block-end: var(--tl-space-2);
 }
 
@@ -1199,12 +1822,11 @@
    grow wider rather than more numerous, which keeps the day numerals legible
    and stops twelve months collapsing into one cramped row.
 
-   Kept at 880px after measuring with the raised type: a 4-column card is
-   ~260px wide at 1440×900, giving a ~37px day cell — ample for a 12px
-   numeral. Raising the threshold would force a 4th month row and make the
-   grid taller than the container, which is worse than a slightly narrower
-   card. Below 880px the grid stays at three columns (~29px cells at the 960px
-   window minimum), still enough for 12px. */
+   Kept at 880px: at 1440×900 the container is ~1100px wide, so a 4-column
+   card is ~263px ((1100 − 3 × 16px gaps) / 4). Inside its 16px padding that
+   is ~230px of grid, ~31px per day cell — ample for a 14px numeral. Below
+   880px the grid stays at three columns (~33px cells at the 960px window
+   minimum), so the two-digit numerals lose nothing. */
 @container (min-inline-size: 880px) {
   .yrv__grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1215,21 +1837,19 @@
   display: flex;
   flex-direction: column;
   gap: var(--tl-space-1);
+  box-sizing: border-box;
   min-inline-size: 0;
-  padding: var(--tl-space-2);
-  /* `overflow: hidden` makes a grid item's automatic minimum size zero, which
-     is why an explicit floor is needed: without it a short container (the
-     960×640 window minimum, 3 columns → 4 rows) compressed every card to 96px
-     and all twelve clipped their trailing weeks. 156px is the intrinsic height
-     of a six-week month at the raised type — header 19 + gap 4 + weekday 14 +
-     6 rows × 16px (14px cell floor + 2px padding) + 5 × 1px gaps + 16px padding
-     + 2px border. A row that fits flexes above it (minmax(min-content, 1fr));
-     a container shorter than 4 × 156px scrolls `.yrv__container` instead of
-     cropping any month. */
-  min-block-size: 156px;
+  padding: var(--tl-space-4);
+  /* A month is a card, not a spreadsheet pane: roomy padding, a soft 12px
+     corner, a hairline and the surface ground it sits on. 204px is the
+     intrinsic height at the sizes below — 16×2 padding + 2 border + 20
+     header + 4 gap + 145 mini (13 weekday + 6 × 2 gaps + 6 × 20 cells).
+     A row that fits flexes above it (minmax(min-content, 1fr)); a container
+     shorter than 4 × 204px scrolls `.yrv__container` instead of cropping. */
+  min-block-size: 204px;
   overflow: hidden;
   border: 1px solid var(--tl-border);
-  border-radius: var(--tl-radius-lg);
+  border-radius: var(--tl-radius-xl);
   background: var(--tl-surface);
   transition:
     border-color var(--tl-duration-fast) var(--tl-ease-standard),
@@ -1258,7 +1878,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  padding-block-end: 2px;
+  padding-block-end: var(--tl-space-1);
 }
 
 .yrv__monthname {
@@ -1267,8 +1887,11 @@
   background: transparent;
   color: var(--tl-text);
   font: inherit;
-  font-size: var(--tl-font-size-sm);
+  /* The month name now leads the card (15px / 600); at 13px it read as a
+     label on a spreadsheet column instead of the card's title. */
+  font-size: var(--tl-font-size-md);
   font-weight: var(--tl-font-weight-semibold);
+  letter-spacing: -0.005em;
   cursor: pointer;
   border-radius: var(--tl-radius-xs);
   transition: color var(--tl-duration-fast) var(--tl-ease-standard);
@@ -1286,24 +1909,23 @@
 .yrv__mini {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--tl-space-dense);
 }
 
 .yrv__weekdays,
 .yrv__week {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 1px;
+  gap: var(--tl-space-dense);
 }
 
 .yrv__weekday {
-  padding-block-end: 2px;
+  padding-block-end: var(--tl-space-hairline);
   text-align: center;
-  /* Was a hardcoded 9px — the size the user was complaining about. The narrow
-     weekday initials are 1 glyph each (~8px at 12px), and the tightest case
-     is a 3-column card at the 960px window minimum, where each day cell is
-     ~29px wide; 12px fits with room to spare. `line-height: 1` keeps the row
-     from adding a full line box on top of the month header. */
+  /* 12px initials. The tightest case is a 3-column card at the 960px window
+     minimum, where each day cell is ~29px wide; one glyph at 12px fits with
+     room to spare. `line-height: 1` keeps the row from adding a full line box
+     on top of the month header. */
   font-size: var(--tl-font-size-xs);
   line-height: 1;
   font-weight: var(--tl-font-weight-medium);
@@ -1316,13 +1938,13 @@
   align-items: center;
   justify-content: center;
   gap: 1px;
-  /* A floor, not a fixed height: it is how small a day may get before it stops
-     being legible. 6 week rows × this floor + the month header must fit three
-     card rows in the container, or the grid scrolls. Measured at 1440×900 the
-     container is 593px; three rows plus gaps leave ~186px per card, so the
-     floor has to be small enough that 6 rows + header fit inside it. */
-  min-block-size: 14px;
-  padding: 1px 0;
+  /* 20px floor: the day cell is a small tile now, not a line of a dense table.
+     Card height arithmetic (4-column, 1440×900): 32 padding + 2 border + 20
+     header + 4 flex gap + mini 145 (weekday 13 + 6 × 2px gaps + 6 × 20 cells)
+     = 203px against the 204px floor, and the grid's ~217px card leaves ~13px
+     of flex. At the 960×640 minimum the grid scrolls rather than crops. */
+  min-block-size: 20px;
+  padding: var(--tl-space-hairline) 0;
   border-radius: var(--tl-radius-xs);
 }
 
@@ -1335,29 +1957,36 @@
   font-weight: var(--tl-font-weight-regular);
 }
 
-/* Whole-cell heat fill. Step 0 is deliberately *not* painted with --tl-heat-0
-   on the cell itself: an empty day must read as the card surface, whereas a
-   quiet-but-nonzero day already has the step-1 tint. Painting step 0 with a
-   surface tint would make "empty" look like "a little busy". The legend's
-   step-0 swatch still shows --tl-heat-0 so the scale is complete. */
+/* Soft heat wash. Step 0 is deliberately *not* painted: an empty day must read
+   as the card surface, whereas a quiet-but-nonzero day already has the step-1
+   tint. Each tinted day is a *rounded* cell small enough to sit behind the
+   numeral rather than filling the week row edge to edge — heat as a wash, not
+   a table cell.
+
+   Each fill is `--tl-heat-N` pulled 40% back toward the surface. At full
+   strength the top steps were a solid slab of accent; keeping only 60% of the
+   ramp's distance from the card keeps it legible as a density map while it
+   stays a background. Verified in all six theme × palette combinations (see
+   the ink rules below): the darkest cell a numeral can land on is still
+   ≥ 7.6:1 against --tl-text. */
 .yrv__cell--h1 {
-  background: var(--tl-heat-1);
+  background: color-mix(in oklab, var(--tl-heat-1) 60%, var(--tl-surface));
 }
 .yrv__cell--h2 {
-  background: var(--tl-heat-2);
+  background: color-mix(in oklab, var(--tl-heat-2) 60%, var(--tl-surface));
 }
 .yrv__cell--h3 {
-  background: var(--tl-heat-3);
+  background: color-mix(in oklab, var(--tl-heat-3) 60%, var(--tl-surface));
 }
 .yrv__cell--h4 {
-  background: var(--tl-heat-4);
+  background: color-mix(in oklab, var(--tl-heat-4) 60%, var(--tl-surface));
 }
 
-/* Ink on a tinted tile. Full ink from step 1 up, not secondary ink: even the
-   lightest 15% tint drops secondary text below the 4.5:1 floor at this 10–11px
-   size, and the ramp must not trade legibility for a colour. Weight carries
-   the extra distinction: medium at steps 1–2, semibold at 3–4. (The top step
-   is capped at 60% accent in tokens.css so this ink still clears 4.5:1.) */
+/* Ink on a tinted tile. --tl-text stays readable on every softened step in
+   every theme (worst case 7.68:1, palette C dark, step 4), so the numeral
+   never needs to flip to --tl-text-inverse — that ink would be 1.1–1.7:1 on
+   these washes. Weight, not colour, carries the step: medium at 1–2, semibold
+   at 3–4. */
 .yrv__cell--h1 .yrv__daynum,
 .yrv__cell--h2 .yrv__daynum {
   color: var(--tl-text);
@@ -1369,12 +1998,12 @@
   font-weight: var(--tl-font-weight-semibold);
 }
 
-/* Today keeps its solid accent fill so it stays distinguishable from a
-   maximally busy (step 4) day: step 4 is a 60% tint, today is the full accent.
-   The heat step still shows through the *numeral treatment* — semibold + the
-   inset ring — but today's own contrast ink wins over per-step ink. This
-   selector outranks `.yrv__cell--hN .yrv__daynum` by specificity (3 classes),
-   so today's ink and weight hold regardless of the day's step. */
+/* Today keeps its solid accent fill so it stays distinguishable from a busy
+   day: even step 4 is now a softened wash, today is the full --tl-accent-strong.
+   The heat step still registers in the *numeral treatment* — semibold — but
+   today's own contrast ink wins over per-step ink. This selector outranks
+   `.yrv__cell--hN .yrv__daynum` by specificity (3 classes), so today's ink and
+   weight hold regardless of the day's step. */
 .yrv__cell--today {
   background: var(--tl-accent-strong);
   box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent-contrast) 35%, transparent);
@@ -1388,32 +2017,20 @@
 .yrv__daynum {
   display: grid;
   place-items: center;
-  /* Content-box made this a 22px pill (18px floor + 2px padding each side),
-     which overhung the ~19.8px day cell and let adjacent numerals touch.
-     Border-box paints it at the declared 18px; `min()` keeps the floor honest
-     when a very narrow container leaves a cell smaller than that. */
-  box-sizing: border-box;
-  min-inline-size: min(18px, 100%);
-  block-size: 18px;
-  padding: 0 2px;
-  border-radius: var(--tl-radius-full);
-  font-size: var(--tl-font-size-xs);
+  /* 13px numerals: the day number is the card's data, not a footnote. A
+     two-digit day is ~15px wide and the tightest cell (3 columns at the
+     960px window minimum) is ~22px, so it fits with a pixel either side. */
+  font-size: var(--tl-font-size-sm);
   line-height: 1;
   color: var(--tl-text-secondary);
   font-variant-numeric: tabular-nums;
 }
 
-/* The mini calendar now uses --tl-font-size-xs at every width, so this
-   container query no longer has a smaller base to step up from. It is kept
-   only because both declarations are the token value; a future ramp could
-   lower the base and re-enable the step here. */
+/* The 4-column layout only appears when the container is wide enough for a
+   ~31px cell, so the numeral can take the full base size there. */
 @container (min-inline-size: 880px) {
-  .yrv__weekday {
-    font-size: var(--tl-font-size-xs);
-  }
-
   .yrv__daynum {
-    font-size: var(--tl-font-size-xs);
+    font-size: var(--tl-font-size-base);
   }
 }
 
@@ -1422,3 +2039,162 @@
     transition: none;
   }
 }
+
+/* ============================================================================
+   捕获条 v2 — 多行标题 / 时长芯片 / 底部归属
+   设计依据 design/D-capture-first.html：标题在上、时间在下（Google / Apple /
+   Notion / Linear / Things 的顺序），清单常驻底部。
+   ========================================================================== */
+
+/* 标题从单行 input 变成可换行的 textarea，整条因此可以容纳稍长的句子 */
+.cal-qec__title {
+  field-sizing: content;
+  min-block-size: calc(var(--tl-font-size-lg) * var(--tl-line-height-snug));
+  max-block-size: calc(var(--tl-font-size-lg) * var(--tl-line-height-snug) * 3);
+  overflow-y: auto;
+  resize: none;
+}
+
+/* 时长芯片：比"改结束时间"快，也是竞品通行做法 */
+.cal-qec__durations {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.cal-qec__dur {
+  block-size: var(--tl-control-h-sm);
+  padding: 0 var(--tl-space-dense-2);
+  border: 0;
+  border-radius: var(--tl-radius-full);
+  background: transparent;
+  color: var(--tl-text-tertiary);
+  font: inherit;
+  font-size: var(--tl-font-size-xs);
+  cursor: pointer;
+  transition: background var(--tl-duration-fast) var(--tl-ease-standard),
+    color var(--tl-duration-fast) var(--tl-ease-standard);
+}
+
+.cal-qec__dur:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text-secondary);
+}
+
+.cal-qec__dur.is-active {
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.cal-qec__dur:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+/* 跨天标记：紧跟时间，安静但可辨 */
+.cal-qec__plusday {
+  font-size: var(--tl-font-size-xs);
+  font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-accent-ink);
+  background: var(--tl-accent-tint);
+  padding: 0 var(--tl-space-dense);
+  border-radius: var(--tl-radius-xs);
+}
+
+.cal-qec__chip-sep {
+  color: var(--tl-text-tertiary);
+}
+
+/* 底部：归属（清单）+ 提交。与标题/时间之间用发丝线分开，不叠面板 */
+.cal-qec__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+  padding-block-start: var(--tl-space-2);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+
+.cal-qec__list {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tl-space-1);
+  block-size: var(--tl-control-h-sm);
+  padding: 0 var(--tl-space-1);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text-secondary);
+  font: inherit;
+  font-size: var(--tl-font-size-xs);
+  cursor: pointer;
+}
+
+.cal-qec__list:hover:not(:disabled) {
+  background: var(--tl-surface-hover);
+  color: var(--tl-text);
+}
+
+.cal-qec__list:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: 1px;
+}
+
+.cal-qec__list-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--tl-radius-full);
+  flex: none;
+}
+
+.cal-qec__spacer {
+  flex: 1;
+}
+
+/* 列表面板：绝对定位在底栏上方，不推开内容 */
+.cal-qec__list-pop {
+  position: absolute;
+  inset-block-end: calc(var(--tl-control-h-sm) + var(--tl-space-3));
+  inset-inline-start: var(--tl-space-2);
+  z-index: var(--tl-z-raised);
+  display: grid;
+  gap: 1px;
+  min-inline-size: 10rem;
+  padding: var(--tl-space-1);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface);
+  box-shadow: var(--tl-shadow-lg);
+}
+
+.cal-qec__list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--tl-space-2);
+  block-size: var(--tl-control-h-sm);
+  padding: 0 var(--tl-space-2);
+  border: 0;
+  border-radius: var(--tl-radius-sm);
+  background: transparent;
+  color: var(--tl-text);
+  font: inherit;
+  font-size: var(--tl-font-size-sm);
+  text-align: start;
+  cursor: pointer;
+}
+
+.cal-qec__list-item:hover {
+  background: var(--tl-surface-hover);
+}
+
+.cal-qec__list-item.is-active {
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+.cal-qec__list-item:focus-visible {
+  outline: 2px solid var(--tl-focus-ring);
+  outline-offset: -2px;
+}
+
+/* 列表浮层需要相对定位的父级 —— .cal-qec 已经是 position: fixed */

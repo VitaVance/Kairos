@@ -80,6 +80,17 @@ export class EventService {
     return this.deps.uow.events.list({ from, to });
   }
 
+  /**
+   * One event by id.
+   *
+   * The event inspector edits fields in place, so it needs the full stored row —
+   * `CalendarEntry` is a view projection and cannot represent every field. The
+   * repository already had `get()`; this only exposes it.
+   */
+  async get(id: EventId): Promise<CalendarEvent | null> {
+    return this.deps.uow.events.get(id);
+  }
+
   async create(input: NewEvent): Promise<CalendarEvent> {
     const title = input.title.trim();
     if (title.length === 0) throw new EventValidationError('日程标题不能为空');

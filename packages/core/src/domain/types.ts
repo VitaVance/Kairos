@@ -189,6 +189,16 @@ export interface CalendarEntry {
    * one producer in core, `taskToEntry()`, always sets it.
    */
   readonly period?: DuePeriod | null;
+  /**
+   * Editable event fields, carried through so an inspector can patch them
+   * without a second fetch. `EventService` has no `get()`, and these were
+   * dropped by `eventToEntry()` — which is why editing an event showed a blank
+   * notes field and a "no list" value that would have been persisted on save.
+   * Optional because task entries have no notes/list of their own (a task's
+   * `listId` is already the row's list, not a field to edit here).
+   */
+  readonly notes?: string;
+  readonly listId?: string | null;
 }
 
 /** Input shapes for creating/updating — the domain owns what may change. */

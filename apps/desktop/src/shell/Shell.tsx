@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CalendarEntry, LocalDate, TaskId } from '@todolist/core';
 import { addDays, daysFromToday, startOfWeek, todayLocal } from '@todolist/core';
 import {
@@ -10,8 +10,10 @@ import {
   MultiDayView,
   MultiWeekView,
   QuadrantScreen,
+  QuickEventComposer,
   ReminderBanner,
   SearchPanel,
+  SettingsDialog,
   ShortcutHelp,
   TaskDetailPanel,
   TaskListScreen,
@@ -38,6 +40,7 @@ import type {
   MergeMode,
   Notifier,
   SidebarFilter,
+  SlotAnchor,
   UpdateChecker,
   ViewKind,
 } from '@todolist/features';
@@ -50,8 +53,17 @@ import { ErrorBoundary, useGlobalErrorHandler } from './ErrorBoundary';
 import type { GlobalErrorEvent } from './ErrorBoundary';
 import { ThemeToggle } from './ThemeToggle';
 import { LanguageToggle } from './LanguageToggle';
+import { useAppearance, watchSystemTheme } from './theme';
 import { useReminders } from './useReminders';
 import { createListsApi } from '../composition';
+
+/**
+ * The running app's version, injected at build time by vite.config.ts from
+ * `tauri.conf.json`. This is the same token the update checker compares
+ * against, so the 关于 pane and the updater can never disagree about what is
+ * installed.
+ */
+const APP_VERSION: string = import.meta.env.VITE_APP_VERSION;
 
 export interface ShellProps {
   today?: LocalDate;
@@ -153,6 +165,15 @@ function ShellBody({
   const [transferOpen, setTransferOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  // Quick composer raised by a slot click on the time grids. The full editor
+  // dialog stays behind the top bar's 新建日程 button and an entry click.
+  const [quick, setQuick] = useState<{
+    open: boolean;
+    date: LocalDate;
+    time?: string;
+    anchor: SlotAnchor | null;
+  }>({ open: false, date: today, anchor: null });
+  const [settingsOpen, setSettingsOpen] = useState(false);
   // Escape returns focus to whatever was focused when the help sheet opened.
   const helpInvokerRef = useRef<HTMLElement | null>(null);
   const openHelp = useCallback(() => {
@@ -164,6 +185,18 @@ function ShellBody({
     helpInvokerRef.current?.focus?.();
     helpInvokerRef.current = null;
   }, []);
+  // Same focus-return contract for 设置: it is reachable from the top bar and
+  // from `mod+,`, and the opener must get focus back on close.
+  const settingsInvokerRef = useRef<HTMLElement | null>(null);
+  const openSettings = useCallback(() => {
+    settingsInvokerRef.current = document.activeElement as HTMLElement | null;
+    setSettingsOpen(true);
+  }, []);
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    settingsInvokerRef.current?.focus?.();
+    settingsInvokerRef.current = null;
+  }, []);
   // Density of the multi-week / multi-day views, mirrored here so the header
   // title can name the span actually on screen (it changes inside the view).
   const [weeksShown, setWeeksShown] = useState<2 | 3 | 4>(3);
@@ -171,6 +204,10 @@ function ShellBody({
 
   const services = useAppServices();
   const { t } = useTranslation('shell');
+  const appearance = useAppearance();
+  // Hydrating the appearance store on first read applies both axes; keep the
+  // OS light/dark subscription alive while the shell is mounted.
+  useEffect(() => watchSystemTheme(), []);
   const lists = useLists();
   const bump = useBumpRevision();
   const { undo, redo } = useUndo();
@@ -330,6 +367,44 @@ function ShellBody({
     [],
   );
 
+  /**
+   * An empty-slot click on the day / week / multi-day grids opens the quick
+   * composer instead of the full dialog. The dialog remains the editor for an
+   * existing entry and the top bar's 新建日程 action.
+   */
+  const openQuickEvent = useCallback(
+    (date: LocalDate, time: string, anchor: SlotAnchor) =>
+      setQuick({ open: true, date, time, anchor }),
+    [],
+  );
+  /**
+   * The Ctrl+N entry: same capture bar, no click point to anchor to.
+   *
+   * The bar centres itself when `anchor` is null (`QuickEventComposer` branches
+   * on it), and the default time is the next whole hour rather than a fixed
+   * 09:00 — that default is what makes the bar usable without touching a
+   * single field.
+   */
+  const openCaptureBar = useCallback(() => {
+    const now = new Date();
+    const nextHour = new Date(now);
+    nextHour.setHours(now.getHours() + 1, 0, 0, 0);
+    const hh = String(nextHour.getHours()).padStart(2, '0');
+    // Past 23:00 the next whole hour is tomorrow 00:00; the date must follow
+    // the clock or the event lands an hour in the past.
+    const target =
+      nextHour.getDate() !== now.getDate()
+        ? (addDays(cursor, 1) as LocalDate)
+        : cursor;
+    setQuick({ open: true, date: target, time: `${hh}:00`, anchor: null });
+  }, [cursor]);
+  const closeQuickEvent = useCallback(() => {
+    setQuick((q) => ({ ...q, open: false }));
+    // The composer writes straight through the events service, so refresh the
+    // views once it closes (a cancelled composer is a no-op refetch).
+    bump();
+  }, [bump]);
+
   const openTask = useCallback((id: string) => setOpenTaskId(id as TaskId), []);
 
   /**
@@ -376,9 +451,21 @@ function ShellBody({
         if (helpOpen) closeHelp();
         else openHelp();
       },
-      // No `mod+n`: this shell has no global task-capture surface (capture
-      // lives in each quadrant's inline field), so advertising 新建任务 would
-      // lie. Bind it once a shared capture overlay exists.
+      // `mod+,` opens 设置. While a text field has focus the shared hook yields
+      // to it (the chord is not in its typing allowlist), so editing is never
+      // interrupted — open it from anywhere else.
+      'mod+,': () => {
+        if (settingsOpen) closeSettings();
+        else openSettings();
+      },
+      // `mod+n` opens the event capture bar. This binding was deliberately
+      // withheld until a shared capture surface existed ("Bind it once a shared
+      // capture overlay exists") — the bar in QuickEventComposer is that
+      // surface, so the note is now honoured rather than contradicted.
+      // Unlike Notion/Things, `mod+n` here means "new event", not "new task":
+      // tasks are captured inline in their quadrant, events have no inline
+      // equivalent on the calendar grid.
+      'mod+n': openCaptureBar,
       // No `mod+s`: the app autosaves through the service layer, so there is
       // nothing to save — a binding here would be a no-op dressed as an action.
       'g q': () => onSelectView('quadrant'),
@@ -387,7 +474,7 @@ function ShellBody({
       'g d': () => onSelectView('day'),
       'g a': () => onSelectView('agenda'),
     };
-  }, [closeHelp, helpOpen, onSelectView, openHelp, redo, searchOpen, undo]);
+  }, [closeHelp, closeSettings, cursor, helpOpen, onSelectView, openCaptureBar, openHelp, openSettings, redo, searchOpen, settingsOpen, undo]);
 
   useShortcuts(shortcuts);
 
@@ -402,7 +489,8 @@ function ShellBody({
         onOpenSearch={() => setSearchOpen(true)}
         onOpenTransfer={() => setTransferOpen(true)}
         onOpenUpdate={() => setUpdateOpen(true)}
-        onOpenHelp={openHelp}
+        onOpenSettings={openSettings}
+        settingsOpen={settingsOpen}
       />
 
       <ListSidebar
@@ -504,7 +592,7 @@ function ShellBody({
             <WeekView
               cursor={cursor}
               today={today}
-              onCreateAt={(d, t) => openCreateEvent(d, t)}
+              onCreateSlot={openQuickEvent}
               onCreateRange={(d, s, e) => openCreateRange(d, s, e)}
               onOpenEntry={openEntry}
               onOpenDay={(date) => {
@@ -517,7 +605,7 @@ function ShellBody({
             <DayView
               cursor={cursor}
               today={today}
-              onCreateAt={(t: string) => openCreateEvent(cursor, t)}
+              onCreateSlot={(t, anchor) => openQuickEvent(cursor, t, anchor)}
               onCreateRange={(s, e) => openCreateRange(cursor, s, e)}
               onOpenEntry={openEntry}
             />
@@ -529,7 +617,7 @@ function ShellBody({
               today={today}
               span={daysShown}
               onSpanChange={setDaysShown}
-              onCreateAt={(d, t) => openCreateEvent(d, t)}
+              onCreateSlot={openQuickEvent}
               onCreateRange={(d, s, e) => openCreateRange(d, s, e)}
               onOpenEntry={openEntry}
               onOpenDay={(date) => {
@@ -599,6 +687,17 @@ function ShellBody({
 
       <SearchPanel open={searchOpen} onClose={() => setSearchOpen(false)} onOpenTask={openTask} />
 
+      <QuickEventComposer
+        open={quick.open}
+        date={quick.date}
+        time={quick.time}
+        anchor={quick.anchor}
+        today={today}
+        lists={lists}
+        onClose={closeQuickEvent}
+        onCreated={bump}
+      />
+
       <UpdatePanel
         open={updateOpen}
         onClose={() => setUpdateOpen(false)}
@@ -607,6 +706,16 @@ function ShellBody({
       />
 
       <ShortcutHelp open={helpOpen} onClose={closeHelp} />
+
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={closeSettings}
+        mode={appearance.mode}
+        palette={appearance.palette}
+        onModeChange={appearance.setMode}
+        onPaletteChange={appearance.setPalette}
+        version={APP_VERSION}
+      />
 
       <DataTransferPanel
         open={transferOpen}
