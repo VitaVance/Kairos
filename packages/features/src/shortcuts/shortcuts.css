@@ -75,10 +75,10 @@
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--tl-space-dense);
   min-inline-size: 24px;
   justify-content: center;
-  padding: 2px 6px;
+  padding: var(--tl-space-dense) 6px;
   border: 1px solid var(--tl-border-strong);
   border-radius: var(--tl-radius-xs);
   background: var(--tl-surface-subtle);
@@ -109,5 +109,91 @@
   to {
     opacity: 1;
     scale: 1;
+  }
+}
+
+/* ---------------- Sequence pending hint ---------------- */
+/*
+ * Non-modal "waiting for the second key" chip. It used to be that pressing `g`
+ * produced no feedback at all for a full second, so the user could not tell a
+ * dead key from a live prefix. This is a `role="status"` region: it never
+ * takes focus and never intercepts Escape.
+ */
+.sc-seq {
+  position: fixed;
+  inset-block-end: var(--tl-space-6);
+  inset-inline: 0;
+  z-index: var(--tl-z-toast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tl-space-2);
+  inline-size: max-content;
+  max-inline-size: calc(100vw - 2 * var(--tl-space-4));
+  margin-inline: auto;
+  padding: var(--tl-space-2) var(--tl-space-3);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-full);
+  background: var(--tl-surface-raised);
+  color: var(--tl-text);
+  box-shadow: var(--tl-shadow-float);
+  font-size: var(--tl-font-size-xs);
+  /* Clicks should reach the app; the hint is informational only. */
+  pointer-events: none;
+}
+
+.sc-seq__prefix {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 18px;
+  block-size: 18px;
+  padding: 0 4px;
+  border-radius: var(--tl-radius-xs);
+  background: var(--tl-accent-tint);
+  color: var(--tl-accent-ink);
+  font-family: var(--tl-font-mono);
+  font-weight: var(--tl-font-weight-semibold);
+  font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-tight);
+}
+
+.sc-seq__sep {
+  color: var(--tl-text-tertiary);
+}
+
+.sc-seq__options {
+  display: inline-flex;
+  gap: var(--tl-space-dense);
+}
+
+.sc-seq__kbd {
+  display: inline-grid;
+  place-items: center;
+  min-inline-size: 18px;
+  block-size: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-xs);
+  background: var(--tl-surface);
+  color: var(--tl-text);
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-tight);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sc-seq {
+    animation: sc-seq-in var(--tl-duration-fast) var(--tl-ease-out);
+  }
+}
+
+@keyframes sc-seq-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
   }
 }

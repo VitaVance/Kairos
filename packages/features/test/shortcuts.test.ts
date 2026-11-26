@@ -80,6 +80,7 @@ describe('help sheet lists exactly the bound set', () => {
     '?',
     'mod+z',
     'mod+shift+z',
+    'mod+,',
     'g q',
     'g m',
     'g w',

@@ -1,22 +1,17 @@
 /* Command-palette search overlay. Tokens only; no literal colors. */
 
-.search-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: var(--tl-z-overlay);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-block-start: 12vh;
-  padding-inline: var(--tl-space-4);
-  background: color-mix(in oklab, var(--tl-bg) 55%, transparent);
-  backdrop-filter: blur(2px);
-}
+/*
+ * The shell used to be a `.search-overlay` <div>. It is now a native
+ * `<dialog>` (see `.search-dialog` below and SearchPanel.tsx): `showModal()`
+ * gives the palette a real focus trap, `inert` background and Escape handling
+ * that the hand-written version approximated — with a selector bug that let
+ * forward-Tab escape into the page. `.search-panel` remains the visual card.
+ */
 
 .search-panel {
   display: flex;
   flex-direction: column;
-  inline-size: min(640px, 100%);
+  inline-size: 100%;
   max-block-size: 70vh;
   border: 1px solid var(--tl-border);
   border-radius: var(--tl-radius-xl);
@@ -46,7 +41,7 @@
 
 .search-panel__esc {
   flex: none;
-  padding: 2px 6px;
+  padding: var(--tl-space-dense) 6px;
   border: 1px solid var(--tl-border-strong);
   border-radius: var(--tl-radius-xs);
   font-family: var(--tl-font-mono);
@@ -209,6 +204,40 @@
   border-radius: var(--tl-radius-xs);
   background: var(--tl-surface);
   font-family: var(--tl-font-mono);
-  font-size: 10px;
+  font-size: var(--tl-font-size-xs);
   color: var(--tl-text-secondary);
+}
+
+/*
+ * Native `<dialog>` shell. `showModal()` supplies the focus trap, Escape and
+ * the top-layer placement that this component used to emulate by hand; the
+ * dialog is only the centring frame, and `.search-panel` keeps the visual card
+ * so its existing rules (and the host's `.search-panel .tl-field__input`
+ * selector) stay valid.
+ */
+.search-dialog {
+  /* The UA's own dialog padding/border/centring would double up with the card. */
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+  /* The card decides the width; the UA default `max-width: calc(100% - …)`
+     would otherwise cap it before `min(640px, …)` gets a say. */
+  inline-size: min(640px, calc(100vw - 2 * var(--tl-space-4)));
+  max-inline-size: none;
+  max-block-size: none;
+}
+
+.search-dialog::backdrop {
+  background: color-mix(in oklab, var(--tl-bg) 55%, transparent);
+  backdrop-filter: blur(2px);
+}
+
+/*
+ * Pin the card near the top instead of vertically centring it — a palette that
+ * grows downward keeps its input under the user's eyes as results arrive.
+ */
+.search-dialog[open] {
+  margin-block: 12vh auto;
+  margin-inline: auto;
 }

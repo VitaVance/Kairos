@@ -1,11 +1,24 @@
-import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type {
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+} from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { LocalDate, Task, TaskId } from '@todolist/core';
 import { daysFromToday, todayLocal } from '@todolist/core';
-import { Checkbox, EmptyState, ScrollArea, SearchIcon, TextField, useTranslation } from '@todolist/ui';
+import {
+  Checkbox,
+  EmptyState,
+  ScrollArea,
+  SearchIcon,
+  TextField,
+  isImeComposing,
+  useTranslation,
+} from '@todolist/ui';
 import { useLists } from '../services';
 import { useTasks } from '../data/useTasks';
 import { listLabel } from '../lists/list-label';
+import { escapeStack } from '../shortcuts/useShortcuts';
 import { applyFilters, highlightRanges, sortByRelevance } from './search';
 import { currentLanguage } from '@todolist/ui';
 import './search.css';
@@ -66,9 +79,11 @@ function HighlightedText({ text, query }: { text: string; query: string }): Reac
  * Command-palette style search overlay.
  *
  * Reads tasks and lists from the app context itself (no data props). Owns its
- * query state and keyboard selection. Focus moves to the input on open, Tab is
- * trapped inside the panel, and the previously focused element is restored
- * when the overlay closes.
+ * query state and keyboard selection. Built on the native `<dialog>`, so the
+ * focus trap, `inert` background, Escape handling and focus restoration all
+ * come from `showModal()` rather than from hand-rolled listeners — the old
+ * implementation's Tab trap picked the `tabIndex={-1}` result checkbox as the
+ * last focusable and let forward-Tab walk into the page behind the palette.
  */
 export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
   const { t } = useTranslation('misc');
@@ -79,9 +94,12 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
   const [selected, setSelected] = useState(0);
   const [today] = useState<LocalDate>(() => todayLocal());
 
-  const panelRef = useRef<HTMLDivElement | null>(null);
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  /** The element to focus back if the UA's own dialog restoration cannot. */
   const restoreRef = useRef<HTMLElement | null>(null);
   const onCloseRef = useRef(onClose);
+  /** Stable identity for this palette's slot in the app-wide Escape stack. */
+  const layerId = useId();
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -151,45 +169,71 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
     setSelected((cur) => (flat.length === 0 ? 0 : Math.min(cur, flat.length - 1)));
   }, [flat.length]);
 
-  // Focus in on open, restore on close, and trap Tab. Esc/restore live in an
-  // effect keyed only on `open` so a new onClose identity cannot churn focus.
+  // Drive the native dialog imperatively — never render the `open` attribute —
+  // and register with the shared Escape stack for the lifetime of the open
+  // state. Keeping the element mounted (rather than returning null) is what
+  // lets `dialog.close()` restore focus to whatever opened the palette.
+  //
+  // `showModal()` already makes the UA route Escape to the topmost native
+  // dialog, but it does *not* stop other document-level Escape listeners (the
+  // task detail side sheet registers one) from also firing. The capture-phase
+  // guard below is the part the UA cannot do: while this palette is the
+  // topmost layer in the stack, it claims Escape before any bubble-phase
+  // document listener sees it, so a lower non-modal layer stays open.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open) {
+      if (!dialog.open) dialog.showModal();
+      escapeStack.push(layerId);
+    } else if (dialog.open) {
+      dialog.close();
+    }
+    return () => {
+      escapeStack.pop(layerId);
+    };
+  }, [open, layerId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onEscape = (event: KeyboardEvent) => {
+      const dialog = dialogRef.current;
+      if (dialog === null || event.key !== 'Escape' || event.isComposing) return;
+      // Only events aimed at this palette. A modal above it (the settings
+      // dialog, say) has an inert backdrop beneath, so its keys target inside
+      // that dialog and must not be claimed here.
+      if (!dialog.contains(event.target as Node)) return;
+      // Another layer opened on top of this one owns the key.
+      if (!escapeStack.isTopmost(layerId)) return;
+      // Claim it before bubble-phase document listeners (detail sheet, etc.)
+      // run, and suppress `cancel` so the close has exactly one path.
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      onCloseRef.current();
+    };
+    document.addEventListener('keydown', onEscape, true);
+    return () => document.removeEventListener('keydown', onEscape, true);
+  }, [open, layerId]);
+
+  // On open, remember what had focus, land focus on the query field, and on
+  // close fall back to the remembered element. The UA restores focus after
+  // `dialog.close()`, but only when focus is still inside the dialog; a close
+  // triggered from an outside listener can lose it, so the fallback covers the
+  // case where focus would otherwise fall back to `<body>`.
   useEffect(() => {
     if (!open) return;
     restoreRef.current = (document.activeElement as HTMLElement | null) ?? null;
-
     const focusTimer = window.setTimeout(() => {
-      panelRef.current?.querySelector<HTMLInputElement>('.tl-field__input')?.focus();
+      dialogRef.current?.querySelector<HTMLInputElement>('.tl-field__input')?.focus();
     }, 0);
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onCloseRef.current();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const panel = panelRef.current;
-      if (!panel) return;
-      const focusables = panel.querySelectorAll<HTMLElement>(
-        'input, button, [href], [tabindex]:not([tabindex="-1"])',
-      );
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (!first || !last) return;
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', onKey);
     return () => {
       window.clearTimeout(focusTimer);
-      document.removeEventListener('keydown', onKey);
-      restoreRef.current?.focus?.();
+      const restore = restoreRef.current;
+      const active = document.activeElement;
+      // Only step in when focus was dropped to the page body (or nowhere).
+      if (restore !== null && (active === null || active === document.body)) {
+        restore.focus?.();
+      }
     };
   }, [open]);
 
@@ -218,6 +262,10 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
 
   const onInputKeyDown = useCallback(
     (e: ReactKeyboardEvent<HTMLInputElement>) => {
+      // While an IME is composing, Enter confirms a candidate and the arrows
+      // walk the candidate list — intercepting either here would eat the
+      // keystroke the input method needs. Leave the whole event alone.
+      if (isImeComposing(e)) return;
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         if (flat.length > 0) setSelected((i) => (i + 1) % flat.length);
@@ -235,26 +283,33 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
     [flat, openTask, selected],
   );
 
-  if (!open) return null;
-
   const activeTask = flat[selected];
   const activeId = activeTask ? `search-option-${activeTask.id}` : undefined;
   const hasQuery = query.trim().length > 0;
 
+  /**
+   * Backdrop click. The dialog covers the viewport and the card is its only
+   * child, so a target equal to the dialog element itself is outside the card.
+   */
+  const onDialogMouseDown = useCallback((e: ReactMouseEvent<HTMLDialogElement>) => {
+    if (e.target === e.currentTarget) onCloseRef.current();
+  }, []);
+
+  /** `cancel` fires on Escape; route it to the host via `onClose`. */
+  const onDialogCancel = useCallback(() => {
+    onCloseRef.current();
+  }, []);
+
   return (
-    <div
-      className="search-overlay"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+    <dialog
+      ref={dialogRef}
+      className="search-dialog"
+      aria-label={t('search.dialogLabel')}
+      onMouseDown={onDialogMouseDown}
+      onCancel={onDialogCancel}
+      onClose={onDialogCancel}
     >
-      <div
-        className="search-panel"
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label={t('search.dialogLabel')}
-      >
+      <div className="search-panel">
         <div className="search-panel__input">
           <TextField
             value={query}
@@ -361,6 +416,6 @@ export function SearchPanel({ open, onClose, onOpenTask }: SearchPanelProps) {
           </span>
         </footer>
       </div>
-    </div>
+    </dialog>
   );
 }
