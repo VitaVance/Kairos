@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos v2 · 评审汇总</title>
+<style>
+  :root { color-scheme: dark; --bg:#111114; --panel:#17171b; --line:#26262c; --fg:#f2f2f4; --muted:#8b8b95; --dim:#5a5a63; --accent:#6ba0f9; --block:#e0625c; --watch:#e0a44a; --minor:#7f8f9f; --pass:#4ec9a0; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:.875rem/1.65 "Inter","Segoe UI","PingFang SC","Microsoft YaHei",system-ui,sans-serif; }
+  header { padding:2.25rem 2rem 1.25rem; border-block-end:1px solid var(--line); }
+  h1 { margin:0 0 .5rem; font-size:1.375rem; letter-spacing:-.01em; }
+  .lede { margin:0; max-inline-size:64rem; color:var(--muted); }
+  .lede b { color:var(--fg); }
+  main { padding:1.5rem 2rem 4rem; }
+  h2 { margin:2rem 0 .75rem; font-size:.78rem; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); }
+  h2:first-of-type { margin-block-start:0; }
+  table { inline-size:100%; border-collapse:collapse; font-size:.82rem; }
+  th,td { text-align:start; padding:.5rem .65rem; border-block-end:1px solid var(--line); vertical-align:top; }
+  th { color:var(--dim); font-weight:500; }
+  td.file { font-family:ui-monospace,Consolas,monospace; font-size:.78rem; color:var(--muted); }
+  .pill { display:inline-block; padding:.0625rem .375rem; border-radius:4px; font-size:.7rem; font-weight:600; }
+  .pill--block { background:rgba(224,98,92,.16); color:var(--block); }
+  .pill--watch { background:rgba(224,164,74,.14); color:var(--watch); }
+  .pill--minor { background:rgba(127,143,159,.14); color:var(--minor); }
+  .pill--pass  { background:rgba(78,201,160,.14); color:var(--pass); }
+  .pill--wait  { background:#23232a; color:var(--dim); }
+  .grid { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fill,minmax(17rem,1fr)); }
+  .card { padding:.875rem 1rem; border:1px solid var(--line); border-radius:10px; background:var(--panel); }
+  .card h3 { margin:0 0 .375rem; font-size:.88rem; }
+  .card p { margin:0; color:var(--muted); font-size:.8rem; }
+  .card .counts { margin-block-start:.5rem; display:flex; gap:.375rem; flex-wrap:wrap; }
+  .note { margin-block-start:2rem; padding:1rem; border:1px solid var(--line); border-radius:10px; background:var(--panel); color:var(--muted); font-size:.83rem; }
+  .note b { color:var(--fg); }
+  code { background:#1f1f26; color:#cfcfd8; padding:.0625rem .3rem; border-radius:4px; font-size:.78rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kairos v2 · 评审汇总</h1>
+  <p class="lede">
+    17 个片段、五个维度、并行评审。每个维度单独出一份报告，<b>结论不合并</b>——
+    不同维度看出的问题常常是同一条缺陷的不同侧面，合并会丢掉这个信息。
+    本页只做索引与汇总，详情看各报告。
+  </p>
+</header>
+
+<main>
+  <h2>五份报告</h2>
+  <div class="grid" id="reports"></div>
+
+  <h2>汇总</h2>
+  <table>
+    <thead>
+      <tr><th style="width:12rem">维度</th><th style="width:5rem">BLOCK</th><th style="width:5rem">WATCH</th><th style="width:5rem">MINOR</th><th>报告</th></tr>
+    </thead>
+    <tbody id="summary">
+      <tr><td>可访问性与键盘</td><td><span class="pill pill--wait">评审中</span></td><td></td><td></td><td class="file">REVIEW-a11y.md</td></tr>
+      <tr><td>跨片段一致性</td><td><span class="pill pill--wait">评审中</span></td><td></td><td></td><td class="file">REVIEW-consistency.md</td></tr>
+      <tr><td>产品逻辑</td><td><span class="pill pill--wait">评审中</span></td><td></td><td></td><td class="file">REVIEW-product.md</td></tr>
+      <tr><td>视觉工艺</td><td><span class="pill pill--wait">评审中</span></td><td></td><td></td><td class="file">REVIEW-visual.md</td></tr>
+      <tr><td>平台指南符合度</td><td><span class="pill pill--wait">评审中</span></td><td></td><td></td><td class="file">REVIEW-guidance.md</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <b>这五份报告的共同前提：</b>设计稿按 <code>docs/adr/0004-one-concept-time-ladder.md</code> 画。
+    任何与 ADR 冲突的评审意见都要先回到 ADR 讨论——ADR 是父文档，稿子是子文档。
+    反之，如果评审发现 ADR 本身站不住，那要改的是 ADR，不是这一版稿子。
+    <br><br>
+    <b>「故意不一致」的四处</b>见 <code>design/v2/KEEP.md</code> §F：
+    日程视图里 <code>day</code> 档不显示日期、清单与日程排序相反、
+    同一件事在四个地方形态不同、深色截图不代表文件是深色。
+    这四处看起来像缺陷，其实是有意的——评审时若把它们当问题报上来，请对着 KEEP.md 复核。
+  </div>
+</main>
+
+<script>
+  // Filled in as reports land. Kept as data so the page can be regenerated.
+  const REPORTS = [
+    { key:'a11y',       name:'可访问性与键盘',   file:'REVIEW-a11y.md',       dim:'语义 / 焦点 / 键盘 / 触摸目标' },
+    { key:'consistency',name:'跨片段一致性',     file:'REVIEW-consistency.md',dim:'令牌 / 组件 / 同一件事的同一张脸' },
+    { key:'product',    name:'产品逻辑',         file:'REVIEW-product.md',    dim:'ADR 是否真的落地 / 用户会不会卡住' },
+    { key:'visual',     name:'视觉工艺',         file:'REVIEW-visual.md',     dim:'六组合 / 节奏 / 对齐 / 层级' },
+    { key:'guidance',   name:'平台指南符合度',   file:'REVIEW-guidance.md',   dim:'原生 dialog / 语义元素 / 容器查询' },
+  ];
+  const host = document.getElementById('reports');
+  for (const r of REPORTS) {
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = r.file;
+    a.style.textDecoration = 'none';
+    a.style.color = 'inherit';
+    a.innerHTML = '<h3>' + r.name + '</h3><p>' + r.dim + '</p>' +
+                  '<p style="margin-block-start:.5rem"><code>' + r.file + '</code></p>';
+    host.appendChild(a);
+  }
+</script>
+</body>
+</html>
