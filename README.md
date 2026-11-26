@@ -93,7 +93,7 @@ When an event is about to start you get a **Windows system notification**, not a
 ### The rest
 
 - **Quick capture** — `buy groceries tomorrow`, `report @14:00`
-- **Recurring tasks** — daily / weekly (pick the weekdays) / monthly; completing advances to the next occurrence
+- **Recurring tasks** — daily / weekly (pick the weekdays) / monthly; completing ticks it and creates the next one
 - **Undo** — deleted or changed by mistake? `Ctrl+Z` brings it back
 - **Search** — `Ctrl+K` across every task and event
 - **Three palettes × light/dark** — switchable from the top-right corner
