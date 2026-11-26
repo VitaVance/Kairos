@@ -12,7 +12,7 @@
 }
 
 .sc-help::backdrop {
-  background: color-mix(in oklab, var(--tl-text) 34%, transparent);
+  background: var(--tl-scrim);
   backdrop-filter: blur(2px);
 }
 

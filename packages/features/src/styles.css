@@ -1141,32 +1141,6 @@
   }
 }
 
-/* ---------------- Pill variant of the view switcher ---------------- */
-.view-pill {
-  display: inline-flex;
-  gap: var(--tl-space-dense);
-  padding: 4px;
-  border-radius: var(--tl-radius-full);
-  background: var(--tl-pill-bg);
-}
-
-.view-pill__item {
-  padding: 0 12px;
-  height: var(--tl-control-h-sm);
-  border: 0;
-  border-radius: var(--tl-radius-full);
-  background: transparent;
-  /* Same reasoning as .tl-pill__item: keep inactive labels ≥4.5:1 per palette. */
-  color: color-mix(in oklab, var(--tl-pill-text) 76%, var(--tl-pill-bg));
-  font-size: var(--tl-font-size-sm);
-  cursor: pointer;
-}
-
-.view-pill__item--active {
-  background: var(--tl-pill-active);
-  color: var(--tl-pill-text);
-}
-
 @media (max-width: 880px) {
   .qz-grid {
     grid-template-columns: 1fr;

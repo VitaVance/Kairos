@@ -25,7 +25,7 @@
 }
 
 .dt-panel::backdrop {
-  background: color-mix(in oklab, var(--tl-text) 28%, transparent);
+  background: var(--tl-scrim);
   animation: dt-fade var(--tl-duration-base) var(--tl-ease-out);
 }
 
@@ -438,7 +438,7 @@
 }
 
 .dt-reset-dialog::backdrop {
-  background: color-mix(in oklab, var(--tl-text) 28%, transparent);
+  background: var(--tl-scrim);
 }
 
 .dt-reset-dialog__title {

@@ -229,7 +229,10 @@
 }
 
 .search-dialog::backdrop {
-  background: color-mix(in oklab, var(--tl-bg) 55%, transparent);
+  /* Was `color-mix(--tl-bg 55%, transparent)`, i.e. the page colour over the
+     page: measured 1.00:1. The dialog only appeared separated because of the
+     2px blur, which does nothing over an empty stretch of canvas. */
+  background: var(--tl-scrim);
   backdrop-filter: blur(2px);
 }
 

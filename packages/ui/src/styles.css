@@ -564,10 +564,19 @@
     max-inline-size: 100%;
     padding: 6px;
     border-radius: var(--tl-radius-full);
-    background: var(--tl-pill-bg);
-    border: 1px solid var(--tl-pill-border);
-    box-shadow: var(--tl-shadow-float);
-    backdrop-filter: blur(12px);
+    /* The same recipe as every other floating surface in the app (cards,
+       dialogs, the settings panel): surface + a visible hairline + the shared
+       lift. It used to be a fixed dark slab with a 12px backdrop blur, which
+       put it off the surface ladder entirely — 8.50:1 against the page in
+       refined/light, but 1.15–1.53:1 in the three dark palettes, where it read
+       as a hole rather than a float. design/F-view-switcher.html measured all
+       six combinations. */
+    background: var(--tl-surface);
+    border: 1px solid var(--tl-border-strong);
+    box-shadow: var(--tl-shadow-lg);
+    /* No backdrop-filter: there is nothing to blur. The pill sits on a solid
+       canvas or a flat grid; the blur cost a compositing layer and bought no
+       legibility once the ground stopped being translucent. */
     /* At the narrow end eight view buttons + the CTA cannot fit; let the pill
        scroll sideways instead of spilling past the content column. */
     overflow-x: auto;
@@ -584,9 +593,10 @@
     border: 0;
     border-radius: var(--tl-radius-full);
     background: transparent;
-    /* Derive the muted label from the pill's own ink instead of the static
-       --tl-pill-text-muted: the editorial light pill only reaches 3.8:1 with it. */
-    color: color-mix(in oklab, var(--tl-pill-text) 76%, var(--tl-pill-bg));
+    /* --tl-text-secondary, not a mix toward a dark ground: on the surface the
+       plain secondary ink already measures 5.07–6.96 across all six
+       combinations, so the derived colour this replaced is no longer needed. */
+    color: var(--tl-text-secondary);
     padding: 0 var(--tl-space-3);
     block-size: var(--tl-control-h);
     font-size: var(--tl-font-size-sm);
@@ -596,12 +606,19 @@
       color var(--tl-duration-fast) var(--tl-ease-standard);
   }
   .tl-pill__item:hover {
-    background: var(--tl-pill-hover);
-    color: var(--tl-pill-text);
+    background: var(--tl-surface-hover);
+    color: var(--tl-text);
   }
+  /* The current segment is *lit*, not inverted. The old treatment was a white
+     wash over a dark slab, which made the active item look like a different
+     control rather than the same control in a selected state — and the app
+     already has a selected-state language (`--tl-accent-tint` + accent ink on
+     the nav rail). Mixing toward `--tl-surface` rather than a literal white is
+     the §2.2 rule that makes one declaration correct in all six combinations. */
   .tl-pill__item--active {
-    background: var(--tl-pill-active);
-    color: var(--tl-pill-text);
+    background: color-mix(in oklab, var(--tl-accent) 12%, var(--tl-surface));
+    color: var(--tl-accent-ink);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tl-accent) 26%, transparent);
     font-weight: var(--tl-font-weight-medium);
   }
   .tl-pill__cta {
@@ -609,11 +626,11 @@
     border: 0;
     border-radius: var(--tl-radius-full);
     background: var(--tl-cta-bg);
-    /* --tl-cta-text is the label for the CTA *background*; on the default
-       palette's blue accent that is white at 3.68:1, below AA. --tl-cta-ink is
-       the readable alternative (4.58:1 on #3b82f6), and each palette defines
-       its own pairing in tokens.css. */
-    color: var(--tl-cta-ink);
+    /* --tl-cta-text is the palette's ink for this fill (5.17 / 5.03 / 5.37 /
+       6.19 / 4.79 / 5.41). The pill previously read --tl-cta-ink, which was
+       pinned dark for every palette: on refined/light's #2563eb fill that put
+       #1d1d1f at 3.26:1, the only failing text pair in the control. */
+    color: var(--tl-cta-text);
     padding: 0 var(--tl-space-4);
     block-size: var(--tl-control-h);
     font-size: var(--tl-font-size-sm);

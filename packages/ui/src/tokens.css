@@ -258,13 +258,31 @@
   /* ---- Focus ------------------------------------------------------------ */
   --tl-focus-ring: #3b82f6;
 
-  /* ---- Floating view switcher ------------------------------------------ */
-  --tl-pill-bg: rgba(58, 58, 60, 0.93);
-  --tl-pill-border: rgba(255, 255, 255, 0.08);
-  --tl-pill-text: #ffffff;
-  --tl-pill-text-muted: #c9c9cd;
-  --tl-pill-hover: rgba(255, 255, 255, 0.06);
-  --tl-pill-active: rgba(255, 255, 255, 0.14);
+  /* ---- Floating view switcher ------------------------------------------
+     No tokens of its own any more.
+
+     This block used to hold a fixed dark slab (--tl-pill-bg: rgba(58,58,60,.93),
+     white ink, white-alpha hover/active). It read as "a floating thing" in
+     isolation, but it sat outside the surface ladder entirely: in the two light
+     palettes it measured 8.50:1 and 12.49:1 against the page — a near-black
+     board on a near-white canvas — while in all three dark palettes it measured
+     1.53 / 1.15 / 1.17 and visually sank into the ground it was supposed to
+     float above. One control spanning 1.09→12.49 across six combinations is
+     not a tuning problem; it is a control that is not on the ladder.
+
+     The pill now composes the same three tokens as every other floating
+     surface (--tl-surface + --tl-border-strong + --tl-shadow-lg), and its
+     active segment uses --tl-accent-tint semantics, the same language as the
+     nav rail. See design/F-view-switcher.html. */
+
+  /* ---- Backdrop scrim ---------------------------------------------------
+     The dimming layer behind native <dialog> modals. A single neutral black,
+     deliberately not derived from any palette ink: this used `--tl-pill-bg`,
+     which is #fffdf8 in editorial/light — a *white* scrim that lightened the
+     page instead of dimming it (measured 1.04:1 against the panel it was
+     supposed to recede behind). Black at 50% dims the canvas by 3.9–4.0:1 in
+     the light palettes and behaves correctly in the dark ones. */
+  --tl-scrim: rgb(0 0 0 / 0.5);
 
   /* ---- CTA (the primary action inside the floating pill) ----------------
      Follows the palette's accent rather than a fixed amber. The reference
@@ -272,10 +290,12 @@
      same button is 新建日程, so an upgrade-coloured action reads as an ad. */
   --tl-cta-bg: var(--tl-accent-strong);
   --tl-cta-bg-hover: var(--tl-accent-strong-hover);
+  /* The label on the CTA fill. --tl-accent-contrast is defined as the ink for
+     an accent fill, so it is correct here by construction in every palette:
+     5.17 / 5.03 / 5.37 / 6.19 / 4.79 / 5.41. The pill used to read
+     --tl-cta-ink instead, which was pinned to #1d1d1f and therefore put dark
+     ink on the light palettes' blue fill — 3.26:1 in refined/light. */
   --tl-cta-text: var(--tl-accent-contrast);
-  /* Ink for the CTA fill, kept for palettes that override it with a light
-     fill (e.g. editorial dark), where accent-contrast alone is too weak. */
-  --tl-cta-ink: #1d1d1f;
 
   /* ---- Scrollbars ------------------------------------------------------- */
   --tl-scrollbar-thumb: #d9d9de;
@@ -378,8 +398,6 @@
   --tl-focus-ring: #60a5fa;
   --tl-scrollbar-thumb: #3a3a40;
   --tl-scrollbar-thumb-hover: #4a4a52;
-  /* The CTA keeps its amber fill in dark mode, so its ink stays dark. */
-  --tl-cta-ink: #1d1d1f;
 
   /* Block language, dark: the same hue share reads weaker on a dark card, so
      every tint step rises. Everything else (bar width, radius, inks) is
@@ -492,10 +510,8 @@
   --tl-focus-ring: #5b5bd6;
   --tl-scrollbar-thumb: #dcd9d4;
   --tl-scrollbar-thumb-hover: #c9c5bf;
-  --tl-pill-bg: rgba(35, 34, 34, 0.93);
   --tl-cta-bg: #5b5bd6;
   --tl-cta-bg-hover: #4b4bc6;
-  --tl-cta-ink: #ffffff;
 }
 
 [data-palette="protool"][data-theme="dark"] {
@@ -558,7 +574,6 @@
   --tl-cta-bg: #8b8bf0;
   --tl-cta-bg-hover: #9c9cf4;
   --tl-cta-text: #141413;
-  --tl-cta-ink: #141413;
 }
 
 /* ============================================================================
@@ -663,16 +678,10 @@
   --tl-focus-ring: #4a6d8c;
   --tl-scrollbar-thumb: #dccfbd;
   --tl-scrollbar-thumb-hover: #c9b9a3;
-  --tl-pill-bg: rgba(255, 253, 248, 0.97);
-  --tl-pill-border: #dccfbd;
-  --tl-pill-text: #2f2a24;
-  --tl-pill-text-muted: #8a8073;
-  --tl-pill-hover: rgba(47, 42, 36, 0.05);
-  --tl-pill-active: rgba(47, 42, 36, 0.09);
   --tl-cta-bg: #b4553f;
   --tl-cta-bg-hover: #9c4634;
-  /* Rust CTA: white paper ink reads better than the palette's dark ink. */
-  --tl-cta-ink: #fffdf8;
+  /* Rust CTA fill, not this palette's slate accent: paper ink on it is 4.79. */
+  --tl-cta-text: #fffdf8;
 }
 
 [data-palette="editorial"][data-theme="dark"] {
@@ -736,17 +745,7 @@
   --tl-focus-ring: #7d9dba;
   --tl-scrollbar-thumb: #3d352c;
   --tl-scrollbar-thumb-hover: #4d4438;
-  --tl-pill-bg: rgba(42, 37, 31, 0.96);
-  --tl-pill-border: #453c31;
-  /* The light palette paints dark ink on a paper pill; in dark mode the pill is
-     itself dark, so the ink and the hover/active overlays must invert too or the
-     selected view label disappears. */
-  --tl-pill-text: #f0e9dd;
-  --tl-pill-text-muted: #a89c8b;
-  --tl-pill-hover: rgba(240, 233, 221, 0.07);
-  --tl-pill-active: rgba(240, 233, 221, 0.13);
   --tl-cta-bg: #cd7661;
   --tl-cta-bg-hover: #d98a76;
   --tl-cta-text: #1a1713;
-  --tl-cta-ink: #1a1713;
 }

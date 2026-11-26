@@ -167,8 +167,7 @@
 }
 
 .cal-dialog::backdrop {
-  /* --tl-pill-bg stays dark in both themes, so the scrim reads as a scrim. */
-  background: color-mix(in oklab, var(--tl-pill-bg) 52%, transparent);
+  background: var(--tl-scrim);
 }
 
 .cal-form {
@@ -451,14 +450,15 @@
   flex-direction: column;
   gap: var(--tl-space-2);
   box-sizing: border-box;
-  /* 400px, not 320: the bar now holds a multi-line title plus a duration row,
-     and at 320 the title's focus ring ran edge to edge, reading like a search
-     box rather than a capture surface. The design mockup uses 560; 400 is the
-     compromise that still fits a clicked time slot at 960px minimum width. */
-  inline-size: min(400px, calc(100vw - var(--tl-space-4) * 2));
+  /* 560px = the design mockup's 35rem. The old 400 was a compromise for
+     "popped against a narrow calendar column"; the Ctrl+N entry is centred and
+     has no such constraint, and the quadrant chips need the width to sit on one
+     line. At the 960px window minimum the shell leaves ~560px, so this is the
+     lower bound rather than an arbitrary preference. */
+  inline-size: min(35rem, calc(100vw - var(--tl-space-4) * 2));
   padding: var(--tl-space-3);
-  border: 1px solid var(--tl-border-soft);
-  border-radius: var(--tl-radius-lg);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
   background: var(--tl-surface);
   color: var(--tl-text);
   box-shadow: var(--tl-shadow-lg);
@@ -482,11 +482,19 @@
   }
 }
 
-/* Hero field — same borderless capture as the full editor's title. */
+/* Hero field — same borderless capture as the full editor's title.
+   A textarea, not an <input>: two rows fit a real sentence ("周五前把合同发给
+   法务"), and at 71px it no longer reads as a search box. Enter still submits
+   (the component handles it) — the textarea exists for wrapping, not for
+   newlines. */
 .cal-qec__title {
   box-sizing: border-box;
   inline-size: 100%;
   min-inline-size: 0;
+  min-block-size: 4.4375rem; /* 71px = two rows + padding */
+  max-block-size: 11rem;
+  resize: none;
+  overflow-y: auto;
   padding: var(--tl-space-1) 0;
   border: 0;
   background: transparent;
@@ -503,9 +511,12 @@
 }
 
 .cal-qec__title:focus-visible {
+  /* Inset ring: with a 4px offset the ring sat outside the field and was
+     clipped by the panel's edge, reading as a border around the whole bar
+     rather than around the field the caret is in. */
   outline: 2px solid var(--tl-focus-ring);
-  outline-offset: var(--tl-space-1);
-  border-radius: var(--tl-radius-xs);
+  outline-offset: -2px;
+  border-radius: var(--tl-radius-sm);
 }
 
 .cal-qec__title:disabled {
@@ -522,18 +533,111 @@
   flex-wrap: wrap;
 }
 
+/* Type toggle sits above the title and reads as the bar's first decision. */
+.cal-qec__type {
+  display: flex;
+  align-items: center;
+  /* No bottom padding: the title's own padding supplies the gap, and doubling
+     it left a 20px hole between the toggle and the field. */
+  padding-block-end: 0;
+  /* The toggle floats above the field with nothing tying it to the panel,
+     which read as a stray control. A hairline under it gives the bar a head. */
+  padding-block-end: var(--tl-space-2);
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+
+/* Quadrant row (task mode). One line at 560px, which is what the width above
+   buys; below ~420px the four Chinese labels wrap to 2×2 on their own. */
+.cal-qec__quad {
+  display: block;
+}
+.cal-qec__quad-seg {
+  inline-size: 100%;
+}
+/*
+  Colour, per DESIGN-LANGUAGE §2.4: the quadrant vocabulary, nowhere else.
+  The selected cell takes `--tl-quadrant-qN-tint` as its ground and
+  `--tl-quadrant-qN-ink` as ink AND as a 1px border.
+
+  The border is not decoration. `box-shadow` — the pattern the design doc first
+  used for this — vanishes in Windows High Contrast, and a tint block alone is
+  1.08–1.27:1 against the panel, under the 3:1 that WCAG 1.4.11 requires of a
+  selected state. The -ink border measures 5.06–6.96 across the six
+  skin/theme combos.
+
+  The group is transparent rather than the shared sunken track: the selected
+  cell already carries a hue, and a grey slab behind it made the four chips
+  read as one flooded bar instead of four separate destinations.
+*/
+.cal-qec__quad-seg {
+  inline-size: 100%;
+  background: transparent;
+  padding: 0;
+}
+.cal-qec__quad-seg .tl-seg__item {
+  --q-tint: transparent;
+  --q-ink: var(--tl-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tl-space-2);
+  text-align: center;
+}
+.cal-qec__quad-seg .tl-seg__item:nth-child(1) {
+  --q-tint: var(--tl-quadrant-q1-tint);
+  --q-ink: var(--tl-quadrant-q1-ink);
+}
+.cal-qec__quad-seg .tl-seg__item:nth-child(2) {
+  --q-tint: var(--tl-quadrant-q2-tint);
+  --q-ink: var(--tl-quadrant-q2-ink);
+}
+.cal-qec__quad-seg .tl-seg__item:nth-child(3) {
+  --q-tint: var(--tl-quadrant-q3-tint);
+  --q-ink: var(--tl-quadrant-q3-ink);
+}
+.cal-qec__quad-seg .tl-seg__item:nth-child(4) {
+  --q-tint: var(--tl-quadrant-q4-tint);
+  --q-ink: var(--tl-quadrant-q4-ink);
+}
+.cal-qec__quad-seg .tl-seg__item--active {
+  background: var(--q-tint);
+  color: var(--q-ink);
+  box-shadow: none;
+  border: 1px solid var(--q-ink);
+}
+/* The border adds 2px to the box; pull that back out of the block so the row
+   does not grow by a pixel when a cell becomes selected. */
+.cal-qec__quad-seg .tl-seg__item:not(.tl-seg__item--active) {
+  border: 1px solid transparent;
+}
+.cal-qec__quad-dot {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: var(--tl-radius-full);
+  flex: none;
+}
+
 .cal-qec__chip {
   display: inline-flex;
   align-items: center;
   gap: var(--tl-space-1);
   block-size: var(--tl-control-h-sm);
   padding: 0 var(--tl-space-2);
-  border: 1px solid var(--tl-border);
+  /* --tl-border-strong, not --tl-border. Measured: the chip fill sits at
+     1.04–1.09:1 against the panel, and the old hairline at 1.13–1.29:1 — every
+     boundary in the bar was below the 3:1 non-text floor, so the whole panel
+     "floated" with nothing to float against and the time chip did not read as
+     a control at all (the user's 「颜色不搭配」). The fill stays quiet; the
+     boundary does the work. */
+  border: 1px solid var(--tl-border-strong);
   border-radius: var(--tl-radius-full);
   background: var(--tl-surface-subtle);
-  color: var(--tl-text-secondary);
+  /* --tl-text, not --tl-text-secondary: this chip is the only way into the
+     date popover and its label is the primary information in the bar. */
+  color: var(--tl-text);
   font: inherit;
   font-size: var(--tl-font-size-sm);
+  font-weight: var(--tl-font-weight-medium);
   white-space: nowrap;
   cursor: pointer;
   transition:
@@ -566,6 +670,26 @@ button.cal-qec__chip:hover:not(:disabled) {
 
 .cal-qec__add {
   margin-inline-start: auto;
+}
+.cal-qec__add.tl-btn--primary {
+  /* --tl-accent is 3.68:1 under --tl-accent-contrast's white in refined/light;
+     the cta pair is 5.17 and exists exactly for this button. */
+  background: var(--tl-cta-bg);
+  color: var(--tl-cta-text);
+}
+.cal-qec__add.tl-btn--primary:hover:not(:disabled) {
+  background: var(--tl-cta-bg-hover);
+}
+/* Disabled is a colour, not a fade (§5.1). The shared .tl-btn:disabled rule
+   sets opacity .5, which dropped this label to 2.14:1; reset it and swap the
+   ground and ink instead. The ink is --tl-text-secondary rather than §5.1's
+   --tl-text-disabled, which measures 1.48–2.74 on the sunken ground and makes
+   the button vanish. That is a deliberate deviation, recorded in
+   DESIGN-LANGUAGE §8. */
+.cal-qec__add.tl-btn--primary:disabled {
+  opacity: 1;
+  background: var(--tl-surface-sunken);
+  color: var(--tl-text-secondary);
 }
 
 /* Inline date section revealed by the date chip. */
@@ -740,9 +864,12 @@ button.cal-qec__chip:hover:not(:disabled) {
 }
 
 .cal-qec__error {
+  /* In the DOM it sits directly after the title, so the message lands next to
+     the words it is about rather than at the panel's bottom edge. */
   margin: 0;
   color: var(--tl-danger-ink);
   font-size: var(--tl-font-size-sm);
+  line-height: 1.45;
 }
 
 /* ---------------- All-day banner strips ----------------
@@ -2046,14 +2173,9 @@ button.cal-qec__chip:hover:not(:disabled) {
    Notion / Linear / Things 的顺序），清单常驻底部。
    ========================================================================== */
 
-/* 标题从单行 input 变成可换行的 textarea，整条因此可以容纳稍长的句子 */
-.cal-qec__title {
-  field-sizing: content;
-  min-block-size: calc(var(--tl-font-size-lg) * var(--tl-line-height-snug));
-  max-block-size: calc(var(--tl-font-size-lg) * var(--tl-line-height-snug) * 3);
-  overflow-y: auto;
-  resize: none;
-}
+/* 标题用两行 textarea（71px，行高 1.35 × 17px × 2 + 内边距）。
+   之前这里是 `field-sizing: content` + 一行高度，覆盖了上面那条规则，
+   于是设计稿的 71px 从没生效过。删掉旧规则，只留上面那一处。 */
 
 /* 时长芯片：比"改结束时间"快，也是竞品通行做法 */
 .cal-qec__durations {
