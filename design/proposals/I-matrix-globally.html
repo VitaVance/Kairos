@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION I — "THE MATRIX, EVERYWHERE"  ·  v1
+  把艾森豪威尔矩阵从一个视图，变成整个产品的一种性质。
+  与 A refined / B pro-tool / C editorial / D capture-first /
+  E update panel / F view switcher / G capture bar 同源。
+
+  ── 为什么要有这一份 ──────────────────────────────────────────────────────
+  用户的原话，三句：
+  「产品设计一定要逻辑全局一致，这本质上是管理学的问题」
+  「艾森豪威尔矩阵的体现」
+  「任务 / 日程，你引入了这两个概念，但是在四象限和各个日历视图里完全区分不出来啊」
+  以及后来的决定：
+  「我觉得不要让用户去理解 任务 / 日程 的区别」「别硬造概念，都是要干的事」
+
+  这三句其实是一句话：产品里有三套逻辑各说各话——象限、时钟、记录类型——
+  而用户被要求同时学会它们，还要自己判断什么时候用哪套。
+
+  ── 实测的三件事（脚本与 grep，不是目测）────────────────────────────────
+  1. 「紧急」有两个互不相认的定义。
+     · Task.urgent: boolean（types.ts:131），用户填的，喂给 quadrantOf()
+       （task.ts:6），画在板上。
+     · isOverdue(task, now)（task.ts:74），从截止时间派生的。
+     全仓 grep isOverdue：只有 core 自己、测试、和一句注释引用。
+     **没有任何一处 UI 调用它。**
+     所以一条「重要不紧急、今天到期」的任务，在板上是"不紧急"，在时钟上
+     是"今天到期"，而没有任何东西来仲裁。
+
+  2. 矩阵不在日历里。日历 chip 的颜色来自 colorOfList()
+     （calendar.ts:73-78）——清单色。grep --tl-quadrant-* 在
+     packages/features/src/calendar/ 里确实有命中，但每一处都属于
+     `capture` 一侧：QuickEventComposer.tsx:97-100 的四个色点常量，以及
+     calendar.css:587-600 的 `.cal-qec__quad-seg`（新建面板里那个四选一）。
+     **已存在条目的 chip 上，象限出现 0 次。**
+     用户在板上看到红橙蓝绿，切到月视图，它不见了。
+
+  3. 日程根本进不了矩阵。CalendarEvent（types.ts:159-169）只有
+     id/listId/title/notes/startAt/endAt/allDay/createdAt/updatedAt——
+     没有 important，没有 urgent，甚至连 status 都没有。
+     但「开会」是教科书上的 Q1 条目。板上永远看不到会议，会议也永远
+     不会因为"重要且紧急"被排到前面。
+
+  第四件事，是这三件的原因：
+  4. moveToQuadrant()（task-service.ts:205）直接写两个布尔，从不看任何日期。
+     schedule()（第 226 行）直接写日期，从不看紧急。两条写入路径互不知情，
+     所以它们当然可以互相矛盾——不是 bug，是结构。
+
+  ── 本稿的解法，一句话 ────────────────────────────────────────────────────
+  只有一个对象（一条要干的事），只有一个时钟（它的截止时间），
+  只有一个手动字段（重要）。
+  「紧急」不再是一个字段，是截止时间的一个读数——所以它不可能和时钟打架。
+  「任务 / 日程」不再是一个选择，是「这条事有没有一个准确时刻」——
+  那是同一个对象的两种时间精度，不是两种东西。
+
+  ── 与 G 稿的关系（重要）──────────────────────────────────────────────────
+  G 稿的核心是一个「任务 / 日程」类型开关。本稿把它推翻，理由不是 G 错了，
+  是 G 的题目在「任务与日程是两个东西」这个前提下写的，而用户后来的决定
+  否掉了那个前提。G 的闸门是对的（全局捕获必须有），开关是错的（它要求
+  用户先分类再记事，而分类本该由系统从「有没有时间」推出来）。
+
+  ── 六个组合实测（Chrome 画布取色 + color-mix 实算，见 §08）─────────────
+  标记（qN-ink 的 7px 方圆）压在各种底上的最低对比度：
+  组合              压 surface(4 色最低)   压 chip 底(8 清单色×4 象限最低)   现状 Badge 最低
+  refined/light     5.17                    4.43                              2.20
+  refined/dark      5.93                    4.60                              4.47
+  protool/light     5.80                    4.76                              2.87
+  protool/dark      5.67                    4.66                              3.78
+  editorial/light   5.36                    4.41                              2.99
+  editorial/dark    5.84                    4.69                              5.02
+
+  最后一行是现状的缺陷，不是本稿的：象限板卡头的 Badge 用「色相本身」当
+  15px 的文字墨（Badge 默认 color: var(--badge-color)），六组合里五个低于
+  4.5:1，refined/light 的橙是 2.20。这不是本稿引入的，是本稿顺手量出来的，
+  修法在 §08 第二张表。
+
+  同一枚色相「本身」（不带 -ink）压在 8 种 chip 底上，实测跨度是 1.88–6.22
+  （最低：refined/light 的橙 q2 压紫清单 hue5）。这就是为什么标记必须用
+  -ink 而不是色相：-ink 的最差值 4.41，色相的最差值 1.88。
+
+  本稿的标记全部 ≥ 4.41，远高于非文字 3:1 的门槛（WCAG 1.4.11）。
+  非文字门槛才是标记的真门槛：它是 7px 的方块，不是可读文本。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Matrix, Everywhere — 象限成为全局性质 · 设计稿 I</title>
+<style>
+/* ============================================================================
+   TOKENS — 数值逐项取自 packages/ui/src/tokens.css。
+   命名用 --q1/--q1-t/--q1-i 对应 --tl-quadrant-q1 / -tint / -ink。
+   ========================================================================== */
+:root {
+  --font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --text-xs: 12px; --text-sm: 13px; --text-base: 14px; --text-md: 15px;
+  --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px;
+  --radius-xl: 12px;
+  --control-h: 32px;
+  --block-bar: 3px;
+  --block-tint: 14%;
+}
+
+/* ---- A · refined --------------------------------------------------------- */
+[data-skin="refined"] {
+  --bg-app: #f5f5f6; --bg-surface: #ffffff; --bg-subtle: #fafafa;
+  --bg-hover: #f4f4f5; --bg-sunken: #f0f0f2;
+  --border: #ececee; --border-soft: #f2f2f4; --border-strong: #e3e3e6;
+  --text: #1d1d1f; --text-secondary: #6e6e73; --text-tertiary: #747478;
+  --accent-tint: #eef4ff; --accent-ink: #2563eb; --focus: #3b82f6;
+  --q1: #ff5252; --q1-t: #fff0ef; --q1-i: #c62828;
+  --q2: #ff9500; --q2-t: #fff6e8; --q2-i: #955400;
+  --q3: #3b82f6; --q3-t: #eff5ff; --q3-i: #2563eb;
+  --q4: #10b981; --q4-t: #ebf9f3; --q4-i: #047857;
+  --h1: #5b8def; --h2: #3aa88b; --h3: #d99a3d; --h4: #dd7366;
+  --h5: #8b79c9; --h6: #c56d92; --h7: #88a35c; --h8: #4a9cc0;
+  --shadow-md: 0 1px 2px rgba(20,20,25,.04), 0 6px 18px -8px rgba(20,20,25,.1);
+}
+[data-skin="refined"][data-theme="dark"] {
+  --bg-app: #161617; --bg-surface: #1f1f21; --bg-subtle: #1a1a1c;
+  --bg-hover: #2a2a2d; --bg-sunken: #121214;
+  --border: #2e2e32; --border-soft: #26262a; --border-strong: #3c3c42;
+  --text: #f5f5f7; --text-secondary: #a8a8ae; --text-tertiary: #87878e;
+  --accent-tint: #1c2b45; --accent-ink: #60a5fa; --focus: #60a5fa;
+  --q1: #ff5252; --q1-t: #3a2424; --q1-i: #ff6b6b;
+  --q2: #ff9500; --q2-t: #3a2e1c; --q2-i: #ffb74d;
+  --q3: #3b82f6; --q3-t: #1c2b45; --q3-i: #60a5fa;
+  --q4: #10b981; --q4-t: #173229; --q4-i: #34d399;
+  --h1: #5b8def; --h2: #3aa88b; --h3: #d99a3d; --h4: #dd7366;
+  --h5: #8b79c9; --h6: #c56d92; --h7: #88a35c; --h8: #4a9cc0;
+  --shadow-md: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px -8px rgba(0,0,0,.55);
+  --block-tint: 16%;
+}
+
+/* ---- B · protool --------------------------------------------------------- */
+[data-skin="protool"] {
+  --bg-app: #fbfbfa; --bg-surface: #ffffff; --bg-subtle: #f6f5f2;
+  --bg-hover: #f4f3f0; --bg-sunken: #f2f1ee;
+  --border: #e6e5e3; --border-soft: #efeeeb; --border-strong: #d8d5d0;
+  --text: #1f1e1d; --text-secondary: #6d6660; --text-tertiary: #777470;
+  --accent-tint: #eeeefb; --accent-ink: #5b5bd6; --focus: #5b5bd6;
+  --q1: #cf4b4b; --q1-t: #fbeeee; --q1-i: #b03838;
+  --q2: #cf8a2e; --q2-t: #fbf3e6; --q2-i: #8a5a1a;
+  --q3: #3f79bf; --q3-t: #edf3fb; --q3-i: #33689f;
+  --q4: #3f8f68; --q4-t: #edf6f1; --q4-i: #2f7052;
+  --h1: #55688a; --h2: #3f8f68; --h3: #bd7a2d; --h4: #b34f5b;
+  --h5: #8a6bb8; --h6: #c2688a; --h7: #6f8a4f; --h8: #4a8fa0;
+  --shadow-md: 0 1px 2px rgba(31,30,29,.04), 0 6px 16px -10px rgba(31,30,29,.14);
+  --radius-xs: 3px; --radius-sm: 5px; --radius-md: 7px; --radius-lg: 8px;
+  --block-tint: 14%;
+}
+[data-skin="protool"][data-theme="dark"] {
+  --bg-app: #141413; --bg-surface: #1d1d1b; --bg-subtle: #191917;
+  --bg-hover: #272725; --bg-sunken: #101010;
+  --border: #302f2d; --border-soft: #262624; --border-strong: #3d3c39;
+  --text: #f4f3f1; --text-secondary: #a5a29d; --text-tertiary: #888680;
+  --accent-tint: #22223a; --accent-ink: #8b8bf0; --focus: #8b8bf0;
+  --q1: #cf4b4b; --q1-t: #33201f; --q1-i: #ea7a7a;
+  --q2: #cf8a2e; --q2-t: #332a19; --q2-i: #d99a3d;
+  --q3: #3f79bf; --q3-t: #1d2735; --q3-i: #8b8bf0;
+  --q4: #3f8f68; --q4-t: #1b2a23; --q4-i: #5aab84;
+  --h1: #55688a; --h2: #3f8f68; --h3: #bd7a2d; --h4: #b34f5b;
+  --h5: #8a6bb8; --h6: #c2688a; --h7: #6f8a4f; --h8: #4a8fa0;
+  --shadow-md: 0 1px 2px rgba(0,0,0,.5), 0 6px 16px -10px rgba(0,0,0,.6);
+  --block-tint: 16%;
+}
+
+/* ---- C · editorial ------------------------------------------------------- */
+[data-skin="editorial"] {
+  --bg-app: #f7f3ec; --bg-surface: #fffdf8; --bg-subtle: #faf6ef;
+  --bg-hover: #f2ece1; --bg-sunken: #f2ece1;
+  --border: #e8e0d3; --border-soft: #f0e9dd; --border-strong: #dccfbd;
+  --text: #2f2a24; --text-secondary: #6b6155; --text-tertiary: #746d63;
+  --accent-tint: rgba(74,109,140,.09); --accent-ink: #4a6d8c; --focus: #4a6d8c;
+  --q1: #b4553f; --q1-t: rgba(180,85,63,.075); --q1-i: #9c4634;
+  --q2: #c08a2e; --q2-t: rgba(192,138,46,.1);  --q2-i: #8a5f17;
+  --q3: #4a6d8c; --q3-t: rgba(74,109,140,.075); --q3-i: #4a6d8c;
+  --q4: #6b8a5e; --q4-t: rgba(107,138,94,.09);  --q4-i: #4f6a45;
+  --h1: #4a6d8c; --h2: #6b8a5e; --h3: #c08a2e; --h4: #b4553f;
+  --h5: #7d6a92; --h6: #a56273; --h7: #8a8a4f; --h8: #4f8a8a;
+  --shadow-md: 0 1px 2px rgba(90,70,40,.06), 0 10px 26px -22px rgba(90,70,40,.35);
+  --radius-xs: 2px; --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px;
+  --block-tint: 14%;
+}
+[data-skin="editorial"][data-theme="dark"] {
+  --bg-app: #1a1713; --bg-surface: #221e19; --bg-subtle: #1e1a16;
+  --bg-hover: #2e2822; --bg-sunken: #14110e;
+  --border: #362f27; --border-soft: #2b251f; --border-strong: #453c31;
+  --text: #f0e9dd; --text-secondary: #a89c8b; --text-tertiary: #8a8782;
+  --accent-tint: rgba(125,157,186,.14); --accent-ink: #7d9dba; --focus: #7d9dba;
+  --q1: #cd7661; --q1-t: rgba(205,118,97,.14);  --q1-i: #d98a76;
+  --q2: #d2a052; --q2-t: rgba(210,160,82,.15);  --q2-i: #d2a052;
+  --q3: #7d9dba; --q3-t: rgba(125,157,186,.14); --q3-i: #7d9dba;
+  --q4: #86a377; --q4-t: rgba(134,163,119,.15); --q4-i: #86a377;
+  --h1: #4a6d8c; --h2: #6b8a5e; --h3: #c08a2e; --h4: #b4553f;
+  --h5: #7d6a92; --h6: #a56273; --h7: #8a8a4f; --h8: #4f8a8a;
+  --shadow-md: 0 4px 10px -2px rgba(0,0,0,.5), 0 20px 44px -16px rgba(0,0,0,.65);
+  --block-tint: 16%;
+}
+
+/* ============================================================================
+   PAGE CHROME — 与 G 稿同一套
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: #111114; color: #f2f2f4;
+  font: .875rem/1.6 var(--font-sans);
+  padding: 0 0 80px;
+}
+.page-head {
+  padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid #26262c;
+  position: sticky; top: 0; z-index: 50; background: #111114;
+}
+.page-head h1 { margin: 0 0 .375rem; font-size: 1.25rem; letter-spacing: -.01em; }
+.page-head p { margin: 0; color: #8b8b95; font-size: .8125rem; max-width: 68rem; }
+.page-head code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .75rem;
+}
+.page-head blockquote {
+  margin: .75rem 0 0; padding: .5rem .75rem;
+  border-inline-start: 2px solid #3a3a46; color: #c9c9d1; font-size: .82rem;
+  max-width: 68rem;
+}
+.skin-switch { display: flex; gap: .25rem; margin-top: 1rem; flex-wrap: wrap; }
+.skin-switch button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .78rem;
+  padding: .375rem .875rem; border-radius: 7px; cursor: pointer;
+}
+.skin-switch button:hover { background: #232329; }
+.skin-switch button[aria-pressed="true"] {
+  background: #2b2b34; border-color: #4a4a58; color: #fff;
+}
+
+.stage { padding: 1.75rem 2rem 0; }
+.cap {
+  display: flex; align-items: baseline; gap: .625rem;
+  margin: 0 0 .875rem; color: #8b8b95; font-size: .78rem;
+}
+.cap b { color: #e8e8ee; font-size: .875rem; font-weight: 600; }
+.cap .rule { flex: 1; height: 1px; background: #26262c; }
+
+.canvas {
+  position: relative;
+  border: 1px solid #26262c; border-radius: 14px;
+  background: var(--bg-app);
+  padding: 2rem 1.25rem;
+  color: var(--text);
+}
+.canvas__note {
+  color: var(--text-secondary); font-size: var(--text-sm); margin: 0;
+  max-inline-size: 60ch;
+}
+.canvas__note code {
+  background: var(--bg-sunken); color: var(--text);
+  padding: .0625rem .25rem; border-radius: 3px; font-size: 11px;
+}
+.canvas__note b { color: var(--text); }
+
+/* ============================================================================
+   THE QUADRANT MARK — 全稿唯一的新构件
+   ----------------------------------------------------------------------------
+   7px 方点（1.5px 圆角），色 = qN-ink，gap 8px。
+   为什么不照抄卡头的 7px 圆点：日历 chip 上原本已经有一个 5px 的圆点
+   （.tl-chip__dot，全天条用，chip 色）。再放一个圆点进去，两个圆点在
+   相邻色相下会被读成同一个东西。方圆角把两者在形状上分开，而且——
+   更重要——chip 那个圆点本身就是冗余的（它自己的注释写着「the 3px leading
+   bar already carries the entry's hue, so the all-day dot is a second,
+   redundant signal」，四个界面已经把它 display:none 掉了）。所以规则是：
+   **一个 chip 只有一个点**，全天点退休，象限点接管它原有的位置与间距。
+   「有 = 重要」是它唯一编码的一比特；「无 = 不画」。
+   紧急不画，因为紧急在每个界面都已经可见（日历上是位置，行上是日期）。
+   ========================================================================== */
+.qmark {
+  inline-size: 7px; block-size: 7px; flex: none;
+  border-radius: 1.5px;
+  background: var(--qm);
+}
+.qmark[data-q="1"] { --qm: var(--q1-i); }
+.qmark[data-q="2"] { --qm: var(--q2-i); }
+.qmark[data-q="3"] { --qm: var(--q3-i); }
+.qmark[data-q="4"] { --qm: var(--q4-i); }
+
+/* ============================================================================
+   01 · 两个时钟对同一条事说话
+   ========================================================================== */
+.duo { display: grid; gap: 1.25rem; }
+@media (min-width: 860px) { .duo { grid-template-columns: 1fr 1fr; } }
+
+.board {
+  border: 1px solid var(--border); border-radius: var(--radius-xl);
+  background: var(--bg-subtle); padding: var(--sp-3);
+  display: grid; gap: var(--sp-2); grid-template-columns: 1fr 1fr;
+}
+.board__card {
+  border: 1px solid var(--border); border-radius: var(--radius-lg);
+  background: var(--bg-surface); padding: var(--sp-2) var(--sp-3);
+  min-block-size: 76px;
+}
+.board__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--text-xs); font-weight: 600;
+  margin-block-end: var(--sp-1);
+}
+.board__dot { inline-size: 7px; block-size: 7px; border-radius: var(--radius-xs); }
+/* 现状：卡头文字用「色相本身」。refined/light 的橙在这块白底上 2.20:1。 */
+.board__head--hue { color: var(--hc); }
+.board__head--hue[data-q="1"] { --hc: var(--q1); }
+.board__head--hue[data-q="2"] { --hc: var(--q2); }
+.board__head--hue[data-q="3"] { --hc: var(--q3); }
+.board__head--hue[data-q="4"] { --hc: var(--q4); }
+/* 本稿：用 -ink。5.17–9.51。 */
+.board__head--ink { color: var(--hc); font-weight: 500; }
+.board__head--ink[data-q="1"] { --hc: var(--q1-i); }
+.board__head--ink[data-q="2"] { --hc: var(--q2-i); }
+.board__head--ink[data-q="3"] { --hc: var(--q3-i); }
+.board__head--ink[data-q="4"] { --hc: var(--q4-i); }
+.board__row {
+  font-size: var(--text-xs); color: var(--text-secondary);
+  padding: 3px 0; display: flex; justify-content: space-between; gap: .5rem;
+  align-items: center;
+}
+.board__row span:first-child { display: inline-flex; align-items: center; gap: 5px; min-inline-size: 0; }
+.board__row--ghost { color: var(--text-tertiary); font-style: italic; }
+.board__meta { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---- 日历 chip（真实 block 语言）-------------------------------------- */
+.chipgrid {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--sp-3);
+  display: flex; flex-direction: column; gap: 5px;
+}
+.chip {
+  display: flex; align-items: center; gap: 0;
+  inline-size: 100%; min-inline-size: 0;
+  padding: 3px 6px 3px 7px;
+  border: 0;
+  border-inline-start: var(--block-bar) solid var(--chip-color);
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--chip-color) var(--block-tint), var(--bg-surface));
+  color: var(--text);
+  font-size: var(--text-xs); line-height: 1.45; text-align: start;
+}
+.chip .qmark { margin-inline-end: 8px; }
+.chip__title {
+  min-inline-size: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; font-weight: 500;
+}
+.chip__time {
+  margin-inline-start: auto; flex: 0 0 auto;
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  color: color-mix(in oklab, var(--text-secondary) 88%, var(--text));
+  white-space: nowrap;
+}
+.chip--narrow { inline-size: 118px; }
+.chip--narrow .chip__time { display: none; }
+.chip--tiny { inline-size: 64px; }
+.chip--tiny .chip__time { display: none; }
+.chip--done { background: color-mix(in oklab, var(--chip-color) 7%, var(--bg-surface)); }
+.chip--done .chip__title { text-decoration: line-through; color: var(--text-secondary); }
+
+/* 日视图时间块 */
+.daygrid {
+  display: grid; grid-template-columns: 1fr;
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--sp-3);
+}
+.daygrid__lane { display: flex; flex-direction: column; }
+.dayblk {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 1px; padding: 4px 8px 4px 7px;
+  border-inline-start: var(--block-bar) solid var(--chip-color);
+  border-radius: var(--radius-sm); overflow: hidden;
+  background: color-mix(in oklab, var(--chip-color) var(--block-tint), var(--bg-surface));
+  color: var(--text);
+}
+.dayblk__mark { display: flex; }
+.dayblk__title {
+  font-size: var(--text-xs); font-weight: 500; line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dayblk__time { font-size: 10.5px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+/* 矮于 44px 的块放不下「标记 / 标题 / 时间」三行：时间并入标题行，
+   标记仍在左上。这是时间块版的「窄 chip 隐藏时间」，不是新规则。 */
+.dayblk--short { flex-direction: row; align-items: center; justify-content: flex-start; gap: 6px; padding-block: 2px; }
+.dayblk--short .dayblk__mark { align-self: center; }
+.dayblk--short .dayblk__time { margin-inline-start: auto; }
+
+/* 07 捕获条用的小件 */
+.bar {
+  inline-size: min(35rem, 100%);
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-md);
+  color: var(--text); font-family: var(--font-sans);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.bar__title {
+  inline-size: 100%; border: 0; background: transparent; resize: none;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+  font: inherit; font-size: 17px; line-height: 1.5; color: var(--text);
+  min-block-size: 4.4375rem; display: block;
+}
+.bar__title::placeholder { color: var(--text-tertiary); }
+.bar__row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+.bar__foot {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  border-block-start: 1px solid var(--border-soft);
+}
+.bar__spacer { flex: 1; }
+
+.seg { display: inline-flex; gap: 2px; padding: 2px; background: var(--bg-sunken); border-radius: var(--radius-md); }
+.seg__btn {
+  appearance: none; border: 0; cursor: pointer;
+  block-size: 26px; padding: 0 var(--sp-3); border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: var(--text-sm);
+}
+.seg__btn[aria-checked="true"] {
+  background: var(--bg-surface); color: var(--accent-ink); font-weight: 500;
+}
+/* 重要开关：一个真正的两个状态的开关，不是四选一 */
+.sw {
+  appearance: none; display: inline-flex; align-items: center; gap: var(--sp-2);
+  block-size: var(--control-h); padding: 0 var(--sp-3);
+  border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: var(--text-sm); cursor: pointer;
+}
+.sw[aria-checked="true"] {
+  border-color: var(--q2-i); background: var(--q2-t); color: var(--q2-i); font-weight: 500;
+}
+.sw__dot {
+  inline-size: 7px; block-size: 7px; border-radius: var(--radius-xs);
+  border: 1.5px solid currentColor; background: transparent;
+}
+.sw[aria-checked="true"] .sw__dot { background: currentColor; }
+
+/* G 稿象限 chip 的复刻（等宽四张、选中 = qN-tint 底 + qN-ink 字与边） */
+.gqchip {
+  appearance: none; cursor: default; flex: 1 1 0; min-inline-size: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  block-size: var(--control-h); padding: 0 var(--sp-2);
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: 12px; white-space: nowrap;
+}
+.gqchip[aria-checked="true"] {
+  background: var(--q1-t); border-color: var(--q1-i); color: var(--q1-i); font-weight: 500;
+}
+.gqchip:nth-child(2)[aria-checked="true"] { background: var(--q2-t); border-color: var(--q2-i); color: var(--q2-i); }
+.gqchip:nth-child(3)[aria-checked="true"] { background: var(--q3-t); border-color: var(--q3-i); color: var(--q3-i); }
+.gqchip:nth-child(4)[aria-checked="true"] { background: var(--q4-t); border-color: var(--q4-i); color: var(--q4-i); }
+
+/* 派生的紧急读数：只是文字，不是色块。 */
+.readout {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--text-sm); color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.readout--on { color: var(--text); font-weight: 500; }
+
+/* 行 / 搜索结果 的演示 */
+.rowdemo {
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-block-size: 36px; padding: 6px var(--sp-2);
+  border-radius: var(--radius-sm); background: var(--bg-surface);
+  border: 1px solid var(--border-soft);
+  font-size: var(--text-base);
+}
+.rowdemo + .rowdemo { margin-block-start: 2px; }
+.rowdemo__title { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rowdemo__due { font-size: var(--text-xs); color: var(--text-secondary); white-space: nowrap; }
+.rowdemo--active { background: var(--accent-tint); border-color: transparent; }
+.cbx {
+  inline-size: 16px; block-size: 16px; border-radius: var(--radius-xs);
+  border: 1.5px solid var(--border-strong); flex: none;
+}
+
+/* 详情面板的 2×2 → 开关 + 读数 */
+.panel {
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: var(--sp-3);
+  display: flex; flex-direction: column; gap: var(--sp-2);
+}
+.panel__label { font-size: var(--text-xs); color: var(--text-secondary); font-weight: 500; }.quad2 {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2px;
+  background: var(--bg-sunken); padding: 2px; border-radius: var(--radius-md);
+}
+.quad2__btn {
+  appearance: none; border: 0; cursor: pointer;
+  block-size: 30px; border-radius: var(--radius-sm);
+  background: transparent; color: var(--text-secondary);
+  font: inherit; font-size: var(--text-sm);
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.quad2__btn[aria-checked="true"] { background: var(--bg-surface); font-weight: 500; }
+.quad2__btn[data-q="1"][aria-checked="true"] { color: var(--q1-i); border: 1px solid var(--q1-i); }
+.quad2__btn[data-q="2"][aria-checked="true"] { color: var(--q2-i); border: 1px solid var(--q2-i); }
+.quad2__btn[data-q="3"][aria-checked="true"] { color: var(--q3-i); border: 1px solid var(--q3-i); }
+.quad2__btn[data-q="4"][aria-checked="true"] { color: var(--q4-i); border: 1px solid var(--q4-i); }
+
+/* ============================================================================
+   TABLES / NOTES
+   ========================================================================== */
+table.spec {
+  inline-size: 100%; border-collapse: collapse; margin-block-start: 1rem;
+  font-size: 12.5px; color: var(--text-secondary);
+}
+table.spec th, table.spec td {
+  text-align: start; padding: .4rem .6rem; vertical-align: top;
+  border-block-end: 1px solid var(--border-strong);
+}
+table.spec th { color: var(--text-secondary); font-weight: 500; }
+table.spec td { color: var(--text); }
+table.spec td.num { font-variant-numeric: tabular-nums; }
+table.spec tr.bad td.num { color: var(--q1-i); font-weight: 600; }
+table.spec td code {
+  background: var(--bg-sunken); padding: .0625rem .25rem;
+  border-radius: 3px; font-size: 11.5px;
+}
+table.spec caption {
+  caption-side: top; text-align: start; color: var(--text);
+  font-size: var(--text-sm); padding-block-end: .25rem;
+}
+
+.annot { margin: 1rem 0 0; padding-inline-start: 1.25rem; color: #8b8b95; font-size: .8125rem; }
+.annot li { margin-block-end: .4rem; }
+.annot b { color: #d8d8e0; font-weight: 600; }
+.annot code { background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem; border-radius: 4px; font-size: .75rem; }
+.annot .bad { color: #ff8a8a; }
+
+.verdict {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2);
+  margin-block-start: 1rem; padding: var(--sp-3);
+  background: var(--bg-sunken); border-radius: var(--radius-md);
+  font-size: var(--text-sm); color: var(--text);
+}
+.verdict b { color: var(--q1-i); }
+.tag {
+  font-size: 11px; padding: 1px 6px; border-radius: var(--radius-xs);
+  font-weight: 500; white-space: nowrap;
+}
+.tag--bad { background: var(--q1-i); color: var(--bg-surface); }
+.tag--good { background: var(--q4-i); color: var(--bg-surface); }
+
+.sentence {
+  margin-block-start: 1rem; padding: var(--sp-4);
+  border-inline-start: 3px solid var(--q2-i);
+  background: var(--bg-surface); border-radius: var(--radius-md);
+  font-size: var(--text-md); line-height: 1.7; color: var(--text);
+}
+.sentence small { display: block; margin-block-start: var(--sp-2); color: var(--text-secondary); font-size: var(--text-sm); line-height: 1.6; }
+
+.stack { display: flex; flex-direction: column; gap: var(--sp-3); }
+.muted { color: var(--text-secondary); font-size: var(--text-sm); }
+.kbd {
+  border: 1px solid var(--border-strong); border-block-end-width: 2px;
+  border-radius: 4px; padding: 0 4px; font-size: 11px;
+  color: var(--text-secondary); background: var(--bg-subtle);
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<header class="page-head">
+  <h1>矩阵成为全局性质 · 设计稿 <span style="color:#6b6b78;font-weight:400">I</span></h1>
+  <blockquote>
+    「产品设计一定要逻辑全局一致，这本质上是管理学的问题」<br>
+    「艾森豪威尔矩阵的体现」<br>
+    「任务 / 日程，你引入了这两个概念，但是在四象限和各个日历视图里完全区分不出来啊」<br>
+    「我觉得不要让用户去理解 任务 / 日程 的区别」「别硬造概念，都是要干的事」
+  </blockquote>
+  <p style="margin-top:.75rem">
+    <b>这个产品现在有三套逻辑同时在跑，而没有任何一条规则让它们对齐。</b>
+    象限说「紧急」是一个用户的布尔值；时钟说「紧急」是截止时间；记录类型说
+    「这条事是任务还是日程」。三者从不互相看，所以它们在同一个界面上说出互相矛盾的话。
+    本稿把它们收敛成一套：<b>一个对象、一个时钟、一个人填的字段</b>。
+  </p>
+  <p style="margin-top:.5rem;color:#6b6b78">
+    依据：<code>types.ts:131</code> / <code>types.ts:159-169</code>、
+    <code>task.ts:6</code> / <code>task.ts:74</code>、<code>calendar.ts:73-78</code>、
+    <code>task-service.ts:205</code> / <code>:226</code>、
+    <code>docs/DESIGN-LANGUAGE.md</code> §2.4 / §3。
+    与 <code>G-capture-bar.html</code> 的关系见 §09。
+  </p>
+  <div class="skin-switch" role="group" aria-label="皮肤">
+    <button type="button" data-set-skin="refined" aria-pressed="true">A · Refined</button>
+    <button type="button" data-set-skin="protool" aria-pressed="false">B · Pro Tool</button>
+    <button type="button" data-set-skin="editorial" aria-pressed="false">C · Editorial</button>
+    <span style="width:1px;background:#2e2e36;margin-inline:.25rem" aria-hidden="true"></span>
+    <button type="button" data-set-theme="light" aria-pressed="true">明</button>
+    <button type="button" data-set-theme="dark" aria-pressed="false">暗</button>
+  </div>
+</header>
+
+<!-- ===================== 01 问题：两个时钟，一条事 ===================== -->
+<section class="stage">
+  <p class="cap"><b>01</b> 同一条事，两个界面说出两句相反的话 <span class="rule"></span>
+    <span>这就是用户说的「逻辑全局不一致」</span></p>
+
+  <div class="canvas">
+    <div class="duo">
+      <div>
+        <p class="muted" style="margin:0 0 .5rem"><b style="color:var(--text)">四象限板</b> · 只认 <code>important</code> / <code>urgent</code></p>
+        <div class="board">
+          <div class="board__card">
+            <div class="board__head board__head--hue" data-q="1"><span class="board__dot" style="background:var(--q1)"></span>重要且紧急</div>
+            <div class="board__row board__row--ghost"><span>（空）</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head board__head--hue" data-q="2"><span class="board__dot" style="background:var(--q2)"></span>重要不紧急</div>
+            <div class="board__row"><span>今天把周报发出去</span><span class="board__meta">今天</span></div>
+            <div class="board__row"><span>读《深度工作》</span><span class="board__meta">无日期</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head board__head--hue" data-q="3"><span class="board__dot" style="background:var(--q3)"></span>不重要但紧急</div>
+            <div class="board__row board__row--ghost"><span>（空）</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head board__head--hue" data-q="4"><span class="board__dot" style="background:var(--q4)"></span>不重要不紧急</div>
+            <div class="board__row board__row--ghost"><span>「开会」永远进不来</span></div>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          周报在这里是<b>「重要不紧急」</b>。理由：<code>Task.urgent === false</code>。
+          日期字段「今天」只是一个字符串，没有任何逻辑读它。
+        </p>
+      </div>
+
+      <div>
+        <p class="muted" style="margin:0 0 .5rem"><b style="color:var(--text)">同一天 · 月视图</b> · 颜色只认 <code>colorOfList()</code></p>
+        <div class="chipgrid">
+          <div class="chip" style="--chip-color:var(--h1)">
+            <span class="chip__title">今天把周报发出去</span><span class="chip__time">18:00</span>
+          </div>
+          <div class="chip" style="--chip-color:var(--h2)">
+            <span class="chip__title">产品评审</span><span class="chip__time">15:00–16:00</span>
+          </div>
+          <div class="chip chip--narrow" style="--chip-color:var(--h3)">
+            <span class="chip__title">回客户邮件</span>
+          </div>
+          <div class="chip chip--narrow" style="--chip-color:var(--h4)">
+            <span class="chip__title">整理书签</span>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          周报在这里是<b>「今天 18:00 到期」</b>——按任何时钟，它都是一条紧急的事。
+          而「产品评审」是一条 <code>CalendarEvent</code>，它<b>没有</b>重要的概念，
+          所以它永远不会出现在任何一张象限卡里。
+        </p>
+      </div>
+    </div>
+
+    <div class="verdict">
+      <span class="tag tag--bad">矛盾</span>
+      同一条周报：板上「不紧急」，日历上「今天到期」。<b>没有任何 UI 调用 isOverdue()。</b>
+      <span class="muted">全仓 grep 的结果只有 core 自身、测试、和 <code>task-service.ts:339</code> 的一句注释。</span>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>这不是两个 bug，是一个缺位。</b>「紧急」这个词在产品里有<b>两个定义</b>，而且它们没有任何一处交换过意见——
+        <code>Task.urgent</code>（用户填的布尔）与 <code>isOverdue()</code>（日期派生的）。</li>
+    <li><b>矩阵不在日历里。</b><code>--tl-quadrant-*</code> 在
+        <code>packages/features/src/calendar/</code> 里的每一处命中都属于<b>新建面板</b>
+        （<code>QuickEventComposer.tsx:97-100</code>、<code>calendar.css:587-600</code> 的 <code>.cal-qec__quad-seg</code>）。
+        <b>已存在条目的</b> chip 上，象限出现 0 次；chip 的颜色来自 <code>colorOfList()</code>（清单色）。
+        板上看到的红橙蓝绿，切到月视图就没了。</li>
+    <li><b>日程进不了矩阵。</b><code>CalendarEvent</code> 没有 important / urgent / status。
+        规则不是被违反了，是根本没有地方放它。</li>
+    <li><b>写入路径互不知情。</b><code>moveToQuadrant()</code> 写两个布尔，不看日期；<code>schedule()</code> 写日期，不看紧急。
+        结构上它们<b>可以</b>互相矛盾，所以它们必然矛盾。</li>
+  </ul>
+</section>
+
+<!-- ===================== 02 一个决定：紧急由时钟派生 ===================== -->
+<section class="stage">
+  <p class="cap"><b>02</b> 核心决定 · 「紧急」用户说了算，但时钟会自己把它推上来 <span class="rule"></span>
+    <span>整份稿子的支点 · v2 依据用户裁定改写</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:1rem">
+      <b style="color:var(--text)">v1 的立场已被推翻。</b>本稿最初主张「紧急完全由时钟派生」，理由是
+      「我声明它紧急但它没有期限」等于「它很重要」，手标紧急只是重要性的重复输入。
+      <b>用户否决了这一条</b>，原话：
+    </p>
+    <blockquote class="sentence" style="margin-block-end:1rem">
+      我觉得以用户为准，另外当有日程逐渐临近，则逐渐过渡到紧急。
+      <small>这两句话合起来是一条<b>双向</b>规则：用户永远能说「它紧急」；而一个期限会自己把条目往紧急推。</small>
+    </blockquote>
+
+    <table class="spec">
+      <caption>三条路。v1 走的是第三条，被否了；本稿现在走第一条与第二条的组合。</caption>
+      <thead>
+        <tr><th style="width:9rem">　</th><th>只有用户（H/J 稿）</th><th>只有时钟（I 稿 v1）</th><th>两者都要 · <b>本稿 v2</b></th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>谁能改紧急</b></td>
+          <td>只有用户</td>
+          <td>只有时钟</td>
+          <td><b>用户能升高，不能压低；时钟按期限自动升高</b></td>
+        </tr>
+        <tr>
+          <td><b>无日期的急事</b></td>
+          <td>可以标紧急</td>
+          <td class="bad">永远不紧急，只能落 Q2/Q4</td>
+          <td>可以标紧急（用户说了算）</td>
+        </tr>
+        <tr>
+          <td><b>明天到期、用户说不急</b></td>
+          <td class="bad">听用户的，矩阵与时钟打架</td>
+          <td>进 Q1</td>
+          <td>进 Q1。想让它不急，就<b>把日期推远</b>——那是一个真实的决定，不是覆盖</td>
+        </tr>
+        <tr>
+          <td><b>「逐渐」体现在哪</b></td>
+          <td>无</td>
+          <td>无（48h 硬阈值一刀切）</td>
+          <td><b>五级读数，每级有自己的日期措辞与颜色</b>，见下</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sentence" style="margin-block-start:1.25rem">
+      紧急 ≡ 用户标了紧急 <b>或</b> 期限已把条目推到 <code>urgent</code> 级。<br>
+      <small>
+        两句话，两个写入者，<b>没有仲裁</b>——因为它们不会给出相反答案：一个是布尔，一个是读数，
+        取「或」即可。§01 的那个矛盾之所以存在，是因为两个都叫「紧急」且都能被写成 1/0；
+        现在只有一个能被写成 1/0。
+      </small>
+    </div>
+
+    <h3 class="canvas__note" style="margin-block-start:1.5rem;color:var(--text);font-weight:600">
+      五级读数 · 「逐渐」的具体形状
+    </h3>
+    <p class="canvas__note" style="margin-block-start:.375rem">
+      判定函数是一个纯函数 <code>urgencyOf(item, now)</code>，按<b>期限还剩多久</b>分五级。
+      下面这张表由脚本实算（<code>scripts/urgency.mjs</code>，20 条断言：临界点、单调性、无跳变、无日期分支）。
+    </p>
+
+    <table class="spec" style="margin-block-start:.75rem">
+      <thead>
+        <tr><th>级别</th><th>何时开始（15:00 截止）</th><th>行上的措辞</th><th>色</th><th>进 Q1？</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>none</code></td><td class="num">T-30 天 之前</td><td>「11月30日」</td><td>次要墨</td><td>否</td></tr>
+        <tr><td><code>far</code></td><td class="num">T-14 天</td><td>「还有 12 天」</td><td>次要墨</td><td>否</td></tr>
+        <tr><td><code>soon</code></td><td class="num">T-3 天</td><td>「这周」</td><td><code>--tl-warning-ink</code></td><td>否</td></tr>
+        <tr><td><code>near</code></td><td class="num">T-24 小时</td><td>「明天」「今天」</td><td><code>--tl-warning-ink</code> 加深</td><td><b>待定</b>，见下</td></tr>
+        <tr><td><code>urgent</code></td><td class="num">过期后</td><td>「已逾期 3 小时」</td><td><code>--tl-danger-ink</code></td><td><b>是</b></td></tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--danger-ink)">一处必须请你裁定：</b>
+      按上表，<code>near</code>（不到 24 小时）<b>还不进 Q1</b>，要等过期才进。
+      也就是说「明天下午的事」在矩阵里仍是「重要不紧急」，「今晚 11 点的事」也是，直到它变红。
+      如果「逐渐过渡」只体现在颜色上而矩阵归属不动，用户在板上看到的仍是<b>突变</b>——
+      某一刻它忽然从 Q2 跳到 Q1。
+      另一种做法是 <code>near</code> 就进 Q1（24 小时内 = 紧急），代价是 Q1 会长期拥挤，
+      而艾森豪威尔的本意恰恰是让 Q1 <b>保持小</b>。
+      <b>本稿倾向后者不动（只有过期才进 Q1），但这是产品判断，不由设计稿决定。</b>
+    </p>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">用户压低时钟？不允许。</b>
+      一条明天到期的事，用户说「不急」——界面不接受这个输入。想让它不急，
+      唯一的路是把日期推远，而推远是一个会留下痕迹的决定。
+      这条规则消灭了 v1 想消灭的那个矛盾，同时又没有夺走用户对<b>无日期事项</b>的控制权。
+    </p>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">阈值是阶梯，不是渐变。</b>五级之间有硬边界（14 天 / 3 天 / 24 小时 / 过期）。
+      但脚本已验证：相邻一小时的移动最多跨<b>一级</b>，所以用户看到的是一次小幅变化，不是一个悬崖。
+      「逐渐」在感知上成立，是因为<b>措辞和颜色在四级里连续变化</b>，而不是因为阈值被抹平。
+      真做成连续插值的话，同一条事在两次刷新之间会有肉眼可见的颜色漂移，那更像 bug 而不是信号。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>这消灭的是 §01 的第 1 条与第 4 条。</b>「紧急」只剩一个可写入口（用户的布尔），
+        时钟那边是只读读数。<code>moveToQuadrant()</code> 只翻 <code>important</code>；
+        <code>schedule()</code> 写日期，读数随之变化——两条写入路径不再各写一个同名的数。</li>
+    <li><b>数据迁移比 v1 简单：</b><code>urgent</code> 列<b>保留并继续生效</b>，旧数据里
+        <code>urgent:true</code> 的条目行为不变。v1 那处「老用户会发现东西变了」的风险消失了。</li>
+    <li><b>板上的拖拽不再是单向。</b>横轴（重要）与纵轴（紧急）都能拖；往 Q1 拖就是<b>直接标紧急</b>，
+        不需要先给它一个期限。这是 v2 相对 v1 更省事的一处。</li>
+    <li><b>副作用：</b>用户可以标一条「紧急」但完全没有日期，而时钟不会把它降下来。这是<u>有意的</u>——
+        用户的话优先。但它意味着「Q1 里可能有永远不消失的条目」，需要 §06 里一条「清理」规则。</li>
+  </ul>
+</section>
+
+<!-- ===================== 03 一个对象 ===================== -->
+<section class="stage">
+  <p class="cap"><b>03</b> 一个对象 · 「任务 / 日程」其实是时间精度 <span class="rule"></span>
+    <span>用户：「都是要干的事」</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:1rem">
+      <b style="color:var(--text)">事实：这个应用在渲染层早就是「一个对象」了。</b>
+      <code>CalendarEntry</code>（<code>types.ts</code>）把任务和日程投影成同一个形状，日历从不需要知道来源
+      （注释原话：「so the calendar never needs to know which source an entry came from」）。
+      分裂只在<b>领域模型和用户词汇</b>里，不在画面上。
+      <code>Task</code> 已经有 <code>duePrecisionOf()</code> → <code>none | day | period | time</code>。
+      <b>「日程」不过是 <code>precision = time</code> 的那一条。</b>
+    </p>
+
+    <table class="spec">
+      <caption>同一条「事」，四种时间精度。没有一种是另一种之外的东西。</caption>
+      <thead><tr><th style="width:8rem">用户说法</th><th style="width:9rem">今天的模型</th><th>本稿的模型（一个 Item）</th><th>板上</th><th>日历上</th></tr></thead>
+      <tbody>
+        <tr><td>整理书签</td><td>Task，无日期</td><td><code>dueAt: null</code></td><td>在</td><td>不在（没有位置）</td></tr>
+        <tr><td>周五前交</td><td>Task，day</td><td><code>dueDate</code>，<code>precision: day</code></td><td>在</td><td>在，全天条</td></tr>
+        <tr><td>上午写周报</td><td>Task，period</td><td><code>dueDate + duePeriod</code></td><td>在</td><td>在，上午格</td></tr>
+        <tr><td>今天 18:00 发周报</td><td>Task，time</td><td><code>dueAt</code>，<code>precision: time</code></td><td>在</td><td>在，时刻格</td></tr>
+        <tr><td><b>产品评审</b></td><td><b>CalendarEvent（另一个表）</b></td><td><code>startAt + endAt</code>，同样是 <code>precision: time</code> 的一条</td><td class="bad"><b>不在</b></td><td>在，一个块</td></tr>
+      </tbody>
+    </table>
+
+    <div class="verdict">
+      <span class="tag tag--good">收敛</span>
+      只剩一个对象：<b>一条要干的事，可能带一个时间，时间可以是「某天 / 半天 / 准确时段」。</b>
+      会议 = 带准确时段、并且通常有结束时间的那一条。<b>它不需要第二个概念，也不需要第二个表。</b>
+    </div>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">为什么不是「给日程加上象限字段」：</b>那会得到两个表、两套生命周期、
+      两个「完成」的语义（日程能不能标记为已完成？），然后用户仍然要选。用户的原话是
+      「不要让用户去理解任务 / 日程的区别」。加字段满足不了这句话，合并概念才满足得了。
+    </p>
+    <p class="canvas__note" style="margin-block-start:.5rem">
+      <b style="color:var(--text)">生命周期的代价，必须承认：</b>会议现在可以被勾掉（开完了）。
+      这是增强，不是退化——它让「这周开了哪些会」和「这周干了哪些事」用同一种方式统计。
+      但日程当前<b>没有</b> <code>status</code>，合并意味着迁移时所有旧事件都要补一个 <code>status: 'open'</code>，
+      而旧日程的「完成」一旦出现，日历就得决定<b>已完成的块画不画</b>（建议：画，用
+      <code>--tl-block-tint-muted</code>，与已完成任务同一条规则）。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>一个概念，一个表，一个生命周期。</b>不是「两个存储一个界面」——那是把不一致藏进适配层。</li>
+    <li><b>「时间不确定性」是这个概念自带的维度</b>，不是用来区分物种的。</li>
+    <li><b>板是全集</b>：所有未完成的事，包括开会。<b>日历是有时间的那部分的全集</b>。
+        两个投影，一个集合——这直接回答了「在四象限和各个日历视图里完全区分不出来」：
+        <b>不需要区分，因为它们是同一种东西</b>，变的只是「有没有一个准确时刻」，而那在两个界面都看得见。</li>
+  </ul>
+</section>
+
+<!-- ===================== 03b 板要不要显示有准确时刻的事 ===================== -->
+<section class="stage">
+  <p class="cap"><b>03b</b> 板是首页，所以板上必须有不带时间的事 <span class="rule"></span>
+    <span>一个真正要回答的产品问题</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:1rem">
+      <b style="color:var(--text)">问题：</b>有了一个对象之后，四象限板上要不要显示「今天 15:00 产品评审」这种有准确时刻的事？
+      如果显示，板就成了日历的另一种排法；如果不显示，Q1 里永远只有「截止到期的事」，而开会这条最典型的 Q1 又缺席了。
+    </p>
+
+    <table class="spec">
+      <caption>三条路。选 B，理由在下面。</caption>
+      <thead><tr><th style="width:7rem">　</th><th>A · 板只显示无时刻的事</th><th>B · 板显示全部（本稿）</th><th>C · 板按时间分两个区</th></tr></thead>
+      <tbody>
+        <tr><td><b>「开会」在哪</b></td><td>只在日历</td><td><b>板上，Q1</b></td><td>板的「有时刻」区</td></tr>
+        <tr><td><b>Q1 的含义</b></td><td>「紧急」= 只有截止的事</td><td>「紧急」= 现在就得处理，含马上要开的会</td><td>被拆成两种紧急性</td></tr>
+        <tr><td><b>首页能否回答「现在该干什么」</b></td><td class="bad">不能，要先切日历</td><td><b>能</b></td><td>能，但要多读一个分区</td></tr>
+        <tr><td><b>代价</b></td><td>概念统一了，但矩阵仍然漏掉一半的承诺</td><td>板上会有时间信息的 meta，密度上升</td><td>又造了一个「区」，回到两个概念</td></tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">选 B，而且「全部」是有定义的：</b>
+      板 = <b>所有未完成的事，按重要 × 紧急分组</b>。有准确时刻的那些在行尾显示时刻（「今天 15:00」），
+      没有的显示日期或「无日期」。<b>板不按时间排序</b>——排序的是象限，不是时钟。
+      日历仍然是唯一能看见「时间如何排布」的地方，因为它是唯一有坐标轴的界面。
+    </p>
+    <p class="canvas__note" style="margin-block-start:.5rem">
+      <b style="color:var(--text)">为什么这不会让板变成第二个日历：</b>板的分组维度是<b>重要 × 紧急</b>，
+      日历的分组维度是<b>时间位置</b>。同一批事，两种问法。一个会议在板上回答「它有多要紧」，
+      在日历上回答「它占哪个格子」。两个问题不同，所以两个界面不重复。
+    </p>
+
+    <div class="verdict">
+      <span class="tag tag--bad">代价</span>
+      板上会出现同一时刻的多个条目（三个 9:00 的会），而板不作为时间冲突的检测器。
+      <span class="muted">明确写进设计：<b>冲突检测只在日历做</b>。否则板会慢慢长成一个更差的日历。</span>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>这条决定了本稿是「矩阵成为全局性质」还是「矩阵只是另一个视图」。</b>若板排除有时刻的事，
+        它就只是一个「待办清单的另一种画法」，而用户抱怨的正是「各个视图里完全区分不出来」。</li>
+    <li><b>密度问题有解：</b>板上行尾的 meta 已经是「今天 / 无日期」，加时刻只是多两三个字符，
+        且可以用 <code>--tl-text-tertiary</code> 压下去。四列板每列本来就只显示有限条（现有 <code>RECENT_COMPLETED_LIMIT</code> 同级的截断）。</li>
+  </ul>
+</section>
+
+<!-- ===================== 04 象限标记 ===================== -->
+<section class="stage">
+  <p class="cap"><b>04</b> 象限标记 · 一个构件，六个界面 <span class="rule"></span>
+    <span>只编码一比特：重要</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:1rem">
+      标记 = 7px 方点（1.5px 圆角），颜色 = <code>--tl-quadrant-qN-ink</code>。<b>有 = 重要，无 = 不画。</b>
+      尺寸与 quadrant 板卡头的 <code>.tl-badge__dot</code> 同档，只把圆角改成方圆——
+      因为在日历 chip 上它要和清单色的 3px 竖条相邻，圆点在那个位置会和既有装饰混成一片。
+    </p>
+
+    <div class="duo">
+      <div class="stack">
+        <div>
+          <p class="muted" style="margin:0 0 .375rem">象限板 · 卡头（现状是色相当墨，本稿改 -ink）</p>
+          <div class="board" style="grid-template-columns:1fr">
+            <div class="board__card">
+              <div class="board__head board__head--ink" data-q="1"><span class="board__dot" style="background:var(--q1)"></span>重要且紧急</div>
+              <div class="board__row"><span><span class="qmark" data-q="1"></span>今天把周报发出去</span><span class="board__meta">今天 18:00</span></div>
+              <div class="board__row"><span><span class="qmark" data-q="1"></span>产品评审</span><span class="board__meta">今天 15:00</span></div>
+            </div>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            <b>会议在板上了。</b>它与任务之间唯一的差别是 meta 行有一个时段，而不是「无日期」。
+          </p>
+        </div>
+
+        <div>
+          <p class="muted" style="margin:0 0 .375rem">清单行 · 同一枚标记，尺寸不变</p>
+          <div>
+            <div class="rowdemo"><span class="cbx"></span><span class="qmark" data-q="1"></span><span class="rowdemo__title">今天把周报发出去</span><span class="rowdemo__due">今天</span></div>
+            <div class="rowdemo"><span class="cbx"></span><span class="qmark" data-q="2"></span><span class="rowdemo__title">读《深度工作》</span><span class="rowdemo__due">无日期</span></div>
+            <div class="rowdemo"><span class="cbx" style="background:var(--q4-t);border-color:var(--q4-i)"></span><span class="rowdemo__title">整理书签</span><span class="rowdemo__due">无日期</span></div>
+            <div class="rowdemo"><span class="cbx"></span><span class="rowdemo__title" style="color:var(--text-secondary)">（无标记 = 不重要）</span><span class="rowdemo__due">周五</span></div>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            没有标记的行不必画一个「不重要」——<b>缺席本身就是那一比特</b>。
+            第三行是已完成态，勾选框用 q4 系只是演示，实现沿用现有的完成语义。
+          </p>
+        </div>
+<div>
+          <p class="muted" style="margin:0 0 .375rem">日视图 · 带准确时刻的条目（会议就在这里）</p>
+          <div class="daygrid">
+            <div class="daygrid__lane">
+              <div class="dayblk" style="--chip-color:var(--h2);block-size:66px">
+                <span class="dayblk__mark"><span class="qmark" data-q="1"></span></span>
+                <span class="dayblk__title">产品评审</span>
+                <span class="dayblk__time">15:00–16:00</span>
+              </div>
+              <div class="dayblk dayblk--short" style="--chip-color:var(--h3);block-size:34px;margin-block-start:6px">
+                <span class="dayblk__mark"><span class="qmark" data-q="2"></span></span>
+                <span class="dayblk__title">1:1 · 阿岚</span>
+                <span class="dayblk__time">16:10</span>
+              </div>
+            </div>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            时间块用同一枚标记、同一个左上角位置。<b>块高度不因标记改变</b>——标记是叠加，不占行高。
+          </p>
+        </div>
+
+              </div>
+
+      <div class="stack">
+        <div>
+          <p class="muted" style="margin:0 0 .375rem">日历 chip · 标记是 chip 的第一个流内子元素</p>
+          <div class="chipgrid">
+            <div class="chip" style="--chip-color:var(--h1)">
+              <span class="qmark" data-q="1"></span><span class="chip__title">今天把周报发出去</span><span class="chip__time">18:00</span>
+            </div>
+            <div class="chip" style="--chip-color:var(--h2)">
+              <span class="qmark" data-q="1"></span><span class="chip__title">产品评审</span><span class="chip__time">15:00–16:00</span>
+            </div>
+            <div class="chip" style="--chip-color:var(--h3)">
+              <span class="qmark" data-q="2"></span><span class="chip__title">读《深度工作》</span>
+            </div>
+            <div class="chip" style="--chip-color:var(--h4)">
+              <span class="chip__title">整理书签</span>
+            </div>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            清单色（竖条 + 底）不动，标记加在前面。两者是<b>两个通道</b>，不是两种颜色抢一个位置。
+            几何见 §05。
+          </p>
+        </div>
+
+        <div>
+          <p class="muted" style="margin:0 0 .375rem">搜索结果 · 位置与清单行一致（勾选框之后）</p>
+          <div>
+            <div class="rowdemo rowdemo--active"><span class="cbx"></span><span class="qmark" data-q="1"></span><span class="rowdemo__title">今天把周报发出去</span><span class="rowdemo__due">今天</span></div>
+            <div class="rowdemo"><span class="cbx"></span><span class="qmark" data-q="2"></span><span class="rowdemo__title">读《深度工作》</span><span class="rowdemo__due">无日期</span></div>
+            <div class="rowdemo"><span class="cbx"></span><span class="rowdemo__title">整理书签</span><span class="rowdemo__due"></span></div>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            搜索只有任务（<code>search.ts</code> 只接受 <code>Task</code>）。合并后它应该也搜得到会议——
+            因为那也是一条要干的事。<b>标记的位置全应用统一：勾选框右侧、标题左侧</b>，
+            这一条比任何单个界面的局部最优都重要。
+          </p>
+        </div>
+
+        <div>
+          <p class="muted" style="margin:0 0 .375rem">详情面板 · 2×2 四选一 → 一个开关 + 一行读数</p>
+          <div class="panel">
+            <span class="panel__label">重要</span>
+            <button type="button" class="sw" aria-checked="true" style="align-self:flex-start">
+              <span class="sw__dot" aria-hidden="true"></span>重要
+            </button>
+            <span class="panel__label">截止</span>
+            <div class="readout readout--on">今天 18:00 · <b>紧急</b></div>
+            <span class="readout">已逾期 2 小时 · <b>紧急</b>（另一种读数）</span>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            象限名不再是一个控件，是一个<b>结论</b>（可算出来，所以不必让用户填）。
+            「紧急」是一个词，不是色块——见 §06 的用色规则。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>为什么只画「重要」不画「紧急」：</b>紧急在每个界面都已经可见——日历上是格子的位置，行上是日期，详情里是期限。
+        唯一无法自己表达的是「重要」，所以标记只补这一比特。<b>少画一个通道，不是漏画。</b></li>
+    <li><b>可行性：</b>「不重要的紧急事」（Q3）在日历上不画标记，但它的日期就在格子上——信息没丢。
+        这也是本稿<b>不愿意</b>在 chip 上塞四色或四形状的原因：位置已经说了，再画一遍是噪声。</li>
+    <li><b>色盲：</b>标记的「有 / 无」是形状通道，与颜色无关；颜色只在 Q1/Q2 之间做<b>冗余</b>区分，
+        而它们的时间位置本来就不同。这是本稿唯一依赖颜色的地方，且颜色不是唯一线索。</li>
+  </ul>
+</section>
+
+<!-- ===================== 05 chip 几何 ===================== -->
+<section class="stage">
+  <p class="cap"><b>05</b> 日历 chip 的几何 · 标记不抢清单色 <span class="rule"></span>
+    <span>22px 高、100px 宽里放两个信号</span></p>
+
+  <div class="canvas">
+    <div class="duo">
+      <div>
+        <p class="muted" style="margin:0 0 .5rem">月视图 · 从宽到窄（同一枚 chip）</p>
+        <div class="stack">
+          <div class="chipgrid" style="inline-size:100%">
+            <div class="chip" style="--chip-color:var(--h2)">
+              <span class="qmark" data-q="1"></span><span class="chip__title">产品评审</span><span class="chip__time">15:00–16:00</span>
+            </div>
+            <div class="chip chip--narrow" style="--chip-color:var(--h2)">
+              <span class="qmark" data-q="1"></span><span class="chip__title">产品评审</span>
+            </div>
+            <div class="chip chip--tiny" style="--chip-color:var(--h2)">
+              <span class="qmark" data-q="1"></span><span class="chip__title">产品…</span>
+            </div>
+          </div>
+          <p class="canvas__note">
+            时间由容器查询在 118px 以下隐藏（现有规则，<code>--tl-font-size-xs</code> 那条注释）。<b>标记永不隐藏</b>——
+            它是 7px，是 chip 上最便宜的信号，也是唯一无法从位置推出来的信号。
+          </p>
+        </div>
+
+        <div style="margin-block-start:1.25rem">
+          <p class="muted" style="margin:0 0 .5rem">对照：现状没有标记 · 板上没有会议</p>
+          <div class="chipgrid">
+            <div class="chip" style="--chip-color:var(--h2)">
+              <span class="chip__title">产品评审</span><span class="chip__time">15:00–16:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-block-start:1.25rem">
+          <p class="muted" style="margin:0 0 .5rem">试过的四个标记形态（同一条橙清单 chip）</p>
+          <div class="stack" style="gap:5px">
+            <div class="chip" style="--chip-color:var(--h3)">
+              <span class="qmark" data-q="2" style="border-radius:50%"></span><span class="chip__title">a · 圆点 gap 5px<span class="chip__time">✗</span></span>
+            </div>
+            <div class="chip" style="--chip-color:var(--h3)">
+              <span class="qmark" data-q="2" style="border-radius:50%"></span><span class="chip__title">b · 圆点 gap 8px</span>
+            </div>
+            <div class="chip" style="--chip-color:var(--h3)">
+              <span class="qmark" data-q="2" style="border-radius:50%;inline-size:9px;block-size:9px;box-shadow:0 0 0 1.5px var(--bg-surface)"></span><span class="chip__title">c · 9px + surface 环</span>
+            </div>
+            <div class="chip" style="--chip-color:var(--h3)">
+              <span class="qmark" data-q="2"></span><span class="chip__title"><b>d · 方圆 1.5px ✓ 本稿</b></span>
+            </div>
+          </div>
+          <p class="canvas__note" style="margin-block-start:.5rem">
+            差别在 1:1 下要贴近看；在真实 22px 的 chip 上，a 的橙点与橙竖条会连成一片。
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <p class="muted" style="margin:0 0 .5rem">结构（从上到下）</p>
+        <table class="spec" style="margin-block-start:0">
+          <tbody>
+            <tr><td style="width:6.5rem"><code>border-inline-start</code></td><td class="num">3px</td><td>清单色竖条，<code>--tl-block-bar</code>，不动</td></tr>
+            <tr><td>底</td><td class="num">14% / 16%</td><td>清单色 <code>color-mix</code> 向 surface，不动</td></tr>
+            <tr><td><b>标记</b></td><td class="num">7×7 + 8</td><td>第一个流内子元素；<code>qN-ink</code>；右边距 8px；有/无</td></tr>
+            <tr><td>标题</td><td class="num">13px</td><td><code>--tl-block-title-ink</code>，<code>text-overflow: ellipsis</code></td></tr>
+            <tr><td>时间</td><td class="num">12px</td><td><code>margin-inline-start:auto</code>，&lt;118px 隐藏</td></tr>
+            <tr class="bad"><td>全天圆点 <span style="color:var(--text-secondary);font-weight:400">（退休）</span></td><td class="num">5px</td><td>本稿删除。它自己的注释已承认是冗余信号，且四个界面早已 <code>display:none</code>。它与新标记是竞争关系，只留一个。</td></tr>
+          </tbody>
+        </table>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          <b>为什么是流内元素而不是绝对定位的角标：</b>角标会和时间标签抢右端，而时间在窄 chip 上本来就要被容器查询裁掉。
+          放在首位则与竖条相邻、与标题同一条基线，<b>不引入任何新的定位上下文</b>，容器查询的行为完全不变。
+        </p>
+        <p class="canvas__note" style="margin-block-start:.5rem">
+          <b>代价：</b>每个带标记的 chip 少 15px 标题宽（7px 标记 + 8px 间距）。
+          在月视图 118px 的 chip 上这是 13%。接受它，因为省下的这一比特无法从别处得到；
+          而不重要的 chip 一个像素都不付。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>两个通道，各管一摊：</b>清单色 = <b>属于哪一摊事</b>（用户可以自己命名与配色）；象限标记 = <b>这摊事有多要紧</b>。
+        §2.4 说象限词汇「在任何地方都表示重要/紧急」——本稿用它就是这个意思，不是「第九个清单色」。</li>
+    <li><b>填充不换。</b>如果一个 chip 用象限色做底，用户就失去了「这是哪个清单」的信息，
+        而清单色是他自己选的。抢填充是最差的选择。</li>
+    <li><b>时间与标记的冲突已解：</b>时间在右端且可隐藏，标记在左端且永不隐藏。两者不在同一个轴线上竞争。</li>
+    <li><b>放右边为什么不行（试过）：</b>右端本来就是时间标签的地盘，且时间在 118px 以下要整段隐藏。
+        把标记放到右端，窄 chip 上它要么被一起裁掉，要么把时间挤成一个破折号。左端始终有空位——竖条之后就是标题。</li>
+    <li><b>圆点 vs 方圆，试过四种：</b>（a）7px 圆点、gap 5px：与清单色竖条贴得太近，橙清单 + 橙标记会糊在一起；
+        （b）7px 圆点、gap 8px：分得开，但和 chip 原有的 5px 全天圆点在同一行读起来像两个意义相同的点；
+        （c）9px 圆点 + 1.5px surface 边：最清楚，但多了一个「描边」语言，与 §3 的 block 语言不共享词汇；
+        （d）<b>7px 圆角 1.5px 的方圆、gap 8px</b>——选它。形状和「点」不同，尺寸不变，不需要新令牌，
+        并且允许把那个冗余的全天圆点直接退休，一个 chip 只剩一个点。</li>
+  </ul>
+</section>
+
+<!-- ===================== 06 治理规则 ===================== -->
+<section class="stage">
+  <p class="cap"><b>06</b> 两个时钟的治理规则 · 一句话，全应用执行 <span class="rule"></span>
+    <span>合并对象之后，这是唯一还会打架的地方</span></p>
+
+  <div class="canvas">
+    <div class="sentence">
+      重要由你定，紧急由时钟定；象限是时钟的读数而不是你的输入，<b>所以二者不可能不一致</b>——
+      当时间推着一条事跨过界线，界面把那一次移动说出来，而不是悄悄移动。
+    </div>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      这一句同时规定了三件事，每一件都能被实现直接检查：
+    </p>
+    <table class="spec">
+      <thead><tr><th style="width:8rem">情形</th><th>界面说什么</th><th>界面不做什么</th></tr></thead>
+      <tbody>
+        <tr><td>用户拖一条到 Q1/Q3</td><td>「要给一个期限」+ 一键「设为今天」；若已有期限，直接移动。</td><td>不静默修改 <code>urgent</code>（它已经不存在）。</td></tr>
+        <tr><td>期限把一条推进 48h 内</td><td>那一次移动在卡头说一次：「移入 重要且紧急 · 明天到期」。</td><td>不逐条弹 toast；不在每次刷新时重说。</td></tr>
+        <tr><td>期限过了</td><td>日期标签转成逾期读数（「已逾期 2 小时」），象限读 Q1。</td><td>不把逾期画成一个新的颜色家族——它还是 <code>--tl-danger</code> 语义，不是象限语义。</td></tr>
+        <tr><td>没有期限</td><td>「无日期 = 不紧急」，它落在 Q2 或 Q4，界面照实说。</td><td>不猜用户的意图，也不给一个「手动紧急」的后门。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="verdict" style="margin-block-start:1.25rem">
+      <span class="tag tag--bad">失败模式</span>
+      <b>「无声降级」</b>：一条用户觉得「急着要」的事，因为没有期限，被系统降到 Q4，
+      而界面没有任何一句话解释为什么。
+      <span class="muted">补救：Q4 的空态与详情面板的截止字段必须写明「没有截止时间 = 不紧急」，并把「设为今天」放在旁边。
+      只要这一句在，降级就不是无声的。</span>
+    </div>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">用色规则（防第四套词汇）：</b>「紧急」在文字里是一个<b>词</b>，用
+      <code>--tl-text-secondary</code> 或 <code>--tl-text</code> 印刷；它<b>不</b>配一个色块。
+      颜色只属于标记（<code>qN-ink</code>）。这样「紧急」不会长出第五种红。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>为什么这是「治理规则」而不是「显示规则」：</b>它约束的是<b>谁可以写什么</b>——只有时钟能改变紧急，
+        只有人能改变重要。任何界面只要遵守这一句，就不可能再造出 §01 的矛盾。</li>
+    <li><b>一句话版本给实现看：</b><code>urgent</code> 不是字段，是 <code>urgencyOf(item, now)</code>；
+        写路径只有 <code>setImportant()</code> 和 <code>schedule()</code>，没有第三个。</li>
+    <li><b>失败模式的名字值得记住：</b>「无声降级」是本稿唯一会主动让用户意外的地方，
+        所以它也是验收清单上的第一条。</li>
+  </ul>
+</section>
+
+<!-- ===================== 07 捕获条 ===================== -->
+<section class="stage">
+  <p class="cap"><b>07</b> 捕获条 · 类型开关取消，时间开关接管 <span class="rule"></span>
+    <span>推翻 G 稿的那一半</span></p>
+
+  <div class="canvas">
+    <div class="duo">
+      <div>
+        <p class="muted" style="margin:0 0 .5rem"><b style="color:var(--text)">G 稿</b> · 先分类，再记事
+          <span class="tag tag--bad" style="margin-inline-start:.25rem">要求用户选</span></p>
+        <div class="bar">
+          <div style="display:flex;gap:8px;padding:12px 16px 0">
+            <div class="seg" role="radiogroup" aria-label="类型">
+              <button type="button" class="seg__btn" role="radio" aria-checked="true">任务</button>
+              <button type="button" class="seg__btn" role="radio" aria-checked="false">日程</button>
+            </div>
+          </div>
+          <textarea class="bar__title" rows="2" placeholder="要做什么？"></textarea>
+          <div class="bar__row" style="gap:0">
+            <button type="button" class="gqchip" aria-checked="true" aria-pressed="true">
+              <span class="qmark" data-q="1"></span>重要且紧急
+            </button>
+            <button type="button" class="gqchip">
+              <span class="qmark" data-q="2"></span>重要不紧急
+            </button>
+            <button type="button" class="gqchip">
+              <span class="qmark" data-q="3"></span>不重要但紧急
+            </button>
+            <button type="button" class="gqchip">
+              <span class="qmark" data-q="4"></span>不重要不紧急
+            </button>
+          </div>
+          <div class="bar__foot">
+            <span class="muted" style="font-size:12px">收集箱</span>
+            <span class="bar__spacer"></span>
+            <span class="muted" style="font-size:12px">添加</span>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          四个 chip 里有两个是<b>用户无法诚实地填</b>的：选「重要但紧急」却不给日期，
+          就是在造一条 §01 那样的矛盾。
+        </p>
+      </div>
+
+      <div>
+        <p class="muted" style="margin:0 0 .5rem"><b style="color:var(--text)">本稿</b> · 一个开关 + 一个时间，紧急是读数
+          <span class="tag tag--good" style="margin-inline-start:.25rem">不要求用户分类</span></p>
+        <div class="bar">
+          <textarea class="bar__title" rows="2" placeholder="要做什么？"></textarea>
+          <div class="bar__row">
+            <button type="button" class="sw" aria-checked="true">
+              <span class="sw__dot" aria-hidden="true"></span>重要
+            </button>
+            <div class="seg" role="radiogroup" aria-label="时间">
+              <button type="button" class="seg__btn" role="radio" aria-checked="false">无</button>
+              <button type="button" class="seg__btn" role="radio" aria-checked="true">今天</button>
+              <button type="button" class="seg__btn" role="radio" aria-checked="false">明天</button>
+              <button type="button" class="seg__btn" role="radio" aria-checked="false">时刻…</button>
+            </div>
+          </div>
+          <div class="bar__row" style="padding-block-start:0">
+            <span class="readout readout--on">今天 18:00 到期 · <b>紧急</b></span>
+          </div>
+          <div class="bar__foot">
+            <span class="muted" style="font-size:12px">收集箱</span>
+            <span class="bar__spacer"></span>
+            <span class="muted" style="font-size:12px">添加</span>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          没有「任务 / 日程」。用户只回答两个真问题：<b>重要吗？什么时候要？</b>
+          第三个问题（它是任务还是日程）由第二个答案推出来，不问。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>时间开关就是用户一直在选的那个开关。</b>G 的「任务 / 日程」翻译成「无日期 / 有日期」，
+        而「有日期」再细分成天、半天、时刻——这些本来就是同一个连续的东西。</li>
+    <li><b>紧急读数在输入时就更新。</b>选「今天」立刻显示「紧急」，选「明天」也是（48h 内），选「无」显示「不紧急」。
+        用户在打字的时候就学会了这条规则，而不是之后被它惊讶。</li>
+    <li><b>重要开关的选中态用 <code>q2</code> 系</b>（<code>q2-i</code> 字 + <code>q2-t</code> 底）：重要但不紧急是这个开关注定最常见的状态，
+        也是 Q2 这个名字的语义锚点。若实现认为这会让「重要」看起来像只属于 Q2，可退回 <code>--accent-ink</code>——
+        但那样就失去了与板的联系。</li>
+    <li><b>一个开关而不是四个 chip：</b>因为它真的只有一个布尔。四个 chip 是在模拟一个已经不存在的四选一字段。</li>
+  </ul>
+</section>
+
+<!-- ===================== 08 测量 ===================== -->
+<section class="stage">
+  <p class="cap"><b>08</b> 六个组合的对比度（Chrome 取色 + color-mix 实算） <span class="rule"></span>
+    <span>非文字 3:1 · 文字 4.5:1</span></p>
+
+  <div class="canvas">
+    <table class="spec">
+      <caption>标记（7px，<code>qN-ink</code>）在两种底上的最低值。括号内是四象限里最低的那一支。</caption>
+      <thead>
+        <tr><th>组合</th><th>压 <code>--tl-surface</code></th><th>压 chip 底（8 清单色 × 4 象限，取最低）</th><th>现状 Badge（色相当墨）</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>refined / light</td><td class="num">5.17</td><td class="num">4.43</td><td class="num">2.20</td></tr>
+        <tr><td>refined / dark</td><td class="num">5.93</td><td class="num">4.60</td><td class="num">4.47</td></tr>
+        <tr><td>protool / light</td><td class="num">5.80</td><td class="num">4.76</td><td class="num">2.87</td></tr>
+        <tr><td>protool / dark</td><td class="num">5.67</td><td class="num">4.66</td><td class="num">3.78</td></tr>
+        <tr><td>editorial / light</td><td class="num">5.36</td><td class="num">4.41</td><td class="num">2.99</td></tr>
+        <tr><td>editorial / dark</td><td class="num">5.84</td><td class="num">4.69</td><td class="num">5.02</td></tr>
+      </tbody>
+    </table>
+    <p class="canvas__note" style="margin-block-start:.75rem">
+      方法：把 <code>packages/ui/src/tokens.css</code> 原样注入页面，按
+      <code>data-palette</code> × <code>data-theme</code> 逐组合取值，用
+      <code>color-mix(in oklab, hue var(--tl-block-tint), var(--tl-surface))</code>
+      画真实的 chip 底（editorial 的 rgba tint 也按 alpha 合成），再由画布回读像素算 WCAG 比值。
+      最后一个数字是<b>现状缺陷</b>：卡头 Badge 用 <code>var(--badge-color)</code> = 色相本身当 15px 墨，
+      六组合里五个低于 4.5:1。
+    </p>
+
+    <table class="spec" style="margin-block-start:1.5rem">
+      <caption>取色与判定。</caption>
+      <thead><tr><th style="width:9rem">部位</th><th>令牌</th><th>判定</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>象限标记</td>
+          <td><code>--tl-quadrant-qN-ink</code></td>
+          <td>非文字构件，门槛 3:1；实测最低 4.41，六组合全过。与色相本身（压在 8 种 chip 底上实测只有 <b>1.88–6.22</b>，最低出现在 refined/light 的橙压紫清单）相比，-ink 是唯一稳定的选择。</td>
+        </tr>
+        <tr class="bad">
+          <td>现状卡头 Badge<span style="color:var(--text-secondary);font-weight:400">（缺陷）</span></td>
+          <td><code>var(--tl-quadrant-qN)</code> 当文字墨</td>
+          <td>refined/light 的橙 2.20、protool/light 2.87、editorial/light 2.99——<b>15px 的文字</b>，门槛 4.5:1，六个组合里五个不过。
+              修法：改用 <code>qN-ink</code>，最低 5.17。</td>
+        </tr>
+        <tr>
+          <td>chip 标题</td>
+          <td><code>--tl-block-title-ink</code></td>
+          <td>不变。既有规则已经保证。</td>
+        </tr>
+        <tr>
+          <td>chip 时间</td>
+          <td><code>--tl-block-time-ink</code></td>
+          <td>不变。实测 8 清单色上最低 5.12–6.07。</td>
+        </tr>
+        <tr>
+          <td>紧急读数</td>
+          <td><code>--tl-text-secondary</code>（静止）/ <code>--tl-text</code>（紧急）</td>
+          <td>5.07 / 6.96 / 5.65 / 6.64 / 5.96 / 6.15，全过 4.5:1。</td>
+        </tr>
+        <tr>
+          <td>重要开关选中</td>
+          <td><code>q2-i</code> 字 / <code>q2-t</code> 底</td>
+          <td>5.53 / 7.64 / 5.36 / 5.81 / 5.02 / 5.40，全过；1px 边同样是 <code>q2-i</code>，高于 3:1。</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">一个有意不做的事：</b>没有为「紧急」新建颜色令牌。它不是一种颜色，
+      是一个词。§2.4 的象限词汇只有四支，本稿没有加第五支，也没有把 <code>--tl-danger</code> 借给象限。
+    </p>
+  </div>
+</section>
+
+<!-- ===================== 09 与 G 稿 / 现状 ===================== -->
+<section class="stage">
+  <p class="cap"><b>09</b> 与 G 稿的关系 · 哪些推翻，哪些保留 <span class="rule"></span>
+    <span>G 的前提被用户后来的决定否掉了</span></p>
+
+  <div class="canvas">
+    <table class="spec">
+      <thead><tr><th>G 稿的决定</th><th>本稿</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr class="bad"><td>类型开关（任务 / 日程）在第一位</td><td><b>取消</b></td><td>用户：「不要让用户去理解任务 / 日程的区别」。它要求用户先分类再记事，而分类可由「有没有时间」推出。</td></tr>
+        <tr class="bad"><td>四个象限 chip</td><td><b>换成一个「重要」开关 + 派生读数</b></td><td>紧急不可手填（§02），所以四个 chip 里有两个在造矛盾。</td></tr>
+        <tr><td>一条捕获条、一个全局入口</td><td>保留</td><td>G 的核心论断是对的：全局捕获必须存在，而且必须在默认视图里。</td></tr>
+        <tr><td>560px、两行标题、动词随对象</td><td>宽度与标题保留；动词改成单一的「添加」</td><td>对象只剩一种，动词也就不该再分（「新建」是日程的动词，日程已不是独立物种）。</td></tr>
+        <tr><td>选中 chip 用 <code>-ink</code> 作边、不用半透明环</td><td>保留并沿用</td><td>同一份 a11y 依据（3:1 状态边界 + 不用 box-shadow 传达状态），本稿标记同样用实体色块而非阴影。</td></tr>
+        <tr><td>禁用是颜色，不是淡出</td><td>保留</td><td>§5.1。本稿没有改动 CTA。</td></tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--text)">仍需实现方回答的一个问题：</b>合并 Task 与 CalendarEvent 是一次领域迁移。
+      本稿给了目标形状（一个对象、<code>important</code> 一列、时间精度一个枚举、
+      <code>status</code> 一条生命周期），但<b>迁移脚本本身不在设计稿里</b>——
+      它需要先更新 <code>types.ts</code> 再写迁移（ADR 0003 §3 的顺序），并按
+      <code>core/test</code> 的契约基线逐项验证。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>本稿没有写实现代码。</b>所有改动都是形状、规则、与几何。</li>
+    <li><b>验收清单（按优先级）：</b>①「无声降级」有无解释；②板上拖入紧急列是否索要期限；
+        ③chip 标记在 64px 宽时是否仍在；④六个组合的标记对比度；⑤旧 <code>urgent:true</code> 无期限条目的迁移说明。</li>
+  </ul>
+</section>
+
+<!-- ===================== 10 与同批稿子的分歧 ===================== -->
+<section class="stage">
+  <p class="cap"><b>10</b> 与同批稿子的分歧 · 需要用户拍的那一刀 <span class="rule"></span>
+    <span>H / J 保留手动紧急，本稿不保留</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:1rem">
+      同批次里 <code>H-time-precision.html</code> 与 <code>J-one-item-model.html</code> 在「合并成一个对象」这件事上与本稿一致，
+      但两者都<b>保留</b> <code>urgent</code> 作为可手填的列，象限仍由「重要 × 紧急」两个布尔推出。
+      本稿是唯一主张把紧急改为<b>派生</b>的一份。这不是措辞差别，是产品会不会再次自相矛盾的差别。
+    </p>
+
+    <table class="spec">
+      <thead><tr><th style="width:8rem">　</th><th>H / J</th><th>本稿（I）</th></tr></thead>
+      <tbody>
+        <tr><td><b>urgent 列</b></td><td>保留，可手填，默认 0</td><td>删除（或保留但不读），紧急由截止时间派生</td></tr>
+        <tr><td><b>「重要不紧急」+ 今天到期</b></td><td class="bad">仍然矛盾：板上不紧急，时钟今天到期</td><td>不可能：象限就是时钟的读数</td></tr>
+        <tr><td><b>无日期但「急」</b></td><td>能表达</td><td>不能，只能表达为「重要」（§02）</td></tr>
+        <tr><td><b>板上拖入紧急列</b></td><td>直接翻转布尔</td><td>索要一个 48h 内的期限（§04 / §06）</td></tr>
+        <tr><td><b>与用户抱怨的关系</b></td><td>解决了「任务/日程」，没解决「两个紧急」</td><td>两件都解决，代价是不能再手点「紧急」</td></tr>
+      </tbody>
+    </table>
+
+    <div class="verdict">
+      <span class="tag tag--bad">需要拍板</span>
+      如果用户仍然想要「不给期限也能标紧急」，那么 §02 的决定必须撤，
+      同时 §06 的治理规则要退回成「两个时钟都显示、允许不一致」。
+      <b>两件事不能同时要。</b>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>这不是路线之争，是同一句话的两种读法：</b>用户说「逻辑全局一致」。
+        H/J 的读法是「一个对象，但象限仍是用户意图的记账」；本稿的读法是「一个对象，且象限必须能被时钟验证」。</li>
+    <li><b>本稿的立场：</b>用户还说了「这本质上是管理学的问题」。管理学的四象限里，紧急天然来自期限；
+        没有期限的事可以重要，但不会「紧急」。所以派生的读法更贴原意。</li>
+  </ul>
+</section>
+
+<script>
+document.querySelectorAll('[data-set-skin]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-skin', btn.getAttribute('data-set-skin'));
+    document.querySelectorAll('[data-set-skin]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-theme', btn.getAttribute('data-set-theme'));
+    document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+</script>
+</body>
+</html>

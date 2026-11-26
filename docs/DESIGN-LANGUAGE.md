@@ -270,8 +270,10 @@ hover `--tl-accent-strong-hover`；次级 `--secondary`（surface + `--tl-border
 6. **字段静止态用了重边框。** `calendar.css:238`（`.cal-input`）、`:334`、`pickers.css:19,327` 静止即
    `--tl-border-strong`，违反 §5.1；`styles.css:1228`（`tk-input`）已正确，可作范本。
 7. **block 圆角写死 6px。** `calendar.css:127,552,1195` 用 `border-radius: 6px`，应改 `--tl-block-radius`。
-8. **重复的胶囊实现。** `styles.css:1045` 起的 `.view-pill*` 是 `.tl-pill*` 的硬编码副本（含写死 28px），
-   应删除并复用 `.tl-pill`。
+8. ~~**重复的胶囊实现。** `.view-pill*` 是 `.tl-pill*` 的硬编码副本。~~ **已修复**：
+   死 CSS 已删除；同时 `.tl-pill` 本身也离开了「固定深色板」，改为
+   `surface + border-strong + shadow-lg`，选中态用 `accent-tint`（与侧栏导航同一语言）。
+   六个组合的实测与取舍见 `design/F-view-switcher.html`。
 9. **全大写微字距标签仍在。** `apps/desktop/src/shell/shell.css:227-228` 主题菜单标签
    `letter-spacing: 0.08em; text-transform: uppercase`，违反 §4.2；`lists.css:98` 的 `0.04em` 同类残留。
 10. **低于字阶的字号。** `packages/features/src/search/search.css:212` 用 `font-size: 10px`（kbd），
@@ -280,5 +282,14 @@ hover `--tl-accent-strong-hover`；次级 `--secondary`（surface + `--tl-border
     而非 `border-inline-start`，与日历块写法不一致（纯一致性项）。
 12. **象限 tint 令牌未被消费。** `--tl-quadrant-qN-tint` 在 CSS 中零引用（象限卡背景走 `--tl-surface`）：
     要么用起来，要么在令牌注释里标为预留。
+    → **部分消费**：捕获条的象限 chip 现在用 `--tl-quadrant-qN-tint` 作选中底、
+    `--tl-quadrant-qN-ink` 作字与边（`calendar.css` 的 `.cal-qec__quad-seg`）。
+    象限卡背景仍是 `--tl-surface`，这一条不删。
+13. **禁用 CTA 的墨色偏离 §5.1。** §5.1 规定禁用态用 `--tl-text-disabled`；实测它在
+    `--tl-surface-sunken` 上只有 1.48 / 2.74 / 1.67 / 2.65 / 1.76 / 2.34（六个组合），
+    低于 3:1，按钮会消失成一个空槽。捕获条的主按钮因此改用 `--tl-text-secondary`
+    （4.46 / 7.91 / 5.78 / 7.67 / 5.15 / 6.98），并显式 `opacity: 1` 抵消
+    `.tl-btn:disabled` 的 0.5 淡出——那个淡出把标签压到 2.14:1，正是 §5.1 要防的。
+    取舍见 `design/G-capture-bar.html` §06。**要么把 §5.1 的令牌换掉，要么接受这条例外。**
 
 > 后续任何一处修复都应同时**删掉本节对应条目**，让文档始终等于「现状 + 待办」，而不是一句谎。

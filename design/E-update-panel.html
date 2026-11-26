@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION E — "CHECK UPDATES" PANEL  ·  v1
+  检查更新面板。与 design/A refined / B pro-tool / C editorial / D capture-first 同源。
+
+  这份稿子只回答一件事：一个 400px 的对话框，在六种状态下怎么排。
+
+  为什么重画（用户对现状的评价）：
+  1. 关闭按钮太大太重 —— 现在是一个带背景的 44px 方块；本稿退成 28px 的安静图标。
+  2. 说明文字挤成一行 —— 免责声明和状态混在一段里；本稿拆成「状态行」+ 限宽的脚注。
+  3. 底部结果区跟上面挤在一起 —— 现在结果区是一个贴边的灰块；本稿把状态行、版本行、
+     脚注分三层，动作固定在最底一栏，与结果之间一条发丝线。
+
+  令牌与 tokens.css 完全同源（--bg-surface / --ink-1 / --accent / --sp-*），
+  数值逐项抄自 packages/ui/src/tokens.css，未发明任何新颜色。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>检查更新 · 面板设计稿 v1</title>
+<style>
+/* ============================================================================
+   TOKENS —— 三套皮肤共用语义名；数值取自 packages/ui/src/tokens.css
+   ========================================================================== */
+:root {
+  --font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --font-serif: Georgia, "Songti SC", "Noto Serif SC", "SimSun", serif;
+
+  /* rem：系统字号放大时整体跟随 */
+  --sp-1: .25rem;  --sp-2: .5rem;  --sp-3: .75rem; --sp-4: 1rem;
+  --sp-5: 1.25rem; --sp-6: 1.5rem; --sp-8: 2rem;  --sp-10: 2.5rem;
+
+  --text-2xs: .656rem;  /* 10.5 */
+  --text-xs:  .6875rem; /* 11   */
+  --text-sm:  .75rem;   /* 12   */
+  --text-body:.8125rem; /* 13   */
+  --text-md:  .875rem;  /* 14   */
+  --text-lg:  1.0625rem;/* 17   */
+
+  --dur-fast: 120ms; --dur-base: 180ms;
+  --ease: cubic-bezier(.2,.8,.3,1);
+
+  --control-h: 2rem;    /* 32 = --tl-control-h */
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px; --radius-xl: 12px;
+}
+
+/* ---- A · refined --------------------------------------------------------- */
+[data-skin="refined"] {
+  --bg-app: #f5f5f6; --bg-surface: #ffffff; --bg-subtle: #fafafa;
+  --bg-hover: #f4f4f5; --bg-sunken: #f0f0f2;
+  --hairline: #ececee; --hairline-soft: #f2f2f4; --hairline-strong: #e3e3e6;
+  --ink-1: #1d1d1f; --ink-2: #6e6e73; --ink-3: #747478; --ink-4: #c7c7cc;
+  --accent: #3b82f6; --accent-strong: #2563eb; --accent-strong-hover: #1d4ed8;
+  --accent-contrast: #ffffff; --accent-ink: #2563eb;
+  --danger-ink: #c62828; --success-ink: #047857;
+  --focus: #3b82f6;
+  --pill-bg: rgba(58,58,60,.93);
+  --shadow-lg: 0 4px 12px -2px rgba(20,20,25,.12), 0 16px 40px -12px rgba(20,20,25,.18);
+  --shadow-pop: 0 8px 20px -4px rgba(20,20,25,.16), 0 24px 56px -16px rgba(20,20,25,.26);
+  --editorial-serif: var(--font-sans);
+}
+[data-skin="refined"][data-theme="dark"] {
+  --bg-app: #161617; --bg-surface: #1f1f21; --bg-subtle: #1a1a1c;
+  --bg-hover: #2a2a2d; --bg-sunken: #121214;
+  --hairline: #2e2e32; --hairline-soft: #26262a; --hairline-strong: #3c3c42;
+  --ink-1: #f5f5f7; --ink-2: #a8a8ae; --ink-3: #87878e; --ink-4: #5a5a61;
+  --accent: #3b82f6; --accent-strong: #3b82f6; --accent-strong-hover: #4f8ef7;
+  --accent-contrast: #101418; --accent-ink: #60a5fa;
+  --danger-ink: #ff6b6b; --success-ink: #34d399;
+  --focus: #60a5fa;
+  --pill-bg: rgba(58,58,60,.93);
+  --shadow-lg: 0 4px 12px -2px rgba(0,0,0,.5), 0 16px 40px -12px rgba(0,0,0,.6);
+  --shadow-pop: 0 8px 20px -4px rgba(0,0,0,.6), 0 24px 56px -16px rgba(0,0,0,.7);
+}
+
+/* ---- B · protool --------------------------------------------------------- */
+[data-skin="protool"] {
+  --bg-app: #fbfbfa; --bg-surface: #ffffff; --bg-subtle: #f6f5f2;
+  --bg-hover: #f4f3f0; --bg-sunken: #f2f1ee;
+  --hairline: #e6e5e3; --hairline-soft: #efeeeb; --hairline-strong: #d8d5d0;
+  --ink-1: #1f1e1d; --ink-2: #6d6660; --ink-3: #777470; --ink-4: #c3c0ba;
+  --accent: #5b5bd6; --accent-strong: #5b5bd6; --accent-strong-hover: #4b4bc6;
+  --accent-contrast: #ffffff; --accent-ink: #5b5bd6;
+  --danger-ink: #b03838; --success-ink: #2a6449;
+  --focus: #5b5bd6;
+  --pill-bg: rgba(35,34,34,.93);
+  --shadow-lg: 0 2px 6px rgba(31,30,29,.05), 0 14px 30px -14px rgba(31,30,29,.2);
+  --shadow-pop: 0 6px 16px -2px rgba(31,30,29,.12), 0 22px 48px -14px rgba(31,30,29,.22);
+  --editorial-serif: var(--font-sans);
+  --control-h: 1.75rem;
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 10px;
+}
+[data-skin="protool"][data-theme="dark"] {
+  --bg-app: #141413; --bg-surface: #1d1d1b; --bg-subtle: #191917;
+  --bg-hover: #272725; --bg-sunken: #101010;
+  --hairline: #302f2d; --hairline-soft: #262624; --hairline-strong: #3d3c39;
+  --ink-1: #f4f3f1; --ink-2: #a5a29d; --ink-3: #888680; --ink-4: #55534f;
+  --accent: #8b8bf0; --accent-strong: #8b8bf0; --accent-strong-hover: #9c9cf4;
+  --accent-contrast: #141413; --accent-ink: #8b8bf0;
+  --danger-ink: #ea7a7a; --success-ink: #5aab84;
+  --focus: #8b8bf0;
+  --pill-bg: rgba(35,34,34,.93);
+  --shadow-lg: 0 2px 6px rgba(0,0,0,.5), 0 18px 36px -14px rgba(0,0,0,.6);
+  --shadow-pop: 0 6px 16px -2px rgba(0,0,0,.55), 0 22px 48px -14px rgba(0,0,0,.7);
+}
+
+/* ---- C · editorial ------------------------------------------------------- */
+[data-skin="editorial"] {
+  --bg-app: #f7f3ec; --bg-surface: #fffdf8; --bg-subtle: #faf6ef;
+  --bg-hover: #f2ece1; --bg-sunken: #f2ece1;
+  --hairline: #e8e0d3; --hairline-soft: #f0e9dd; --hairline-strong: #dccfbd;
+  --ink-1: #2f2a24; --ink-2: #6b6155; --ink-3: #746d63; --ink-4: #cfc5b6;
+  --accent: #4a6d8c; --accent-strong: #4a6d8c; --accent-strong-hover: #3d5b75;
+  --accent-contrast: #fffdf8; --accent-ink: #4a6d8c;
+  --danger-ink: #9c4634; --success-ink: #47613d;
+  --focus: #4a6d8c;
+  --pill-bg: rgba(255,253,248,.97);
+  --shadow-lg: 0 4px 10px -2px rgba(60,45,30,.10), 0 20px 44px -16px rgba(60,45,30,.20);
+  --shadow-pop: 0 8px 18px -4px rgba(60,45,30,.14), 0 26px 52px -18px rgba(60,45,30,.26);
+  --editorial-serif: var(--font-serif);
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 12px;
+}
+[data-skin="editorial"][data-theme="dark"] {
+  --bg-app: #1a1713; --bg-surface: #221e19; --bg-subtle: #1e1a16;
+  --bg-hover: #2e2822; --bg-sunken: #14110e;
+  --hairline: #362f27; --hairline-soft: #2b251f; --hairline-strong: #453c31;
+  --ink-1: #f0e9dd; --ink-2: #a89c8b; --ink-3: #8a8782; --ink-4: #574f45;
+  --accent: #7d9dba; --accent-strong: #7d9dba; --accent-strong-hover: #8fadc7;
+  --accent-contrast: #1a1713; --accent-ink: #7d9dba;
+  --danger-ink: #d98a76; --success-ink: #86a377;
+  --focus: #7d9dba;
+  --pill-bg: rgba(42,37,31,.96);
+  --shadow-lg: 0 4px 10px -2px rgba(0,0,0,.5), 0 20px 44px -16px rgba(0,0,0,.65);
+  --shadow-pop: 0 8px 18px -4px rgba(0,0,0,.55), 0 26px 52px -18px rgba(0,0,0,.7);
+}
+
+/* ============================================================================
+   PAGE CHROME —— 与 D-capture-first 同一套
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: #111114; color: #f2f2f4;
+  font: .875rem/1.6 var(--font-sans);
+  padding: 0 0 80px;
+}
+.page-head {
+  padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid #26262c;
+  position: sticky; top: 0; z-index: 50; background: #111114;
+}
+.page-head h1 { margin: 0 0 .375rem; font-size: 1.25rem; letter-spacing: -.01em; }
+.page-head p { margin: 0; color: #8b8b95; font-size: .8125rem; max-width: 62rem; }
+.page-head code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .75rem;
+}
+.skin-switch { display: flex; gap: .25rem; margin-top: 1rem; flex-wrap: wrap; }
+.skin-switch button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .78rem;
+  padding: .375rem .875rem; border-radius: 7px; cursor: pointer;
+}
+.skin-switch button:hover { background: #232329; }
+.skin-switch button[aria-pressed="true"] {
+  background: #2b2b34; border-color: #4a4a58; color: #fff;
+}
+
+.stage { padding: 1.75rem 2rem 0; }
+.cap {
+  display: flex; align-items: baseline; gap: .625rem;
+  margin: 0 0 .875rem; color: #8b8b95; font-size: .78rem;
+}
+.cap b { color: #e8e8ee; font-size: .875rem; font-weight: 600; }
+.cap .rule { flex: 1; height: 1px; background: #26262c; }
+
+/* 画布：app 地面 + 真实 scrim。
+   说明：现状的 ::backdrop 用 `--tl-pill-bg` @52% 当遮罩，它在
+   refined/dark 与 editorial/dark 里比面板本身还亮（层次反转），
+   editorial/light 里几乎不可见（1.04:1）。那是一个真实缺陷，见 07 的说明。
+   本稿画布用一个中性的半透明黑，保证六种组合下面板都浮在地面之上。 */
+.canvas {
+  position: relative;
+  border: 1px solid #26262c; border-radius: 14px;
+  background: var(--bg-app);
+  padding: 3rem 1rem;
+  display: grid; place-items: center;
+}
+.canvas::before {
+  content: "";
+  position: absolute; inset: 0;
+  border-radius: 13px;
+  background: rgb(0 0 0 / 0.44);
+}
+[data-theme="dark"] .canvas::before { background: rgb(0 0 0 / 0.62); }
+.canvas > * { position: relative; z-index: 1; }
+
+/* ============================================================================
+   面板 —— 400px
+   ========================================================================== */
+.panel {
+  inline-size: min(25rem, calc(100vw - 2rem));   /* 400 */
+  background: var(--bg-surface);
+  color: var(--ink-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-pop);
+  font-family: var(--font-sans);
+  display: flex; flex-direction: column;
+  position: relative;
+}
+
+/* 头部只装关闭。没有可见标题：入口按钮已经写着「检查更新」，
+   再把它做一次 17px 标题，等于同一句话在一张卡里出现两次。 */
+.panel__head {
+  display: flex; justify-content: flex-end;
+  padding: var(--sp-3) var(--sp-3) 0 var(--sp-5);
+}
+
+.panel__close {
+  appearance: none; border: 0; background: transparent;
+  inline-size: 1.75rem; block-size: 1.75rem;    /* 28：≥24 的可点下限，比现状的 44 方块轻得多 */
+  display: grid; place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--ink-3);                          /* 安静，但仍过 3:1 非文字线 */
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.panel__close:hover { background: var(--bg-hover); color: var(--ink-1); }
+.panel__close:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.panel__body {
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  padding: var(--sp-1) var(--sp-5) var(--sp-4);
+}
+
+/* 动作固定在最底一栏：状态怎么换，按钮都在同一个位置。 */
+.panel__foot {
+  display: flex; align-items: center; gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  border-block-start: 1px solid var(--hairline-soft);
+}
+.panel__foot[hidden] { display: none; }
+.spacer { flex: 1; }
+
+/* ---- 版本 ---- */
+.meta { display: flex; align-items: baseline; gap: var(--sp-2); margin: 0; }
+.meta__k { font-size: var(--text-body); color: var(--ink-2); }
+.meta__v {
+  font-size: var(--text-body); font-weight: 500; color: var(--ink-1);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 版本对比：一行箭头，不做 dl 两行。
+   现版本的「当前版本 / 清单版本」两行里，第二行是开发者词汇（manifest），
+   而且当没有更新时两行会显示同一个号码。 */
+.versions {
+  display: flex; align-items: baseline; gap: .375rem;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.versions__from { font-size: var(--text-md); color: var(--ink-2); }
+.versions__arrow { font-size: var(--text-body); color: var(--ink-3); }
+.versions__to {
+  font-size: var(--text-lg); font-weight: 600; color: var(--ink-1);
+  letter-spacing: -.01em;
+}
+
+.hero { display: flex; flex-direction: column; gap: var(--sp-2); }
+.hero__title {
+  margin: 0;
+  font-size: var(--text-md); font-weight: 600;
+  color: var(--accent-ink);
+}
+
+/* 更新说明：会很长，限高 3 行。 */
+.notes {
+  margin: 0;
+  font-size: var(--text-body); line-height: 1.55;
+  color: var(--ink-2);
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* ---- 状态行（最新 / 失败 / 不可用） ---- */
+.status { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2); }
+.status__icon { margin-block-start: .125rem; color: var(--ink-3); }
+.status__icon--ok { color: var(--success-ink); }
+.status__icon--danger { color: var(--danger-ink); }
+.status__text { display: flex; flex-direction: column; gap: .125rem; min-inline-size: 0; }
+.status__title {
+  margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--ink-1);
+}
+.status__title--ok { color: var(--success-ink); }
+.status__title--danger { color: var(--danger-ink); }
+.status__detail {
+  margin: 0; font-size: var(--text-body); line-height: 1.5; color: var(--ink-2);
+  max-inline-size: 34ch;
+}
+
+/* ---- 检查中 ---- */
+.check-line { margin: 0; font-size: var(--text-body); color: var(--ink-2); }
+.progress {
+  block-size: 2px; border-radius: 1px;
+  background: var(--bg-sunken);
+  overflow: hidden;
+  margin-block-start: var(--sp-1);
+}
+.progress__bar {
+  display: block; block-size: 100%; inline-size: 32%;
+  /* --accent measures 3.23:1 on the track in A-light; --accent-strong is the
+     same fill the primary button uses and clears 4.54:1, so the indicator
+     keeps margin and matches the CTA. */
+  background: var(--accent-strong);
+  border-radius: inherit;
+  animation: slide 1.15s var(--ease) infinite;   /* 只动 transform */
+}
+@keyframes slide {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(340%); }
+}
+
+/* ---- 脚注 ---- */
+.fineprint {
+  margin: 0;
+  font-size: var(--text-sm); line-height: 1.45;
+  color: var(--ink-3);
+  max-inline-size: 17rem;   /* 限宽换行；12px 在 4.6:1 以上 */
+}
+
+/* ---- 按钮 ---- */
+.btn {
+  appearance: none; border: 0;
+  font: inherit; font-size: var(--text-body); font-weight: 600;
+  block-size: var(--control-h); padding: 0 var(--sp-4);
+  border-radius: var(--radius-md); cursor: pointer; flex: none;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.btn--primary { background: var(--accent-strong); color: var(--accent-contrast); }
+.btn--primary:hover { background: var(--accent-strong-hover); }
+.btn--ghost {
+  background: transparent; color: var(--ink-2);
+  font-weight: 500; padding-inline: var(--sp-3);
+}
+.btn--ghost:hover { background: var(--bg-hover); color: var(--ink-1); }
+.btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.btn[aria-disabled="true"] { cursor: default; }
+
+.sr-only {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ============================================================================
+   注释 / 演示控件
+   ========================================================================== */
+.annot {
+  margin: .875rem 0 2.5rem; color: #8b8b95; font-size: .78rem;
+  display: grid; gap: .375rem; max-width: 62rem;
+}
+.annot li { margin: 0; }
+.annot code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .72rem;
+}
+.annot b { color: #d8d8e0; font-weight: 600; }
+.annot .bad { color: #f0a0a0; }
+
+.demo {
+  display: flex; align-items: center; gap: .375rem; flex-wrap: wrap;
+  margin: -.125rem 0 .875rem; color: #8b8b95; font-size: .75rem;
+}
+.demo button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .72rem;
+  padding: .25rem .625rem; border-radius: 6px; cursor: pointer;
+}
+.demo button[aria-pressed="true"] { background: #2b2b34; border-color: #4a4a58; color: #fff; }
+.demo-note {
+  min-block-size: 1.25rem; margin: .5rem 0 0; color: #8b8b95; font-size: .72rem;
+  text-align: center;
+}
+
+/* ---- 07 规格表 ---- */
+.spec {
+  margin: 0 0 2.5rem; border-collapse: collapse;
+  font-size: .75rem; color: #c9c9d1; max-width: 62rem; width: 100%;
+}
+.spec th, .spec td {
+  text-align: start; padding: .5rem .75rem;
+  border-bottom: 1px solid #26262c; white-space: nowrap;
+}
+.spec th { color: #8b8b95; font-weight: 600; }
+.spec td.num { font-variant-numeric: tabular-nums; }
+.spec tr td:first-child { color: #e8e8ee; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  /* 无动画时，一个停在起点的进度条只会误导；让文案单独承担状态。 */
+  .progress { display: none; }
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<header class="page-head">
+  <h1>检查更新 · 面板设计稿 <span style="color:#6b6b78;font-weight:400">v1</span></h1>
+  <p>
+    <b>这个面板只做一件事：告诉用户要不要更新，并给出唯一的下一步。</b>
+    所以它被压到 400px —— 一条状态、一行版本、一个按钮，其余删掉。
+    关闭退成 28px 的安静图标；免责说明限宽成一句脚注；结果与动作之间用一条发丝线分开，
+    动作固定在卡片底部，六种状态里位置不变。
+    所有颜色只消费 <code>tokens.css</code>，对比度用脚本逐对实算（见 07）。
+    顺带记下一条实算出的现状缺陷：遮罩在两种深色组合里比面板本身还亮（07 末条）。
+  </p>
+  <p style="margin-top:.5rem;color:#6b6b78">
+    尺寸与文案依据：<code>UpdatePanel.tsx</code> / <code>update-panel.css</code> 现状、<code>docs/DESIGN-LANGUAGE.md</code> §2.3 / §5.4、<code>docs/UI-AUDIT.md</code> §G。
+  </p>
+  <div class="skin-switch" role="group" aria-label="皮肤">
+    <button type="button" data-set-skin="refined" aria-pressed="true">A · Refined</button>
+    <button type="button" data-set-skin="protool" aria-pressed="false">B · Pro Tool</button>
+    <button type="button" data-set-skin="editorial" aria-pressed="false">C · Editorial</button>
+    <span style="width:1px;background:#2e2e36;margin-inline:.25rem" aria-hidden="true"></span>
+    <button type="button" data-set-theme="light" aria-pressed="true">明</button>
+    <button type="button" data-set-theme="dark" aria-pressed="false">暗</button>
+  </div>
+</header>
+
+<!-- ============================ 01 初始态（可交互） ============================ -->
+<section class="stage">
+  <p class="cap"><b>01</b> 初始态 · 还没检查 <span class="rule"></span> <span>可交互：点「检查更新」走完 idle → checking → 结果</span></p>
+
+  <div class="demo" role="group" aria-label="演示：下一次检查的结果">
+    <span>下一次检查的结果：</span>
+    <button type="button" data-outcome="available" aria-pressed="true">有新版本</button>
+    <button type="button" data-outcome="uptodate" aria-pressed="false">已是最新</button>
+    <button type="button" data-outcome="failed" aria-pressed="false">检查失败</button>
+  </div>
+
+  <div class="canvas">
+    <div class="panel" id="live" data-state="idle" role="dialog" aria-modal="true" aria-labelledby="live-title">
+      <h2 class="sr-only" id="live-title">检查更新</h2>
+      <div class="panel__head">
+        <button type="button" class="panel__close" aria-label="关闭" title="关闭">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="panel__body" role="status" aria-live="polite"></div>
+
+      <div class="panel__foot" data-foot></div>
+    </div>
+  </div>
+  <p class="demo-note" data-demo-note aria-live="polite">状态就绪。点下面的「检查更新」。</p>
+
+  <ul class="annot">
+    <li><b>400px，不是 520。</b>内容最多是「一句状态 + 一行版本 + 一个按钮」；520 宽会让卡片右半边常年空着。400 也与应用里 380px 的 <code>TaskDetailPanel</code> 同一尺度。</li>
+    <li><b>没有可见标题。</b>入口按钮已经叫「检查更新」，再做一个 17px 标题等于同一句话出现两次。对话框的无障碍名由隐藏的 <code>h2</code> 提供。</li>
+    <li><b>关闭是 28px 的安静图标</b>（16px 线、<code>--ink-3</code>、无底色），hover 才出现极浅底。现状的 44px 方块在视觉上和主按钮同重。</li>
+    <li><b>初始态只给「当前版本」。</b>「尚未检查」这类句子是噪音：卡片刚打开、还没结果，本身就是未检查的证据。</li>
+    <li><b>免责声明降为脚注</b>，12px、限宽 17rem、与按钮同一栏。它是一句旁注，不该和状态并列成一段正文。</li>
+    <li><b>动作固定在底栏</b>，与内容之间一条 <code>--hairline-soft</code>。六种状态里按钮都在同一个位置。</li>
+    <li><b>弹层用原生 <code>&lt;dialog&gt;</code> 呈现</b>（Esc 关闭、焦点陷阱、关闭后焦点回到侧栏刷新按钮），本稿只 styling 面。</li>
+  </ul>
+</section>
+
+<!-- ============================ 02 检查中 ============================ -->
+<section class="stage">
+  <p class="cap"><b>02</b> 检查中 · 进度感但不假装百分比 <span class="rule"></span> <span>动作栏整栏消失</span></p>
+
+  <div class="canvas">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="p2-title">
+      <h2 class="sr-only" id="p2-title">检查更新</h2>
+      <div class="panel__head">
+        <button type="button" class="panel__close" aria-label="关闭" title="关闭" tabindex="-1">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="panel__body" role="status" aria-live="polite">
+        <p class="check-line">正在检查…</p>
+        <div class="progress" role="progressbar" aria-label="正在检查更新" aria-valuetext="正在检查" aria-busy="true">
+          <span class="progress__bar"></span>
+        </div>
+      </div>
+      <div class="panel__foot" hidden></div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>不显示假百分比。</b>HTTP 请求没有可用的进度；写 60% 是编的。2px 的不确定条只表达「在动」。</li>
+    <li><b>检查中整栏动作消失</b>，而不是留一个禁用的主按钮。一个按不动的按钮在忙态里只会制造「是不是卡住了」的疑问；关闭仍在右上角，随时可以走。</li>
+    <li><b>只动 <code>transform</code></b>。条本身是一个 32% 宽的色段，在轨道里平移。</li>
+    <li><b><code>prefers-reduced-motion: reduce</code> 下整条进度条隐藏</b>，只留「正在检查…」—— 一个停在起点的条比没有条更误导。文字本身就在 live region 里，状态照样被播报。</li>
+    <li>检查落地后结果直接替换这一块，不做高度过渡：状态变了就是变了，动画只会拖慢阅读。</li>
+    <li><b>live region 上不放 <code>aria-busy</code>。</b><code>aria-busy="true"</code> 会让辅助技术推迟播报整块内容 —— 而「正在检查…」恰恰是要播报的那句话。忙态标记挂在进度条本身。</li>
+  </ul>
+</section>
+
+<!-- ============================ 03 已是最新 ============================ -->
+<section class="stage">
+  <p class="cap"><b>03</b> 已是最新 · 给结论，不给两行相同版本号 <span class="rule"></span> <span>零主按钮</span></p>
+
+  <div class="canvas">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="p3-title">
+      <h2 class="sr-only" id="p3-title">检查更新</h2>
+      <div class="panel__head">
+        <button type="button" class="panel__close" aria-label="关闭" title="关闭" tabindex="-1">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="panel__body" role="status" aria-live="polite">
+        <div class="status">
+          <svg class="status__icon status__icon--ok" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.2"/><path d="M5.3 8.2l1.9 1.9 3.5-3.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="status__text">
+            <p class="status__title status__title--ok">已是最新版本</p>
+            <p class="status__detail">当前 0.1.0</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel__foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn--ghost" tabindex="-1">再次检查</button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>「已是最新版本」必须留。</b>界面只摆一个「0.1.0」无法区分「刚查过、没有新版」和「还没查」；结论句是这次检查确实发生过的证据。</li>
+    <li><b>但它是一行结论，不是版本表下面的尾巴。</b>结论在上（14px/600/成功绿），版本退成 13px 的副行，「当前 0.1.0」而不是「当前版本 0.1.0」。</li>
+    <li><b>只显示一个版本号。</b>没有新版时，把「当前 0.1.0」和「清单 0.1.0」并排只会让人找不同。</li>
+    <li><b>没有任何主按钮。</b>这个状态没有「下一步」；「再次检查」是次要动作，用 ghost 放在右端。</li>
+    <li><b class="bad">旧文案「清单版本」是开发者词</b>（manifest），本稿一律不出现。</li>
+  </ul>
+</section>
+
+<!-- ============================ 04 有新版本 ============================ -->
+<section class="stage">
+  <p class="cap"><b>04</b> 有新版本 · 版本对比 + 一个真按钮 <span class="rule"></span> <span>不是一句「请从发布页下载」</span></p>
+
+  <div class="canvas">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="p4-title">
+      <h2 class="sr-only" id="p4-title">检查更新</h2>
+      <div class="panel__head">
+        <button type="button" class="panel__close" aria-label="关闭" title="关闭" tabindex="-1">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="panel__body" role="status" aria-live="polite">
+        <div class="hero">
+          <p class="hero__title">有新版本可用</p>
+          <p class="versions" aria-label="从 0.1.0 更新到 0.2.0">
+            <span class="versions__from">0.1.0</span>
+            <span class="versions__arrow" aria-hidden="true">→</span>
+            <span class="versions__to">0.2.0</span>
+          </p>
+          <p class="notes">修复了周视图在跨周拖动时的定位偏移；新增日程提醒的提前量设置；启动速度提升约 30%。</p>
+        </div>
+      </div>
+      <div class="panel__foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn--primary" tabindex="-1">前往下载</button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>给按钮，不给说明书。</b>「请从发布页下载并覆盖安装」要求用户复制一个 URL、找浏览器、再理解覆盖安装；这里是一个「前往下载」，点了用系统浏览器打开发布页。</li>
+    <li><b>为什么不是「自动下载」。</b><code>UpdateChecker</code> 端口只有 <code>fetchManifest</code> 和 <code>openReleasePage</code>，没有安装方法。画一个自动下载就是在承诺代码做不到的事。将来端口补齐后，<b>同一个位置</b>换成「下载并安装」+ 确定进度条，骨架不动。</li>
+    <li><b>版本对比是一行箭头。</b><code>0.1.0 → 0.2.0</code>：旧号小、灰；箭头更灰；新号 17px/600、tabular 数字。比两行 <code>dl</code> 快一眼。</li>
+    <li><b>「有新版本」是整个面板唯一用强调色的标题</b>，也是唯一的主按钮。其余状态要么零主按钮，要么主按钮是「重试」。</li>
+    <li><b>更新说明限 3 行</b>；更长的内容在发布页看，不在对话框里展开。</li>
+    <li><b>清单里没有发布页时</b>：主按钮不出现，说明改为「稍后重试」，版本对比保留 —— 不给一个点了没反应的按钮。</li>
+  </ul>
+</section>
+
+<!-- ============================ 05 检查失败 ============================ -->
+<section class="stage">
+  <p class="cap"><b>05</b> 检查失败 · 说清代价，给重试 <span class="rule"></span> <span>错误用 -ink 令牌</span></p>
+
+  <div class="canvas">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="p5-title">
+      <h2 class="sr-only" id="p5-title">检查更新</h2>
+      <div class="panel__head">
+        <button type="button" class="panel__close" aria-label="关闭" title="关闭" tabindex="-1">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="panel__body" role="alert">
+        <div class="status">
+          <svg class="status__icon status__icon--danger" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.2"/><path d="M8 4.9v3.6M8 11.1h.01" stroke-linecap="round"/>
+          </svg>
+          <div class="status__text">
+            <p class="status__title status__title--danger">检查失败</p>
+            <p class="status__detail">没能连接到更新服务，请检查网络后重试。</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel__foot">
+        <span class="spacer"></span>
+        <button type="button" class="btn btn--primary" tabindex="-1">重试</button>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>主按钮变成「重试」</b>，而不是继续显示「检查更新」。失败后同一个词会被读成「我刚才是不是没点上」。</li>
+    <li><b>一句话说清发生了什么 + 下一步</b>；不带 HTTP 状态码、不带异常文本。</li>
+    <li><b>四种失败各有各的话，共用一个骨架</b>：网络不可达 → 检查网络；返回内容无法识别 → 「更新服务返回的内容无法识别，请稍后再试」；源为空 / 格式不对 → 「此版本无法在线检查更新」。都落在同一张卡里。</li>
+    <li><b>颜色用 <code>--danger-ink</code>，不是 <code>--danger</code>。</b>原始色相作正文只有 3.1–3.6:1，<code>docs/UI-AUDIT.md</code> §G 记过这条；本稿的失败标题、图标都走 <code>-ink</code>。</li>
+    <li><b>错误没有造成任何数据损失，所以不需要二次确认</b>：重试是安全的，直接做。</li>
+  </ul>
+</section>
+
+<!-- ============================ 06 浏览器 / 不可用 ============================ -->
+<section class="stage">
+  <p class="cap"><b>06</b> 浏览器中不可用 · 兜底帧 <span class="rule"></span> <span>正式发布时入口直接隐藏</span></p>
+
+  <div class="canvas">
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="p6-title">
+      <h2 class="sr-only" id="p6-title">检查更新</h2>
+      <div class="panel__head">
+        <button type="button" class="panel__close" aria-label="关闭" title="关闭" tabindex="-1">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" aria-hidden="true">
+            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </button>
+      </div>
+      <div class="panel__body" role="status">
+        <div class="status">
+          <svg class="status__icon" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.2"/><path d="M8 7.3V11M8 5h.01" stroke-linecap="round"/>
+          </svg>
+          <div class="status__text">
+            <p class="status__title">在此环境中不可用</p>
+            <p class="status__detail">你正在浏览器中打开，这里连接不到应用的更新服务。桌面版可以正常检查更新。</p>
+          </div>
+        </div>
+      </div>
+      <div class="panel__foot" hidden></div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>正式发布里，这个入口直接不渲染。</b>一个点了只会解释「我不可用」的按钮，比没有按钮更糟 —— 它消耗一次点击、一次注意力，什么也没换来。侧栏的刷新图标在浏览器构建中隐藏。</li>
+    <li><b>这一帧仍然要画</b>：它是 <code>checker === null</code> 时的内部兜底（例如构建时漏配了更新地址、插件加载失败），此时入口可能已经出现，必须有一个说得通的落点。</li>
+    <li><b>文案对用户说话，不对开发者。</b>没有「dev 模式 / 浏览器环境 / tauri / 更新源配置」，只有「浏览器里连不到更新服务，桌面版可以」。</li>
+    <li><b>没有假动作。</b>这个环境里没有可用的 <code>openReleasePage</code>，所以不给「下载桌面版」按钮 —— 不给点了没反应的按钮。</li>
+    <li><b>没有「在线 / 离线」二选一。</b>那是给气隙部署留的后门，不是用户的决策；构建决定用哪条路。</li>
+  </ul>
+</section>
+
+<!-- ============================ 07 规格与对比度 ============================ -->
+<section class="stage">
+  <p class="cap"><b>07</b> 规格与对比度 <span class="rule"></span> <span>脚本实算，非估算</span></p>
+
+  <table class="spec">
+    <thead>
+      <tr>
+        <th>组合</th><th>主按钮<span style="font-weight:400"> / 填充</span></th><th>关闭图标</th>
+        <th>脚注</th><th>检查失败</th><th>已是最新</th><th>有新版本</th><th>进度条<span style="font-weight:400"> / 轨道</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>A · refined 明</td><td class="num">5.17</td><td class="num">4.65</td><td class="num">4.65</td><td class="num">5.62</td><td class="num">5.48</td><td class="num">5.17</td><td class="num">4.54</td></tr>
+      <tr><td>A · refined 暗</td><td class="num">5.03</td><td class="num">4.61</td><td class="num">4.61</td><td class="num">5.93</td><td class="num">8.56</td><td class="num">6.47</td><td class="num">5.09</td></tr>      <tr><td>B · protool 明</td><td class="num">5.37</td><td class="num">4.65</td><td class="num">4.65</td><td class="num">6.05</td><td class="num">6.96</td><td class="num">5.37</td><td class="num">4.75</td></tr>
+      <tr><td>B · protool 暗</td><td class="num">6.19</td><td class="num">4.64</td><td class="num">4.64</td><td class="num">6.08</td><td class="num">6.10</td><td class="num">5.67</td><td class="num">6.39</td></tr>
+      <tr><td>C · editorial 明</td><td class="num">5.36</td><td class="num">5.03</td><td class="num">5.03</td><td class="num">6.19</td><td class="num">6.78</td><td class="num">5.36</td><td class="num">4.63</td></tr>
+      <tr><td>C · editorial 暗</td><td class="num">6.30</td><td class="num">4.63</td><td class="num">4.63</td><td class="num">6.19</td><td class="num">5.93</td><td class="num">5.84</td><td class="num">6.63</td></tr>
+    </tbody>
+  </table>
+
+  <ul class="annot">
+    <li><b>全部通过</b>：文字 ≥ 4.5，非文字（关闭图标、焦点环、进度条）≥ 3.0。</li>
+    <li><b>刻意避开的三个近失点</b>：<code>--ink-2</code> 落在 <code>--bg-sunken</code> 上只有 <b>4.46</b>（A 明），所以次要文字从不上下沉底；<code>--ink-3</code> 落在 <code>--bg-subtle</code> 上 A 明 4.46 / B 明 4.26，所以脚注放在 surface 而不是 subtle；<code>--hairline-strong</code> 对 surface 只有 1.28–1.53，所以边界永远不单独承担「这是控件」的职责，关闭靠图标、按钮靠填充与墨色。</li>
+    <li><b>进度条</b>是状态指示图形，按 3:1 校验；色段用 <code>--accent-strong</code>（与主按钮同一填充，A 明 4.54:1），轨道用 <code>--bg-sunken</code>。裸 <code>--accent</code> 在 A 明只有 3.23:1，离下限太近，不用。</li>
+    <li><b>尺寸</b>：面板 400 / 圆角 <code>--radius-xl</code> / 内边距 20 / 关闭 28×28 / 按钮 32 高 / 版本新号 17px。</li>
+    <li><b class="bad">现状的遮罩有一个真缺陷（本稿没改实现，只记录）</b>：<code>update-panel.css:20-25</code> 用 <code>--tl-pill-bg</code> 52% 当 <code>::backdrop</code>，它是固定的深色，于是 —— A/refined 暗：遮罩 rgb(41,41,42) 比面板 rgb(31,31,33) <b>更亮</b>，层次反转；C/editorial 暗同样是 1.00:1 的反转；C/editorial 明则是遮罩 ≈ 纸面（1.04:1），几乎看不出有一层遮罩。修法是一个与主题无关的中性叠色（如 <code>rgb(0 0 0 / .5)</code> 左右），六种组合下面板都恒在遮罩之上。</li>
+  </ul>
+</section>
+
+<script>
+/* ---- 皮肤 · 明暗 ---- */
+document.querySelectorAll('[data-set-skin]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-skin', btn.getAttribute('data-set-skin'));
+    document.querySelectorAll('[data-set-skin]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-theme', btn.getAttribute('data-set-theme'));
+    document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+
+/* ============================================================================
+   01 活面板：idle → checking → 结果
+   ========================================================================== */
+(function () {
+  var panel = document.getElementById('live');
+  var body = panel.querySelector('.panel__body');
+  var foot = panel.querySelector('[data-foot]');
+  var note = document.querySelector('[data-demo-note]');
+  var closeBtn = panel.querySelector('.panel__close');
+  var outcome = 'available';
+  var timer = null;
+
+  var ICONS = {
+    ok: '<svg class="status__icon status__icon--ok" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M5.3 8.2l1.9 1.9 3.5-3.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    danger: '<svg class="status__icon status__icon--danger" viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.2"/><path d="M8 4.9v3.6M8 11.1h.01" stroke-linecap="round"/></svg>'
+  };
+
+  function say(msg) { note.textContent = msg; }
+
+  function renderIdle() {
+    panel.dataset.state = 'idle';
+    body.innerHTML =
+      '<p class="meta"><span class="meta__k">当前版本</span><span class="meta__v">0.1.0</span></p>';
+    foot.hidden = false;
+    foot.innerHTML =
+      '<p class="fineprint">只读取版本清单，你的任务与日程不会离开这台电脑。</p>' +
+      '<span class="spacer"></span>' +
+      '<button type="button" class="btn btn--primary" data-check>检查更新</button>';
+  }
+
+  function renderChecking() {
+    panel.dataset.state = 'checking';
+    body.innerHTML =
+      '<p class="check-line">正在检查…</p>' +
+      '<div class="progress" role="progressbar" aria-label="正在检查更新" aria-valuetext="正在检查">' +
+        '<span class="progress__bar"></span>' +
+      '</div>';
+    foot.hidden = true;
+    foot.innerHTML = '';
+  }
+
+  function renderDone(kind) {
+    panel.dataset.state = 'done';
+
+    if (kind === 'uptodate') {
+      body.innerHTML =
+        '<div class="status">' + ICONS.ok +
+          '<div class="status__text">' +
+            '<p class="status__title status__title--ok">已是最新版本</p>' +
+            '<p class="status__detail">当前 0.1.0</p>' +
+          '</div>' +
+        '</div>';
+      foot.hidden = false;
+      foot.innerHTML = '<span class="spacer"></span>' +
+        '<button type="button" class="btn btn--ghost" data-check>再次检查</button>';
+      return;
+    }
+
+    if (kind === 'failed') {
+      body.innerHTML =
+        '<div class="status">' + ICONS.danger +
+          '<div class="status__text">' +
+            '<p class="status__title status__title--danger">检查失败</p>' +
+            '<p class="status__detail">没能连接到更新服务，请检查网络后重试。</p>' +
+          '</div>' +
+        '</div>';
+      foot.hidden = false;
+      foot.innerHTML = '<span class="spacer"></span>' +
+        '<button type="button" class="btn btn--primary" data-retry>重试</button>';
+      return;
+    }
+
+    body.innerHTML =
+      '<div class="hero">' +
+        '<p class="hero__title">有新版本可用</p>' +
+        '<p class="versions" aria-label="从 0.1.0 更新到 0.2.0">' +
+          '<span class="versions__from">0.1.0</span>' +
+          '<span class="versions__arrow" aria-hidden="true">→</span>' +
+          '<span class="versions__to">0.2.0</span>' +
+        '</p>' +
+        '<p class="notes">修复了周视图在跨周拖动时的定位偏移；新增日程提醒的提前量设置；启动速度提升约 30%。</p>' +
+      '</div>';
+    foot.hidden = false;
+    foot.innerHTML = '<span class="spacer"></span>' +
+      '<button type="button" class="btn btn--primary" data-download>前往下载</button>';
+  }
+
+  function start(kind) {
+    if (timer !== null) return;
+    renderChecking();
+    say('正在检查…（演示：约 0.9 秒）');
+    timer = setTimeout(function () {
+      timer = null;
+      renderDone(kind);
+      say(kind === 'uptodate' ? '结果：已是最新版本。'
+        : kind === 'failed' ? '结果：检查失败，可重试。'
+        : '结果：有新版本可用，主按钮为「前往下载」。');
+    }, 900);
+  }
+
+  panel.addEventListener('click', function (e) {
+    var t = e.target.closest ? e.target.closest('button') : null;
+    if (!t) return;
+
+    if (t.hasAttribute('data-check')) { start(outcome); return; }
+    if (t.hasAttribute('data-retry')) { start('failed'); return; }
+    if (t.hasAttribute('data-download')) {
+      say('演示：调用系统浏览器打开该版本的发布页（不会在稿子里真跳转）。');
+      return;
+    }
+    if (t === closeBtn) {
+      say('关闭对话框：原生 <dialog> 会把焦点交回侧栏的刷新按钮。');
+      return;
+    }
+  });
+
+  document.querySelectorAll('[data-outcome]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      outcome = btn.getAttribute('data-outcome');
+      document.querySelectorAll('[data-outcome]').forEach(function (b) {
+        b.setAttribute('aria-pressed', String(b === btn));
+      });
+      /* Already showing a result? Re-run so the choice is observable without
+         having to hunt for a button the chosen state may not have. */
+      var st = panel.dataset.state;
+      if (st === 'done' || st === 'idle') {
+        start(outcome);
+      } else {
+        say('下一次检查将返回：' + btn.textContent + '。');
+      }
+    });
+  });
+
+  /* Esc 在真实实现里由原生 dialog 处理；稿子里让它回到初始态。 */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (!panel.contains(document.activeElement) && document.activeElement !== document.body) return;
+    renderIdle();
+    say('Esc 关闭（演示：已回到初始态）。');
+  });
+
+  renderIdle();
+})();
+</script>
+</body>
+</html>

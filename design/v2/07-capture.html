@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 捕获条</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+  body {
+    margin: 0;
+    background: var(--bg-app);
+    color: var(--ink-1);
+    font: var(--text-md)/1.5 var(--font-sans);
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .topbar__sub { color: var(--ink-quiet); font-size: var(--text-sm); }
+  .topbar__actions { padding-inline-end: 13rem; /* clear the fixed demo bar */ }
+
+  /* ---------- 版式 ---------- */
+  .sheet {
+    max-inline-size: 76rem;
+    margin: 0 auto;
+    padding-block-end: var(--sp-10);
+  }
+  .intro {
+    margin: 0 0 var(--sp-6);
+    max-inline-size: 56rem;
+    color: var(--ink-2);
+    font-size: var(--text-md);
+    line-height: 1.7;
+  }
+  .intro b { color: var(--ink-1); }
+  .intro code {
+    padding: 1px 5px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-sunken);
+    color: var(--ink-1);
+    font-size: var(--text-sm);
+  }
+
+  .state {
+    margin-block-end: var(--sp-6);
+  }
+  .state__head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-3);
+    margin-block-end: var(--sp-2);
+  }
+  .state__tag {
+    display: inline-grid;
+    place-items: center;
+    inline-size: 20px;
+    block-size: 20px;
+    flex: none;
+    border-radius: var(--radius-xs);
+    background: var(--ink-1);
+    color: var(--bg-surface);
+    font-size: var(--text-xs);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    translate: 0 -2px;
+  }
+  .state__title {
+    margin: 0;
+    font-size: var(--text-lg);
+    font-weight: 600;
+  }
+  .state__hint {
+    color: var(--ink-quiet);
+    font-size: var(--text-sm);
+  }
+  .canvas {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    padding: var(--sp-8) var(--sp-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-xl);
+    background: var(--bg-subtle);
+  }
+  .canvas--tall { min-block-size: 25rem; align-items: flex-start; }
+  /* 高度按浮层占位预留：浮层是绝对定位，不撑开父级；
+     不给画布留够高度，下面的段落会叠到日历上。 */
+  .canvas--pop { min-block-size: 43rem; padding-block-end: var(--sp-10); }
+
+  /* ---------- 捕获条本体 ---------- */
+  .capbar {
+    position: relative;
+    inline-size: 35rem; /* 560px */
+    max-inline-size: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-xl);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-lg);
+  }
+  .capbar__title {
+    appearance: none;
+    display: block;
+    inline-size: 100%;
+    min-block-size: 4.4375rem; /* 71px = 两行 + 内边距 */
+    max-block-size: 11rem;
+    padding: var(--sp-1) 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-1);
+    font: inherit;
+    font-size: var(--text-lg);
+    font-weight: 500;
+    line-height: 1.4;
+    resize: none;
+    overflow-y: auto;
+    /* A two-row textarea with no second line of text still measures 71px.
+       A bare textarea collapsed to 38px in the screenshots because rows only
+       affect intrinsic height, not `block-size`. This keeps the reserved shape
+       the SPEC asks for (71px) in every state, empty or filled. */
+    block-size: 4.4375rem;
+  }
+  .capbar__title::placeholder { color: var(--ink-quiet); font-weight: 400; }
+  .capbar__title:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+    border-radius: var(--radius-sm);
+  }
+  .capbar__error {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--sp-1);
+    margin: calc(var(--sp-1) * -1) 0 0;
+    color: var(--danger-ink);
+    font-size: var(--text-sm);
+    line-height: 1.45;
+  }
+  .capbar__error[hidden] { display: none; }
+  .capbar__error svg { flex: none; translate: 0 2px; }
+
+  .capbar__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+  }
+  .meta__label {
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+
+  /* 时间 chip：展开后是同一套六档 */
+  .timechip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--ink-1);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .timechip:hover { background: var(--bg-hover); }
+  .timechip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .timechip[aria-expanded="true"] {
+    border-color: var(--accent-ink);
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+  }
+  .timechip svg { flex: none; }
+
+  /* 象限 chips：一行四个 */
+  .quads {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--sp-1);
+  }
+  .qchip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    min-inline-size: 0;
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    cursor: pointer;
+    --q-tint: transparent;
+    --q-ink: var(--ink-2);
+  }
+  .qchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .qchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .qchip[data-q="1"] { --q-tint: var(--q1-t); --q-ink: var(--q1-i); }
+  .qchip[data-q="2"] { --q-tint: var(--q2-t); --q-ink: var(--q2-i); }
+  .qchip[data-q="3"] { --q-tint: var(--q3-t); --q-ink: var(--q3-i); }
+  .qchip[data-q="4"] { --q-tint: var(--q4-t); --q-ink: var(--q4-i); }
+  .qchip[aria-checked="true"] {
+    border-color: var(--q-ink);
+    background: var(--q-tint);
+    color: var(--q-ink);
+    font-weight: 600;
+  }
+  .qdot {
+    inline-size: 6px;
+    block-size: 6px;
+    flex: none;
+    border-radius: 50%;
+  }
+  .qdot[data-q="1"] { background: var(--q1); }
+  .qdot[data-q="2"] { background: var(--q2); }
+  .qdot[data-q="3"] { background: var(--q3); }
+  .qdot[data-q="4"] { background: var(--q4); }
+
+  .capbar__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding-block-start: var(--sp-1);
+  }
+  .listchip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-2);
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+  }
+  .listchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .listchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .listchip__dot {
+    inline-size: 6px;
+    block-size: 6px;
+    flex: none;
+    border-radius: 50%;
+  }
+  .capbar__submit { margin-inline-start: auto; min-inline-size: 4.5rem; }
+  /* 禁用态：地面 sunken、墨 --ink-quiet，opacity 保持 1。
+     shared.css 的 .btn:disabled 用 --ink-2，压在 sunken 上 refined/light 只有
+     4.46，刚好差 0.04；--ink-quiet 在六个组合是 5.4–7.0。仍然是「颜色变化，
+     不是淡出」，只是把墨从 2 级提到 quiet 一级。 */
+  .capbar__submit.btn--primary:disabled {
+    opacity: 1;
+    background: var(--bg-sunken);
+    color: var(--ink-quiet);
+  }
+
+  /* ---------- 时间浮层 ---------- */
+  .popover {
+    position: absolute;
+    z-index: var(--z-popover);
+    inset-block-start: calc(100% + 6px);
+    inset-inline-start: var(--sp-3);
+    inline-size: 22rem;
+    padding: var(--sp-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-lg);
+  }
+  .popover[hidden] { display: none; }
+  .popover__label {
+    margin: 0 0 var(--sp-2);
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+  .presets {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--sp-1);
+    margin-block-end: var(--sp-3);
+  }
+  .preset {
+    appearance: none;
+    block-size: var(--control-h);
+    padding: 0 var(--sp-1);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .preset:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .preset:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .preset[aria-pressed="true"] {
+    border-color: var(--accent-ink);
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+
+  .minihead {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin-block-end: var(--sp-1);
+  }
+  .minihead__label {
+    flex: 1;
+    text-align: center;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .mininav {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    inline-size: 24px;
+    block-size: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .mininav:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .mininav:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .minidow,
+  .minigrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .minidow { margin-block-end: 2px; }
+  .minidow span {
+    text-align: center;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.8;
+  }
+  .miniday {
+    appearance: none;
+    block-size: 26px;
+    min-inline-size: 0;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-1);
+    font: inherit;
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .miniday:hover { background: var(--bg-hover); }
+  .miniday:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+  .miniday--out { color: var(--ink-quiet); }
+  .miniday--today { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .miniday--sel {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+
+  /* ---------- Ctrl+N 在不同视图 ---------- */
+  .views {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-4);
+  }
+  .miniframe {
+    padding: var(--sp-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    background: var(--bg-subtle);
+  }
+  .miniframe__cap {
+    margin: var(--sp-3) 0 0;
+    color: var(--ink-quiet);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+  }
+  .miniframe__cap b { color: var(--ink-1); font-weight: 600; }
+  .miniframe__top {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-block-end: var(--sp-2);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .kbd {
+    display: inline-block;
+    padding: 0 4px;
+    border: 1px solid var(--hairline-strong);
+    border-block-end-width: 2px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-surface);
+    color: var(--ink-2);
+    font-size: 10px;
+    line-height: 1.5;
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-1);
+  }
+  .board__cell {
+    min-block-size: 58px;
+    padding: var(--sp-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--bg-surface);
+  }
+  .board__head {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-block-end: var(--sp-1);
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+  }
+  .board__line {
+    block-size: 6px;
+    margin-block-start: 5px;
+    border-radius: 999px;
+    background: var(--bg-sunken);
+  }
+  .board__line--short { inline-size: 62%; }
+  .board__line--mid { inline-size: 80%; }
+
+  .calmini { display: flex; flex-direction: column; gap: 2px; }
+  .calmini__head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-block-end: var(--sp-1);
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+  .calmini__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .calmini__cell {
+    display: grid;
+    place-items: center;
+    block-size: 22px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+  }
+  .calmini__cell--today {
+    border-color: var(--accent);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .calmini__cell--sel {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+  .calmini__cursor {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-block-start: var(--sp-2);
+    padding: 2px var(--sp-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-full);
+    background: var(--bg-surface);
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+  }
+
+  .kv {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+  .kv th,
+  .kv td {
+    padding: var(--sp-2) var(--sp-2);
+    border-block-end: 1px solid var(--hairline);
+    text-align: start;
+    vertical-align: top;
+  }
+  .kv tr:last-child td { border-block-end: 0; }
+  .kv th {
+    color: var(--ink-quiet);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+  .kv td { color: var(--ink-1); }
+  .kv td code {
+    padding: 0 4px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-sunken);
+    font-size: var(--text-xs);
+  }
+  .kv td:first-child { white-space: nowrap; color: var(--ink-1); font-weight: 500; }
+
+  .notes {
+    margin: var(--sp-4) 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--sp-2);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.6;
+  }
+  .notes li { padding-inline-start: var(--sp-3); position: relative; }
+  .notes li::before {
+    content: "";
+    position: absolute;
+    inset-block-start: .6em;
+    inset-inline-start: 0;
+    inline-size: 5px;
+    block-size: 5px;
+    border-radius: 50%;
+    background: var(--ink-4);
+  }
+  .notes b { color: var(--ink-1); font-weight: 600; }
+
+  .sec-title {
+    margin: var(--sp-8) 0 var(--sp-1);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .sec-title:first-of-type { margin-block-start: var(--sp-6); }
+  .sec-lede {
+    margin: 0 0 var(--sp-3);
+    color: var(--ink-quiet);
+    font-size: var(--text-sm);
+  }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+<div class="app app--wide">
+
+  <nav class="rail" aria-label="主导航">
+    <span class="rail__avatar" aria-hidden="true">K</span>
+    <div class="rail__group">
+      <button type="button" class="rail__item" aria-current="page" aria-label="所有事情">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button type="button" class="rail__item" aria-label="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">捕获条</h1>
+      <span class="topbar__sub">Ctrl+N · 全局唯一的新建入口 · 不选类型</span>
+      <div class="topbar__actions"></div>
+    </header>
+
+    <div class="content">
+      <div class="sheet">
+        <p class="intro">
+          一个入口，一件事。<b>没有任务 / 日程的类型开关</b>——捕获时只回答两个可省的问题：
+          什么时候、多要紧。都不回答也能提交，那正是「不限」。
+          下面三种状态是同一根条：<b>A 默认</b>、<b>B 时间展开</b>、<b>C 提交失败</b>。
+        </p>
+
+        <!-- ============ A 默认 ============ -->
+        <section class="state" aria-labelledby="sA">
+          <div class="state__head">
+            <span class="state__tag" aria-hidden="true">A</span>
+            <h2 class="state__title" id="sA">默认</h2>
+            <span class="state__hint">Ctrl+N 打开。光标在标题里，回车提交。</span>
+          </div>
+          <div class="canvas">
+            <div class="capbar" data-state="a" role="dialog" aria-modal="false" aria-label="快速添加">
+              <label class="visually-hidden" for="titleA">要做什么？</label>
+              <textarea class="capbar__title" id="titleA" rows="2" placeholder="要做什么？"></textarea>
+
+              <div class="capbar__meta">
+                <span class="meta__label">时间</span>
+                <button type="button" class="timechip" data-role="timechip" aria-expanded="false" aria-haspopup="dialog">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                  <span data-role="timelabel">不限</span>
+                </button>
+              </div>
+
+              <div class="quads" role="radiogroup" aria-label="象限">
+                <button type="button" class="qchip" role="radio" aria-checked="false" data-q="1"><span class="qdot" data-q="1" aria-hidden="true"></span>重要且紧急</button>
+                <button type="button" class="qchip" role="radio" aria-checked="false" data-q="2"><span class="qdot" data-q="2" aria-hidden="true"></span>重要不紧急</button>
+                <button type="button" class="qchip" role="radio" aria-checked="false" data-q="3"><span class="qdot" data-q="3" aria-hidden="true"></span>不重要但紧急</button>
+                <button type="button" class="qchip" role="radio" aria-checked="true" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
+              </div>
+
+              <div class="capbar__foot">
+                <button type="button" class="listchip">
+                  <span class="listchip__dot" data-role="listdot" aria-hidden="true"></span>
+                  <span data-role="listname">收集箱</span>
+                </button>
+                <button type="button" class="btn btn--primary capbar__submit" data-role="submit" disabled>添加</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ B / C ============ -->
+        <div class="duo" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1.5rem">
+          <!-- ---------- B 时间展开 ---------- -->
+          <section class="state" aria-labelledby="sB">
+            <div class="state__head">
+              <span class="state__tag" aria-hidden="true">B</span>
+              <h2 class="state__title" id="sB">时间展开</h2>
+              <span class="state__hint">六档预设 + 具体某一天</span>
+            </div>
+            <div class="canvas canvas--tall canvas--pop">
+              <div class="capbar" data-state="b" role="dialog" aria-modal="false" aria-label="快速添加">
+                <label class="visually-hidden" for="titleB">要做什么？</label>
+                <textarea class="capbar__title" id="titleB" rows="2" placeholder="要做什么？">整理季度报表</textarea>
+
+                <div class="capbar__meta">
+                  <span class="meta__label">时间</span>
+                  <button type="button" class="timechip" data-role="timechip" aria-expanded="true" aria-haspopup="dialog">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                    <span data-role="timelabel">今天</span>
+                  </button>
+                </div>
+
+                <div class="quads" role="radiogroup" aria-label="象限">
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="1"><span class="qdot" data-q="1" aria-hidden="true"></span>重要且紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="2"><span class="qdot" data-q="2" aria-hidden="true"></span>重要不紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="3"><span class="qdot" data-q="3" aria-hidden="true"></span>不重要但紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="true" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
+                </div>
+
+                <div class="capbar__foot">
+                  <button type="button" class="listchip">
+                    <span class="listchip__dot" data-role="listdot" aria-hidden="true"></span>
+                    <span data-role="listname">收集箱</span>
+                  </button>
+                  <button type="button" class="btn btn--primary capbar__submit" data-role="submit">添加</button>
+                </div>
+
+                <div class="popover" data-role="popover" role="dialog" aria-label="选择时间">
+                  <p class="popover__label">什么时候</p>
+                  <div class="presets" role="group" aria-label="时间预设">
+                    <button type="button" class="preset" data-preset="today" aria-pressed="true">今天</button>
+                    <button type="button" class="preset" data-preset="tomorrow" aria-pressed="false">明天</button>
+                    <button type="button" class="preset" data-preset="week" aria-pressed="false">本周</button>
+                    <button type="button" class="preset" data-preset="month" aria-pressed="false">下个月</button>
+                    <button type="button" class="preset" data-preset="time" aria-pressed="false">具体时刻</button>
+                    <button type="button" class="preset" data-preset="none" aria-pressed="false">不限</button>
+                  </div>
+
+                  <div class="minihead">
+                    <button type="button" class="mininav" data-nav="-1" aria-label="上个月">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span class="minihead__label" data-role="calmonth">2026年11月</span>
+                    <button type="button" class="mininav" data-nav="1" aria-label="下个月">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                  <div class="minidow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+                  <div class="minigrid" data-role="calgrid"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- ---------- C 提交失败 ---------- -->
+          <section class="state" aria-labelledby="sC">
+            <div class="state__head">
+              <span class="state__tag" aria-hidden="true">C</span>
+              <h2 class="state__title" id="sC">提交失败</h2>
+              <span class="state__hint">内容一个字不丢</span>
+            </div>
+            <div class="canvas canvas--tall">
+              <div class="capbar" data-state="c" role="dialog" aria-modal="false" aria-label="快速添加">
+                <label class="visually-hidden" for="titleC">要做什么？</label>
+                <textarea class="capbar__title" id="titleC" rows="2" placeholder="要做什么？">跟进合同签署</textarea>
+
+                <p class="capbar__error" data-role="error">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+                  <span>保存失败，内容已保留。</span>
+                </p>
+
+                <div class="capbar__meta">
+                  <span class="meta__label">时间</span>
+                  <button type="button" class="timechip" data-role="timechip" aria-expanded="false" aria-haspopup="dialog">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                    <span data-role="timelabel">明天</span>
+                  </button>
+                </div>
+
+                <div class="quads" role="radiogroup" aria-label="象限">
+                  <button type="button" class="qchip" role="radio" aria-checked="true" data-q="1"><span class="qdot" data-q="1" aria-hidden="true"></span>重要且紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="2"><span class="qdot" data-q="2" aria-hidden="true"></span>重要不紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="3"><span class="qdot" data-q="3" aria-hidden="true"></span>不重要但紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
+                </div>
+
+                <div class="capbar__foot">
+                  <button type="button" class="listchip">
+                    <span class="listchip__dot" data-role="listdot" aria-hidden="true"></span>
+                    <span data-role="listname">工作</span>
+                  </button>
+                  <button type="button" class="btn btn--primary capbar__submit" data-role="submit">重试</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <!-- ============ Ctrl+N 在不同视图 ============ -->
+        <h2 class="sec-title">Ctrl+N 在不同视图</h2>
+        <p class="sec-lede">同一个入口，唯一变的是「时间」这一格——它替你把当前上下文的日期填好。</p>
+
+        <div class="views">
+          <div class="miniframe">
+            <div class="miniframe__top">四象限板 <span class="kbd">Ctrl</span><span class="kbd">N</span></div>
+            <div class="board" aria-hidden="true">
+              <div class="board__cell">
+                <div class="board__head"><span class="qdot" data-q="1"></span>重要且紧急</div>
+                <div class="board__line"></div>
+                <div class="board__line board__line--short"></div>
+              </div>
+              <div class="board__cell">
+                <div class="board__head"><span class="qdot" data-q="2"></span>重要不紧急</div>
+                <div class="board__line"></div>
+                <div class="board__line board__line--mid"></div>
+              </div>
+              <div class="board__cell">
+                <div class="board__head"><span class="qdot" data-q="3"></span>不重要但紧急</div>
+                <div class="board__line board__line--short"></div>
+              </div>
+              <div class="board__cell">
+                <div class="board__head"><span class="qdot" data-q="4"></span>不重要不紧急</div>
+                <div class="board__line"></div>
+              </div>
+            </div>
+            <p class="miniframe__cap">
+              捕获的是一条<b>不限时间</b>的事，落在当前清单与当前象限。
+              板上先建起来，需要日期时再补——不在捕获时逼你选。
+            </p>
+          </div>
+
+          <div class="miniframe">
+            <div class="miniframe__top">月视图 <span class="kbd">Ctrl</span><span class="kbd">N</span></div>
+            <div class="calmini" aria-hidden="true">
+              <div class="calmini__head">2026年11月</div>
+              <div class="calmini__grid">
+                <span class="calmini__cell">23</span><span class="calmini__cell">24</span><span class="calmini__cell">25</span>
+                <span class="calmini__cell calmini__cell--sel">26</span><span class="calmini__cell">27</span><span class="calmini__cell">28</span><span class="calmini__cell">29</span>
+                <span class="calmini__cell">30</span><span class="calmini__cell">1</span><span class="calmini__cell">2</span>
+                <span class="calmini__cell">3</span><span class="calmini__cell">4</span><span class="calmini__cell">5</span><span class="calmini__cell">6</span>
+              </div>
+              <span class="calmini__cursor">点 26 号 → 时间填「今天 · 11月26日」</span>
+            </div>
+            <p class="miniframe__cap">
+              在日历上按 Ctrl+N，<b>时间默认是你点的那一天</b>；从别处按，默认是今天。
+              这是唯一一处上下文替你填时间。
+            </p>
+          </div>
+        </div>
+
+        <table class="kv" style="margin-block-start:1.5rem">
+          <thead>
+            <tr><th scope="col">视图</th><th scope="col">时间默认值</th><th scope="col">提交后落到哪里</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>四象限板</td><td><code>不限</code></td><td>当前清单，进所选象限</td></tr>
+            <tr><td>平铺清单</td><td><code>不限</code></td><td>当前清单，进所选象限</td></tr>
+            <tr><td>月视图</td><td>你点的那一天 → <code>某一天</code></td><td>那一天，格子里出现</td></tr>
+            <tr><td>周 / 日视图</td><td>你点的那一格时刻 → <code>具体时刻</code></td><td>当天该时刻，时间轴上出现</td></tr>
+            <tr><td>搜索 / 设置</td><td><code>不限</code></td><td>默认清单</td></tr>
+          </tbody>
+        </table>
+
+        <ul class="notes">
+          <li><b>没有类型开关。</b>ADR 0004 §1：用户不回答「任务还是日程」。捕获时唯一的可选结构是时间说到多细。</li>
+          <li><b>主按钮一开始是禁用的。</b>禁用是颜色不是淡出：地面 <code>--bg-sunken</code>、墨 <code>--ink-2</code>，<code>opacity</code> 保持 1。</li>
+          <li><b>失败时按钮变成「重试」。</b>不是还写着「添加」让人怀疑刚才点没点上。标题、时间、象限、清单全部原样保留。</li>
+          <li><b>时间浮层与详情面板是同一套六档。</b>选择器长什么样见 <code>08-time-picker.html</code>。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var K = window.Kairos;
+  if (!K) return;
+
+  var WEEK_START = K.WEEK_START;
+  var TODAY = K.TODAY;
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function labelFor(state) {
+    switch (state.kind) {
+      case 'today': return K.rungLabel({ rung: 'day', date: TODAY });
+      case 'tomorrow': return K.rungLabel({ rung: 'day', date: K.addDays(TODAY, 1) });
+      case 'week': return K.rungLabel({ rung: 'week', date: WEEK_START });
+      case 'month': return K.rungLabel({ rung: 'month', date: '2026-12-01' });
+      case 'time': return K.rungLabel({ rung: 'time', date: state.date || TODAY, time: state.time || '15:00' });
+      case 'day': return K.rungLabel({ rung: 'day', date: state.date });
+      default: return '不限';
+    }
+  }
+
+  function listDot(root, color) {
+    root.querySelectorAll('[data-role="listdot"]').forEach(function (n) { n.style.background = color; });
+  }
+  K.LISTS.forEach(function (l) {
+    if (l.id === 'inbox') {
+      document.querySelectorAll('.capbar').forEach(function (b) { listDot(b, l.color); });
+    }
+  });
+  // 状态 C 的清单是「工作」，单独上色
+  var cBar = document.querySelector('.capbar[data-state="c"]');
+  if (cBar) {
+    var work = K.LISTS.filter(function (l) { return l.id === 'work'; })[0];
+    if (work) listDot(cBar, work.color);
+  }
+
+  /* ---------- A · 默认 ---------- */
+  var aBar = document.querySelector('.capbar[data-state="a"]');
+  var aTitle = aBar.querySelector('.capbar__title');
+  var aSubmit = aBar.querySelector('[data-role="submit"]');
+  aTitle.addEventListener('input', function () {
+    aSubmit.disabled = aTitle.value.trim() === '';
+  });
+  aBar.querySelectorAll('.qchip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      aBar.querySelectorAll('.qchip').forEach(function (c) { c.setAttribute('aria-checked', String(c === chip)); });
+    });
+  });
+
+  /* ---------- B · 时间展开 ---------- */
+  var bBar = document.querySelector('.capbar[data-state="b"]');
+  var bChip = bBar.querySelector('[data-role="timechip"]');
+  var bLabel = bBar.querySelector('[data-role="timelabel"]');
+  var bPop = bBar.querySelector('[data-role="popover"]');
+  var bGrid = bBar.querySelector('[data-role="calgrid"]');
+  var bMonthLabel = bBar.querySelector('[data-role="calmonth"]');
+  var bState = { kind: 'today', date: TODAY, time: '15:00' };
+  var bView = new Date(2026, 10, 1);
+
+  function syncChip() {
+    bLabel.textContent = labelFor(bState);
+    bBar.querySelectorAll('.preset').forEach(function (p) {
+      var map = { today: 'today', tomorrow: 'tomorrow', week: 'week', month: 'month', time: 'time', none: 'none' };
+      var key = p.getAttribute('data-preset');
+      var on = key === 'time' ? bState.kind === 'time'
+             : key === 'none' ? bState.kind === 'none'
+             : bState.kind === key;
+      p.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function renderCal() {
+    var y = bView.getFullYear();
+    var m = bView.getMonth();
+    bMonthLabel.textContent = y + '年' + (m + 1) + '月';
+    var first = new Date(y, m, 1);
+    var offset = (first.getDay() + 6) % 7;
+    var start = new Date(y, m, 1 - offset);
+    var html = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var ds = K.fmt(d);
+      var out = d.getMonth() !== m;
+      var sel = (bState.kind === 'day' || bState.kind === 'today') && ds === bState.date;
+      if (bState.kind === 'today' && ds === TODAY) sel = true;
+      var cls = 'miniday' + (out ? ' miniday--out' : '') +
+        (ds === TODAY ? ' miniday--today' : '') + (sel ? ' miniday--sel' : '');
+      html += '<button type="button" class="' + cls + '" data-day="' + ds + '" aria-pressed="' + sel + '">' + d.getDate() + '</button>';
+    }
+    bGrid.innerHTML = html;
+  }
+
+  function openPop(open) {
+    bPop.hidden = !open;
+    bChip.setAttribute('aria-expanded', String(open));
+  }
+  openPop(true);
+  renderCal();
+  syncChip();
+
+  bChip.addEventListener('click', function () {
+    openPop(bPop.hidden);
+    if (!bPop.hidden) renderCal();
+  });
+
+  bBar.querySelector('.presets').addEventListener('click', function (e) {
+    var p = e.target.closest('.preset');
+    if (!p) return;
+    var key = p.getAttribute('data-preset');
+    if (key === 'none') bState = { kind: 'none' };
+    else if (key === 'week') bState = { kind: 'week' };
+    else if (key === 'month') bState = { kind: 'month' };
+    else if (key === 'today') bState = { kind: 'today', date: TODAY };
+    else if (key === 'tomorrow') bState = { kind: 'tomorrow', date: K.addDays(TODAY, 1) };
+    else if (key === 'time') bState = { kind: 'time', date: TODAY, time: '15:00' };
+    syncChip();
+    openPop(false); /* 选完就收起 —— 一个预设就是一个决定 */
+  });
+
+  bBar.querySelectorAll('.mininav').forEach(function (nav) {
+    nav.addEventListener('click', function () {
+      var dir = +nav.getAttribute('data-nav');
+      bView = new Date(bView.getFullYear(), bView.getMonth() + dir, 1);
+      renderCal();
+    });
+  });
+
+  bGrid.addEventListener('click', function (e) {
+    var day = e.target.closest('[data-day]');
+    if (!day) return;
+    bState = { kind: 'day', date: day.getAttribute('data-day') };
+    syncChip();
+    openPop(false); /* 点具体一天 = 某一天，浮层收起 */
+  });
+
+  bBar.querySelectorAll('.qchip').forEach(function (chip) {
+    chip.addEventListener('click', function () {
+      bBar.querySelectorAll('.qchip').forEach(function (c) { c.setAttribute('aria-checked', String(c === chip)); });
+    });
+  });
+
+  /* ---------- C · 提交失败 ---------- */
+  var cErr = document.querySelector('.capbar[data-state="c"] [data-role="error"]');
+  var cSubmit = document.querySelector('.capbar[data-state="c"] [data-role="submit"]');
+  cSubmit.addEventListener('click', function () {
+    if (cSubmit.textContent.trim() !== '重试') return;
+    cErr.hidden = true;
+    cSubmit.textContent = '添加';
+    cSubmit.disabled = false;
+    cErr.setAttribute('aria-live', 'polite');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 四象限</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+/* ============================================================================
+   01 四象限板 —— 只在本片段使用的构件
+   颜色全部来自 shared.css 的令牌；清单色是数据，走内联 style。
+   ========================================================================== */
+
+/* 演示条占住右上角，顶栏给它让位 */
+.topbar { padding-inline-end: 10rem; }
+
+.content--board { display: flex; overflow: hidden; }
+
+/* ---- 板：2×2 -------------------------------------------------------------- */
+.qboard {
+  flex: 1; min-block-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-3);
+}
+
+/* ---- 卡 ------------------------------------------------------------------ */
+.qcard {
+  display: flex; flex-direction: column;
+  min-block-size: 0; min-inline-size: 0;
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.qcard[data-q="1"] { border-block-start: 2px solid var(--q1); }
+.qcard[data-q="2"] { border-block-start: 2px solid var(--q2); }
+.qcard[data-q="3"] { border-block-start: 2px solid var(--q3); }
+.qcard[data-q="4"] { border-block-start: 2px solid var(--q4); }
+
+.qcard__head {
+  display: flex; align-items: center; gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  flex: none;
+}
+.qcard__name {
+  margin: 0; font-size: var(--text-md); font-weight: 600; color: var(--ink-1);
+  white-space: nowrap;
+}
+.qcard__n {
+  display: inline-grid; place-items: center;
+  min-inline-size: 20px; block-size: 18px; padding: 0 5px;
+  border-radius: var(--radius-full);
+  background: var(--bg-sunken); color: var(--ink-2);
+  font-size: var(--text-xs); font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.qcard__donebtn {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  block-size: 24px; padding: 0 6px;
+  border-radius: var(--radius-sm);
+  color: var(--ink-quiet);
+  font: inherit; font-size: var(--text-xs);
+  white-space: nowrap;
+}
+.qcard__donebtn b { font-weight: 600; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.qcard__donebtn:hover { background: var(--bg-hover); color: var(--ink-1); }
+.qcard__donebtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.qcard__donebtn svg { transition: rotate var(--dur-fast) var(--ease); }
+.qcard__donebtn[aria-expanded="true"] svg { rotate: 180deg; }
+.qcard__donebtn--empty { cursor: default; color: var(--ink-quiet); }
+.qcard__donebtn--empty:hover { background: transparent; color: var(--ink-quiet); }
+
+/* ---- 行内新建 ------------------------------------------------------------- */
+.qadd { flex: none; padding: 0 var(--sp-3) var(--sp-2); }
+.qadd__box {
+  display: flex; align-items: center; gap: var(--sp-2);
+  block-size: var(--control-h); padding: 0 var(--sp-2);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  cursor: text;
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.qadd__box:hover { background: var(--bg-subtle); }
+.qadd__box:focus-within { border-color: var(--accent); background: var(--bg-subtle); }
+.qadd__box svg { color: var(--ink-3); flex: none; }
+.qadd__input {
+  appearance: none; border: 0; background: transparent; outline: none;
+  flex: 1; min-inline-size: 0;
+  font: inherit; font-size: var(--text-body); color: var(--ink-1);
+}
+.qadd__input::placeholder { color: var(--ink-3); }
+
+/* ---- 行 ------------------------------------------------------------------ */
+.qbody { flex: 1; min-block-size: 0; overflow-y: auto; padding: 0 0 var(--sp-2); }
+
+.qrows { list-style: none; margin: 0; padding: 0; }
+
+.qrow {
+  position: relative;
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-block-size: 34px; padding: 1px var(--sp-3) 1px 3px;
+  transition: background var(--dur-fast) var(--ease);
+}
+.qrow:hover, .qrow:focus-within { background: var(--bg-hover); }
+
+.qrow__grip {
+  flex: none; inline-size: 12px; block-size: 18px;
+  display: grid; place-items: center;
+  color: var(--ink-3); cursor: grab;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+.qrow:hover .qrow__grip,
+.qrow:focus-within .qrow__grip { opacity: 1; }
+
+.qrow__title {
+  flex: 1; min-inline-size: 0;
+  font-size: var(--text-body); color: var(--ink-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+.qrow__more {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  flex: none; inline-size: 22px; block-size: 22px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+.qrow:hover .qrow__more,
+.qrow:focus-within .qrow__more { opacity: 1; }
+.qrow__more:hover { background: var(--bg-sunken); color: var(--ink-1); }
+.qrow__more:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; opacity: 1; }
+
+.qrow.is-done .qrow__title,
+.qrows--done .qrow__title {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-4);
+}
+
+/* ---- 已完成折叠 ----------------------------------------------------------- */
+.qdone {
+  margin: var(--sp-2) var(--sp-2) 0;
+  padding-block-start: var(--sp-1);
+  border-block-start: 1px solid var(--hairline-soft);
+}
+.qdone[hidden] { display: none; }
+
+/* ---- 空状态 --------------------------------------------------------------- */
+.qempty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-2);
+  min-block-size: 9rem;
+  padding: var(--sp-6) var(--sp-4);
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+.qempty svg { color: var(--ink-4); }
+.qempty .btn { color: var(--accent-ink); }
+.qempty .btn:hover { background: var(--bg-hover); }
+
+/* ---- 时间阶梯：六档六形 ---------------------------------------------------
+   month  虚线 · 胶囊 · 字距最大        —— 一整片
+   week   只留两端竖括号               —— 一周的窗口
+   day    实线方角 + 实心底            —— 一整天
+   period 实线圆角 + 半圆图标          —— 一天的一半
+   time   实心深色 + 钟表 + 粗数字      —— 精确到点
+   none   没有容器，只剩一道横线        —— 没有时间
+   ------------------------------------------------------------------------- */
+.lad {
+  display: inline-flex; align-items: center; gap: 5px;
+  flex: none;
+  block-size: 22px; padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-sm); line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lad > svg { inline-size: 13px; block-size: 13px; flex: none; }
+.lad__pre { color: var(--ink-quiet); font-weight: 400; }
+.lad__dot { inline-size: 6px; block-size: 6px; border-radius: 50%; flex: none; }
+
+.lad--month {
+  border: 1px dashed var(--ink-3);
+  border-radius: var(--radius-full);
+  padding-inline: 9px;
+  letter-spacing: .04em;
+  color: var(--ink-2);
+}
+.lad--week {
+  border-inline: 2px solid var(--ink-3);
+  border-radius: 0;
+  padding-inline: 7px;
+  color: var(--ink-1);
+}
+.lad--day {
+  border: 1px solid var(--ink-3);
+  background: var(--bg-subtle);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.lad--period {
+  border: 1px solid var(--ink-3);
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--ink-1);
+}
+.lad--time {
+  border-color: var(--ink-1);
+  background: var(--ink-1);
+  color: var(--bg-surface);
+  font-weight: 600;
+}
+.lad--time .lad__pre { color: inherit; opacity: .72; font-weight: 500; }
+.lad--none { color: var(--ink-quiet); padding-inline: 4px; gap: 6px; }
+.lad--none > svg { opacity: .8; }
+
+/* 逾期 / 窗口已过 */
+.lad.is-late { border-color: var(--danger-ink); color: var(--danger-ink); }
+.lad--day.is-late, .lad--period.is-late { background: var(--danger-tint); }
+.lad--time.is-late {
+  background: var(--danger-tint);
+  border-color: var(--danger-ink);
+  color: var(--danger-ink);
+}
+.lad--time.is-late .lad__pre { color: var(--danger-ink); opacity: .78; }
+.lad.is-passed { border-color: var(--warning-ink); color: var(--warning-ink); }
+.lad--week.is-passed { border-inline-color: var(--warning-ink); }
+
+/* 行上信号（不放卡片、不移动象限） */
+.sig {
+  display: inline-flex; align-items: center;
+  flex: none;
+  block-size: 18px; padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs); font-weight: 600;
+  white-space: nowrap;
+}
+.sig--danger { background: var(--danger-tint); color: var(--danger-ink); }
+.sig--warn {
+  border-color: var(--warning-ink);
+  color: var(--warning-ink);
+  background: var(--bg-surface);
+}
+
+/* ---- ⋯ 菜单 --------------------------------------------------------------- */
+.qmenu {
+  position: fixed; z-index: var(--z-popover);
+  min-inline-size: 132px; padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+.qmenu button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  display: block; inline-size: 100%;
+  padding: 6px 8px; border-radius: var(--radius-sm);
+  text-align: start;
+  font: inherit; font-size: var(--text-body); color: var(--ink-1);
+}
+.qmenu button:hover { background: var(--bg-hover); }
+.qmenu .qmenu__danger { color: var(--danger-ink); }
+
+@media (prefers-reduced-motion: reduce) {
+  .qrow, .qrow__grip, .qrow__more, .qcard__donebtn svg { transition: none; }
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<div class="app">
+  <nav class="rail" aria-label="主导航">
+    <div class="rail__group">
+      <button type="button" class="rail__item" aria-current="page" aria-label="四象限" title="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
+          <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="日历" title="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="搜索" title="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button type="button" class="rail__item" aria-label="备份" title="备份">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="设置" title="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="更多" title="更多">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <aside class="sidebar" aria-label="筛选与清单">
+    <div class="sidebar__head">智能筛选</div>
+    <div class="sidebar__group" id="smartFilters"></div>
+    <div class="sidebar__head"><span>清单</span><span id="listTotal"></span></div>
+    <div class="sidebar__group" id="listFilters"></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">四象限</h1>
+      <span class="topbar__sub" id="todayLine"></span>
+      <span class="topbar__sub" id="openLine"></span>
+      <div class="topbar__actions">
+        <button type="button" class="btn btn--primary" id="newBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+          新建
+        </button>
+      </div>
+    </header>
+    <div class="content content--board">
+      <div class="qboard" id="board"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---- 图标（Lucide 几何，24 网格）--------------------------------------- */
+  function sw(size) { return size <= 14 ? 1.9 : size <= 16 ? 1.8 : size <= 18 ? 1.7 : 1.6; }
+  function svg(size, body) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none"' +
+      ' stroke="currentColor" stroke-width="' + sw(size) + '" stroke-linecap="round"' +
+      ' stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+  }
+  var P = {
+    plus: '<path d="M5 12h14M12 5v14"/>',
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    grip: '<circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/>',
+    more: '<circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    cal: '<path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+    layers: '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
+    inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+    month: '<rect x="3" y="8" width="18" height="8" rx="2" stroke-dasharray="3 2.5"/>',
+    week: '<rect x="3" y="6.5" width="18" height="11" rx="2"/><path d="M9 6.5v11M15 6.5v11"/>',
+    day: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>',
+    period: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
+    time: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    none: '<path d="M6 12h12"/>'
+  };
+  var GLYPH = { month: P.month, week: P.week, day: P.day, period: P.period, time: P.time, none: P.none };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function boot() {
+    var K = window.Kairos;
+    if (!K) { return; }
+
+    var board = document.getElementById('board');
+    var smartBox = document.getElementById('smartFilters');
+    var listBox = document.getElementById('listFilters');
+
+    // 卡 2 一开始就把「已完成」展开：它的第 7 件事（家长会）在这里，
+    // 让「重要不紧急」在板上看得见地比其它卡更长——这正是数据里的分布。
+    var state = { filter: 'all', list: null, openDone: { 2: true } };
+    var RANK = { month: 0, week: 1, day: 2, period: 3, time: 4, none: 5 };
+    var PERIOD_RANK = { morning: 0, afternoon: 1, evening: 2 };
+
+    /* ---- 查询工具 ---------------------------------------------------------- */
+    function listOf(id) {
+      for (var i = 0; i < K.LISTS.length; i++) {
+        if (K.LISTS[i].id === id) { return K.LISTS[i]; }
+      }
+      return { name: '', color: 'transparent' };
+    }
+    function byId(id) {
+      for (var i = 0; i < K.ITEMS.length; i++) {
+        if (K.ITEMS[i].id === id) { return K.ITEMS[i]; }
+      }
+      return null;
+    }
+
+    function passes(it) {
+      if (state.list && it.list !== state.list) { return false; }
+      if (state.filter === 'today') { return coversToday(it); }
+      if (state.filter === 'recent') { return inRecent(it); }
+      return true;
+    }
+    function coversToday(it) {
+      if (it.rung === 'none') { return false; }
+      if (it.rung === 'week') { return K.weekStartOf(it.date) === K.weekStartOf(K.TODAY); }
+      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.TODAY); }
+      return it.date === K.TODAY;
+    }
+    function inRecent(it) {
+      if (it.rung === 'none') { return false; }
+      if (K.isLate(it) || K.isWindowPassed(it)) { return true; }
+      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.TODAY); }
+      if (it.rung === 'week') {
+        var ws = K.weekStartOf(it.date);
+        return ws >= K.TODAY && ws <= K.addDays(K.TODAY, 6);
+      }
+      return it.date >= K.TODAY && it.date <= K.addDays(K.TODAY, 6);
+    }
+
+    /* 时间阶梯排序：粗窗口在前（ADR 0004）。同档按日期升序。 */
+    function cmp(a, b) {
+      var r = RANK[a.rung] - RANK[b.rung];
+      if (r) { return r; }
+      var ad = a.date || '9999-99-99', bd = b.date || '9999-99-99';
+      if (ad !== bd) { return ad < bd ? -1 : 1; }
+      var at = a.time || '', bt = b.time || '';
+      if (at !== bt) { return at < bt ? -1 : 1; }
+      var ap = PERIOD_RANK[a.period] == null ? 0 : PERIOD_RANK[a.period];
+      var bp = PERIOD_RANK[b.period] == null ? 0 : PERIOD_RANK[b.period];
+      if (ap !== bp) { return ap - bp; }
+      return 0;
+    }
+
+    /* ---- 时间阶梯标签 ------------------------------------------------------ */
+    function ladHTML(it, showListName) {
+      var label = K.rungLabel(it);
+      var cls = 'lad lad--' + it.rung;
+      if (K.isLate(it)) { cls += ' is-late'; }
+      if (K.isWindowPassed(it)) { cls += ' is-passed'; }
+
+      if (it.rung === 'none' && showListName) {
+        var l = listOf(it.list);
+        return '<span class="' + cls + '"><i class="lad__dot" style="background:' + l.color + '"></i>' +
+          '<span>' + esc(l.name) + '</span></span>';
+      }
+
+      var inner;
+      if (it.rung === 'time') {
+        var sp = label.lastIndexOf(' ');
+        var pre = sp > 0 ? label.slice(0, sp) : '';
+        var main = sp > 0 ? label.slice(sp + 1) : label;
+        inner = (pre ? '<span class="lad__pre">' + esc(pre) + '</span>' : '') + '<span>' + esc(main) + '</span>';
+      } else if (it.rung === 'period') {
+        var p = K.PERIOD_LABEL[it.period];
+        var pre2 = label.slice(0, label.length - p.length);
+        inner = '<span class="lad__pre">' + esc(pre2) + '</span><span>' + esc(p) + '</span>';
+      } else {
+        inner = '<span>' + esc(label) + '</span>';
+      }
+      return '<span class="' + cls + '">' + svg(13, GLYPH[it.rung]) + inner + '</span>';
+    }
+
+    /* ---- 行上信号 ---------------------------------------------------------- */
+    function sigHTML(it) {
+      if (K.isLate(it)) {
+        return '<span class="sig sig--danger">已过</span>';
+      }
+      if (K.isWindowPassed(it)) {
+        return '<span class="sig sig--warn">未完成</span>';
+      }
+      // ADR 0004 §4：near 必须给信号；用户自己标了紧急的就不再重复喊。
+      if (K.urgencyOf(it) === 'near' && !it.urgent) {
+        return '<span class="sig sig--warn">马上到期</span>';
+      }
+      return '';
+    }
+
+    function rowHTML(it) {
+      return '<li class="qrow' + (it.done ? ' is-done' : '') + '" data-id="' + it.id + '">' +
+        '<span class="qrow__grip" aria-hidden="true">' + svg(14, P.grip) + '</span>' +
+        '<input type="checkbox" class="check"' + (it.done ? ' checked' : '') +
+          ' aria-label="' + (it.done ? '把「' : '把「') + esc(it.title) + '」标记为' + (it.done ? '未完成' : '已完成') + '">' +
+        '<span class="qrow__title">' + esc(it.title) + '</span>' +
+        sigHTML(it) +
+        ladHTML(it, true) +
+        '<button type="button" class="qrow__more" aria-label="更多操作" title="更多操作">' + svg(16, P.more) + '</button>' +
+        '</li>';
+    }
+
+    /* ---- 空状态 ------------------------------------------------------------ */
+    function emptyHTML() {
+      var text = state.list
+        ? '这个清单在这里还没有事'
+        : state.filter === 'today' ? '今天这里没有事'
+        : state.filter === 'recent' ? '最近 7 天这里没有事'
+        : '还没有事，先加一件';
+      var showAll = state.list || state.filter !== 'all';
+      return '<div class="qempty">' +
+        svg(24, P.inbox) +
+        '<span>' + esc(text) + '</span>' +
+        (showAll ? '<button type="button" class="btn btn--ghost" data-show-all="1">查看全部</button>' : '') +
+        '</div>';
+    }
+
+    /* ---- 卡片 -------------------------------------------------------------- */
+    function cardHTML(q, open, done) {
+      var Q = K.QUADRANTS[q];
+      var expanded = !!state.openDone[q];
+      var doneBtn = done.length
+        ? '<button type="button" class="qcard__donebtn" data-done-q="' + q + '" aria-expanded="' + expanded + '">' +
+            '已完成 <b>' + done.length + '</b>' + svg(14, P.chev) + '</button>'
+        : '<span class="qcard__donebtn qcard__donebtn--empty">已完成 0</span>';
+
+      var body = open.length
+        ? '<ul class="qrows">' + open.map(rowHTML).join('') + '</ul>'
+        : emptyHTML();
+      var doneBox = done.length
+        ? '<div class="qdone"' + (expanded ? '' : ' hidden') + '>' +
+            '<ul class="qrows qrows--done">' + done.map(rowHTML).join('') + '</ul></div>'
+        : '';
+
+      return '<section class="qcard" data-q="' + q + '" aria-labelledby="qname-' + q + '">' +
+        '<header class="qcard__head">' +
+          '<span class="qdot qdot--' + q + '" aria-hidden="true"></span>' +
+          '<h2 class="qcard__name" id="qname-' + q + '">' + Q.name + '</h2>' +
+          '<span class="qcard__n" title="未完成">' + open.length + '</span>' +
+          '<span class="spacer"></span>' +
+          doneBtn +
+        '</header>' +
+        '<form class="qadd" data-q="' + q + '">' +
+          '<label class="qadd__box">' + svg(15, P.plus) +
+            '<input class="qadd__input" type="text" autocomplete="off" placeholder="添加到「' + Q.name + '」" aria-label="添加到' + Q.name + '">' +
+          '</label>' +
+        '</form>' +
+        '<div class="qbody">' + body + doneBox + '</div>' +
+      '</section>';
+    }
+
+    function renderBoard() {
+      var html = '';
+      [1, 2, 3, 4].forEach(function (q) {
+        var mine = K.ITEMS.filter(function (it) { return it.q === q; });
+        var open = mine.filter(function (it) { return !it.done && passes(it); }).sort(cmp);
+        var done = mine.filter(function (it) { return it.done && passes(it); }).sort(cmp);
+        html += cardHTML(q, open, done);
+      });
+      board.innerHTML = html;
+    }
+
+    /* ---- 侧栏 -------------------------------------------------------------- */
+    function renderSidebar() {
+      var smart = [
+        { id: 'today', label: '今天', icon: P.cal },
+        { id: 'recent', label: '最近7天', icon: P.clock },
+        { id: 'all', label: '全部', icon: P.layers }
+      ];
+      smartBox.innerHTML = smart.map(function (s) {
+        var n = K.ITEMS.filter(function (it) {
+          if (it.done) { return false; }
+          if (s.id === 'today') { return coversToday(it); }
+          if (s.id === 'recent') { return inRecent(it); }
+          return true;
+        }).length;
+        var cur = state.filter === s.id && !state.list;
+        return '<button type="button" class="sidebar__row" data-smart="' + s.id + '"' +
+          (cur ? ' aria-current="true"' : '') + '>' +
+          svg(16, s.icon) +
+          '<span class="sidebar__label">' + s.label + '</span>' +
+          '<span class="sidebar__count">' + n + '</span></button>';
+      }).join('');
+
+      listBox.innerHTML = K.LISTS.map(function (l) {
+        var n = K.ITEMS.filter(function (it) { return it.list === l.id && !it.done; }).length;
+        var cur = state.list === l.id;
+        return '<button type="button" class="sidebar__row" data-list="' + l.id + '"' +
+          (cur ? ' aria-current="true"' : '') + '>' +
+          '<span class="sidebar__dot" style="background:' + l.color + '" aria-hidden="true"></span>' +
+          '<span class="sidebar__label">' + l.name + '</span>' +
+          '<span class="sidebar__count">' + n + '</span></button>';
+      }).join('');
+
+      var total = K.ITEMS.filter(function (it) { return !it.done; }).length;
+      document.getElementById('listTotal').textContent = total + ' 件';
+      document.getElementById('openLine').textContent = total + ' 件未完成';
+    }
+
+    function renderTopbar() {
+      var d = K.parse(K.TODAY);
+      var wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
+      document.getElementById('todayLine').textContent =
+        d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + wd;
+    }
+
+    /* ---- 交互：完成 / 展开 ------------------------------------------------- */
+    board.addEventListener('change', function (e) {
+      var cb = e.target.closest('.check');
+      if (!cb) { return; }
+      var li = cb.closest('.qrow');
+      var it = byId(+li.dataset.id);
+      if (!it) { return; }
+      it.done = cb.checked;
+      render();
+    });
+
+    board.addEventListener('click', function (e) {
+      var doneBtn = e.target.closest('[data-done-q]');
+      if (doneBtn) {
+        var q = doneBtn.dataset.doneQ;
+        state.openDone[q] = !state.openDone[q];
+        render();
+        return;
+      }
+      var showAll = e.target.closest('[data-show-all]');
+      if (showAll) {
+        state.filter = 'all';
+        state.list = null;
+        render();
+        return;
+      }
+      var more = e.target.closest('.qrow__more');
+      if (more) {
+        openMenu(more);
+      }
+    });
+
+    board.addEventListener('submit', function (e) {
+      var form = e.target.closest('.qadd');
+      if (!form) { return; }
+      e.preventDefault();
+      var input = form.querySelector('.qadd__input');
+      var title = input.value.trim();
+      if (!title) { return; }
+      var q = +form.dataset.q;
+      var maxId = 0;
+      K.ITEMS.forEach(function (it) { if (it.id > maxId) { maxId = it.id; } });
+      K.ITEMS.push({
+        id: maxId + 1, title: title, rung: 'none', q: q,
+        list: 'inbox', urgent: false, done: false
+      });
+      // 新加的事没有时间，在「今天」里会被筛掉；切到全部让它看得见。
+      state.filter = 'all';
+      state.list = null;
+      render();
+      var again = board.querySelector('.qadd[data-q="' + q + '"] .qadd__input');
+      if (again) { again.focus(); }
+    });
+
+    document.querySelector('.sidebar').addEventListener('click', function (e) {
+      var s = e.target.closest('[data-smart]');
+      if (s) {
+        state.filter = s.dataset.smart;
+        state.list = null;
+        render();
+        return;
+      }
+      var l = e.target.closest('[data-list]');
+      if (l) {
+        state.list = state.list === l.dataset.list ? null : l.dataset.list;
+        render();
+      }
+    });
+
+    document.getElementById('newBtn').addEventListener('click', function () {
+      var first = board.querySelector('.qadd[data-q="1"] .qadd__input');
+      if (first) {
+        first.focus();
+        first.scrollIntoView({ block: 'nearest' });
+      }
+    });
+
+    /* ---- ⋯ 菜单 ------------------------------------------------------------ */
+    var menu = null;
+    function closeMenu() {
+      if (menu) { menu.remove(); menu = null; }
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onEsc);
+    }
+    function onDocClick(e) {
+      if (menu && !menu.contains(e.target) && !e.target.closest('.qrow__more')) { closeMenu(); }
+    }
+    function onEsc(e) {
+      if (e.key === 'Escape') { closeMenu(); }
+    }
+    function openMenu(btn) {
+      closeMenu();
+      var it = byId(+btn.closest('.qrow').dataset.id);
+      if (!it) { return; }
+      var r = btn.getBoundingClientRect();
+      menu = document.createElement('div');
+      menu.className = 'qmenu';
+      menu.setAttribute('role', 'menu');
+      menu.innerHTML =
+        '<button type="button" role="menuitem" data-act="toggle">' +
+          (it.done ? '标记为未完成' : '标记为已完成') + '</button>' +
+        '<button type="button" role="menuitem" data-act="delete" class="qmenu__danger">删除</button>';
+      menu.style.insetBlockStart = (r.bottom + 4) + 'px';
+      menu.style.insetInlineStart = Math.max(8, r.right - 132) + 'px';
+      document.body.appendChild(menu);
+      menu.addEventListener('click', function (ev) {
+        var b = ev.target.closest('[data-act]');
+        if (!b) { return; }
+        if (b.dataset.act === 'toggle') {
+          it.done = !it.done;
+        } else {
+          var idx = K.ITEMS.indexOf(it);
+          if (idx >= 0) { K.ITEMS.splice(idx, 1); }
+        }
+        closeMenu();
+        render();
+      });
+      setTimeout(function () {
+        document.addEventListener('click', onDocClick);
+        document.addEventListener('keydown', onEsc);
+      }, 0);
+    }
+
+    function render() {
+      renderSidebar();
+      renderBoard();
+    }
+
+    renderTopbar();
+    render();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

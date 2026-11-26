@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 时间选择器</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+  body {
+    margin: 0;
+    background: var(--bg-app);
+    color: var(--ink-1);
+    font: var(--text-md)/1.5 var(--font-sans);
+  }
+  .topbar__sub { color: var(--ink-quiet); font-size: var(--text-sm); }
+  .topbar__actions { padding-inline-end: 13rem; }
+
+  .sheet { max-inline-size: 78rem; margin: 0 auto; padding-block-end: var(--sp-10); }
+  .intro {
+    margin: 0 0 var(--sp-6);
+    max-inline-size: 58rem;
+    color: var(--ink-2);
+    line-height: 1.7;
+  }
+  .intro b { color: var(--ink-1); }
+
+  .sec-title {
+    margin: var(--sp-8) 0 var(--sp-1);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .sec-title:first-of-type { margin-block-start: var(--sp-2); }
+  .sec-lede {
+    margin: 0 0 var(--sp-3);
+    color: var(--ink-quiet);
+    font-size: var(--text-sm);
+    max-inline-size: 58rem;
+  }
+
+  /* ---------- 六档参考表 ---------- */
+  .rungs-table {
+    inline-size: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-sm);
+  }
+  .rungs-table th,
+  .rungs-table td {
+    padding: var(--sp-2) var(--sp-3);
+    border-block-end: 1px solid var(--hairline);
+    text-align: start;
+    vertical-align: top;
+  }
+  .rungs-table thead th {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-quiet);
+    white-space: nowrap;
+    border-block-end-color: var(--hairline-strong);
+  }
+  .rungs-table tbody tr:last-child td { border-block-end: 0; }
+  .rungs-table tbody tr[data-rung-row] { cursor: pointer; }
+  .rungs-table tbody tr[data-rung-row]:hover { background: var(--bg-hover); }
+  .rungs-table tbody tr[aria-selected="true"] { background: var(--accent-tint); }
+  .rungs-table tbody tr[aria-selected="true"] .rt-name { color: var(--ink-1); font-weight: 700; }
+  .rungs-table td:first-child { white-space: nowrap; }
+  .rt-name { font-size: var(--text-md); font-weight: 600; color: var(--ink-1); }
+  .rt-name .rungkey {
+    display: block;
+    margin-block-start: 2px;
+    color: var(--ink-quiet);
+    font: var(--text-xs)/1.4 ui-monospace, "SF Mono", Menlo, monospace;
+    font-weight: 400;
+  }
+  .rt-means { color: var(--ink-2); }
+  .rt-expire { color: var(--ink-quiet); white-space: nowrap; }
+  .rt-expire b { color: var(--ink-2); font-weight: 600; }
+  .rt-exp { color: var(--ink-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rt-dot {
+    display: inline-block;
+    inline-size: 7px;
+    block-size: 7px;
+    margin-inline-end: 6px;
+    border-radius: 50%;
+    background: var(--ink-4);
+    translate: 0 -1px;
+  }
+  .rt-dot--warn { background: var(--warning-ink); }
+
+  /* ---------- 实时演示 ---------- */
+  .demo {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    gap: var(--sp-6);
+    align-items: start;
+  }
+  .card {
+    padding: var(--sp-4);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+  }
+  .card__label {
+    margin: 0 0 var(--sp-3);
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  /* 样本行 */
+  .sample {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-2);
+    border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+    border: 1px solid var(--hairline);
+  }
+  .sample__check {
+    inline-size: 16px;
+    block-size: 16px;
+    flex: none;
+    border: 1.5px solid var(--hairline-strong);
+    border-radius: var(--radius-xs);
+  }
+  .sample__title {
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-md);
+  }
+  .when {
+    flex: none;
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .when--late { color: var(--danger-ink); }
+  .when--late-soft { color: var(--warning-ink); }
+  .when__flag {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    padding: 0 .25rem;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--warning-ink);
+  }
+  .readout {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-2) var(--sp-3);
+    margin-block-start: var(--sp-3);
+    padding-block-start: var(--sp-3);
+    border-block-start: 1px solid var(--hairline);
+    font-size: var(--text-sm);
+  }
+  .readout__k { color: var(--ink-quiet); }
+  .readout__v { font-weight: 600; }
+  .readout__v--danger { color: var(--danger-ink); }
+  .readout__v--warning { color: var(--warning-ink); }
+  .readout__v--normal { color: var(--ink-1); }
+  .readout__v--muted { color: var(--ink-quiet); }
+  .readout__note {
+    flex-basis: 100%;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+  }
+
+  /* 拾取器本体：与 06 同一个组件，放大展示 */
+  .picker {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+  .ladder { position: relative; display: flex; flex-direction: column; gap: 2px; }
+  .ladder::before {
+    content: "";
+    position: absolute;
+    inset-block: 15px;
+    inset-inline-start: 14px;
+    inline-size: 1px;
+    background: var(--hairline-strong);
+  }
+  .rung {
+    appearance: none;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    inline-size: 100%;
+    block-size: 30px;
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-body);
+    text-align: start;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+  .rung:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .rung:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .rung__mark {
+    inline-size: 7px;
+    block-size: 7px;
+    flex: none;
+    margin-inline-start: 3px;
+    border: 1.5px solid var(--ink-4);
+    border-radius: 50%;
+    background: var(--bg-surface);
+  }
+  .rung__name { font-weight: 500; }
+  .rung__ex {
+    margin-inline-start: auto;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .rung[aria-checked="true"] {
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    box-shadow: inset 0 0 0 1px var(--accent-ink);
+  }
+  .rung[aria-checked="true"] .rung__name { font-weight: 600; }
+  .rung[aria-checked="true"] .rung__mark { border-color: var(--accent-ink); background: var(--accent-ink); }
+  .rung[aria-checked="true"] .rung__ex { color: var(--accent-ink); }
+
+  .rung-detail { margin-block-start: var(--sp-2); }
+  .rd__chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+  .chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .chip--on {
+    border-color: var(--accent-ink);
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .chip--cal { border-style: dashed; }
+  .rd__hint { margin: var(--sp-2) 0 0; color: var(--ink-quiet); font-size: var(--text-xs); line-height: 1.5; }
+  .rd__row { display: flex; align-items: center; gap: var(--sp-2); margin-block-start: var(--sp-2); flex-wrap: wrap; }
+  .rd__label { color: var(--ink-quiet); font-size: var(--text-xs); flex: none; }
+
+  .seg {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-sunken);
+    margin-block-start: var(--sp-2);
+  }
+  .seg .chip {
+    flex: 1;
+    justify-content: center;
+    block-size: 26px;
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+  .seg .chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .seg .chip--on { background: var(--bg-surface); color: var(--ink-1); box-shadow: var(--shadow-sm); border-color: transparent; }
+
+  .mgrid {
+    margin-block-start: var(--sp-2);
+    padding: var(--sp-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+  }
+  .mgrid[hidden] { display: none; }
+  .mgrid__head { display: flex; align-items: center; gap: var(--sp-1); margin-block-end: var(--sp-1); }
+  .mgrid__label { flex: 1; text-align: center; font-size: var(--text-sm); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .mgrid__nav {
+    appearance: none; display: grid; place-items: center;
+    inline-size: 24px; block-size: 24px; padding: 0; border: 0;
+    border-radius: var(--radius-xs); background: transparent;
+    color: var(--ink-2); cursor: pointer;
+  }
+  .mgrid__nav:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .mgrid__nav:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .mgrid__dow, .mgrid__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .mgrid__dow { margin-block-end: 2px; }
+  .mgrid__dow span { text-align: center; color: var(--ink-quiet); font-size: var(--text-xs); line-height: 1.8; }
+  .mgrid__day {
+    appearance: none; block-size: 26px; min-inline-size: 0; padding: 0;
+    border: 1px solid transparent; border-radius: var(--radius-xs);
+    background: transparent; color: var(--ink-1);
+    font: inherit; font-size: var(--text-xs); font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .mgrid__day:hover { background: var(--bg-hover); }
+  .mgrid__day:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+  .mgrid__day--out { color: var(--ink-quiet); }
+  .mgrid__day--today { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .mgrid__day--sel { border-color: var(--accent-strong); background: var(--accent-strong); color: var(--accent-contrast); font-weight: 600; }
+
+  /* ---------- 滚动规则 ---------- */
+  .scrollrule {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
+    gap: var(--sp-6);
+    align-items: start;
+  }
+  .scrollrule__steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--sp-3);
+    counter-reset: step;
+  }
+  .scrollrule__steps li {
+    position: relative;
+    padding-inline-start: 2.25rem;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+    line-height: 1.65;
+  }
+  .scrollrule__steps li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 0;
+    display: grid;
+    place-items: center;
+    inline-size: 22px;
+    block-size: 22px;
+    border-radius: 50%;
+    background: var(--bg-sunken);
+    color: var(--ink-2);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+  .scrollrule__steps b { color: var(--ink-1); }
+
+  .windowcard {
+    padding: var(--sp-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+  }
+  .windowrow {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-1);
+  }
+  .windowrow + .windowrow { border-block-start: 1px solid var(--hairline); }
+  .windowrow__title { flex: 1; min-inline-size: 0; font-size: var(--text-md); }
+  .when--week { color: var(--ink-2); }
+  .when--month { color: var(--ink-2); }
+  .btn-action { min-inline-size: 0; }
+  .windowcard__foot {
+    margin: var(--sp-2) 0 0;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.55;
+  }
+  .windowcard__foot b { color: var(--ink-2); }
+  .moved {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--success-ink);
+    font-size: var(--text-xs);
+    font-weight: 600;
+  }
+
+  .lawlist {
+    margin: var(--sp-4) 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: var(--sp-2);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+    line-height: 1.6;
+  }
+  .lawlist li { position: relative; padding-inline-start: var(--sp-4); }
+  .lawlist li::before {
+    content: "";
+    position: absolute;
+    inset-block-start: .58em;
+    inset-inline-start: 2px;
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: 50%;
+    background: var(--ink-4);
+  }
+  .lawlist b { color: var(--ink-1); }
+  .lawlist .is-danger { color: var(--danger-ink); font-weight: 600; }
+  .lawlist .is-warning { color: var(--warning-ink); font-weight: 600; }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+<div class="app app--wide">
+
+  <nav class="rail" aria-label="主导航">
+    <span class="rail__avatar" aria-hidden="true">K</span>
+    <div class="rail__group">
+      <button type="button" class="rail__item" aria-current="page" aria-label="所有事情">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button type="button" class="rail__item" aria-label="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">时间选择器</h1>
+      <span class="topbar__sub">六档 · 一个控件 · 全应用同一套</span>
+      <div class="topbar__actions"></div>
+    </header>
+
+    <div class="content">
+      <div class="sheet">
+        <p class="intro">
+          「时间说到多细」是这件事<b>唯一可变的结构</b>。它是一条阶梯，不是六个功能：
+          点在哪儿，就决定它在<b>行上怎么说、会不会过期、日历上长什么样、进不进 Q1</b>。
+          详情面板、捕获条、日历点格，用的都是这一个控件。
+        </p>
+
+        <!-- ============ 01 六档 ============ -->
+        <h2 class="sec-title">六档，从粗到细</h2>
+        <p class="sec-lede">点任意一行，下面「实时演示」里的样本会跟着变。排序也是这个顺序：粗窗口在前。</p>
+
+        <table class="rungs-table">
+          <thead>
+            <tr><th scope="col">档</th><th scope="col">它是什么意思</th><th scope="col">会过期吗</th><th scope="col">行上写成</th></tr>
+          </thead>
+          <tbody id="rungRows">
+            <tr data-rung-row="month" aria-selected="false">
+              <td><span class="rt-name">下个月<span class="rungkey">month</span></span></td>
+              <td class="rt-means">「这个月先不大动，下个月弄」——一个整月的计划窗口，不是某一天。</td>
+              <td class="rt-expire">不会</td>
+              <td class="rt-exp">「下个月」/「2027年1月」</td>
+            </tr>
+            <tr data-rung-row="week" aria-selected="false">
+              <td><span class="rt-name">这周<span class="rungkey">week</span></span></td>
+              <td class="rt-means">一个整周的计划窗口。到了下周一，它留在「上周」，不自个儿往前滚。</td>
+              <td class="rt-expire">不会<sup>*</sup></td>
+              <td class="rt-exp">「这周」/<span class="rt-dot rt-dot--warn"></span><span style="color:var(--warning-ink)">上周·未完成</span></td>
+            </tr>
+            <tr data-rung-row="day" aria-selected="false">
+              <td><span class="rt-name">某一天<span class="rungkey">day</span></span></td>
+              <td class="rt-means">一天之内做完就行，不挑钟点。</td>
+              <td class="rt-expire">次日 0 点</td>
+              <td class="rt-exp">「周五」/「今天」</td>
+            </tr>
+            <tr data-rung-row="period" aria-selected="true">
+              <td><span class="rt-name">上午·下午·晚上<span class="rungkey">period</span></span></td>
+              <td class="rt-means">那一天里的半天。「下午」是 12:00 到 19:00 这一格。</td>
+              <td class="rt-expire">半天末端</td>
+              <td class="rt-exp">「今天下午」</td>
+            </tr>
+            <tr data-rung-row="time" aria-selected="false">
+              <td><span class="rt-name">具体时刻<span class="rungkey">time</span></span></td>
+              <td class="rt-means">钟点到了就是到了。会出现在时间轴上，能被提醒。</td>
+              <td class="rt-expire">那个时刻</td>
+              <td class="rt-exp">「今天 15:00」</td>
+            </tr>
+            <tr data-rung-row="none" aria-selected="false">
+              <td><span class="rt-name">不限<span class="rungkey">none</span></span></td>
+              <td class="rt-means">先记下来，什么时候做以后再说。不排期，不进日历。</td>
+              <td class="rt-expire">不会</td>
+              <td class="rt-exp">清单名（如「收集箱」）</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- ============ 02 实时演示 ============ -->
+        <h2 class="sec-title">实时演示</h2>
+        <p class="sec-lede">左边是行，右边是控件。改档位，行上的字、颜色、紧急读数一起变——这就是「时间只读、不移动卡片」。</p>
+
+        <div class="demo">
+          <div class="card">
+            <p class="card__label">这一行（本周板上的样子）</p>
+            <div class="sample">
+              <span class="sample__check" aria-hidden="true"></span>
+              <span class="sample__title" id="sampleTitle">跟进合同签署</span>
+              <span class="when" id="sampleWhen">今天 15:00</span>
+            </div>
+            <div class="readout" id="readout"></div>
+            <ul class="lawlist" id="lawlist"></ul>
+          </div>
+
+          <div class="card">
+            <p class="card__label">控件（详情面板里的样子）</p>
+            <div class="picker">
+              <div class="ladder" id="ladder" role="radiogroup" aria-label="时间精度">
+                <button type="button" class="rung" role="radio" aria-checked="false" data-rung="month">
+                  <span class="rung__mark" aria-hidden="true"></span><span class="rung__name">下个月</span><span class="rung__ex" data-ex>12月</span>
+                </button>
+                <button type="button" class="rung" role="radio" aria-checked="false" data-rung="week">
+                  <span class="rung__mark" aria-hidden="true"></span><span class="rung__name">这周</span><span class="rung__ex" data-ex>11-23 起</span>
+                </button>
+                <button type="button" class="rung" role="radio" aria-checked="true" data-rung="day">
+                  <span class="rung__mark" aria-hidden="true"></span><span class="rung__name">某一天</span><span class="rung__ex" data-ex>明天</span>
+                </button>
+                <button type="button" class="rung" role="radio" aria-checked="false" data-rung="period">
+                  <span class="rung__mark" aria-hidden="true"></span><span class="rung__name">上午·下午·晚上</span><span class="rung__ex" data-ex>今天下午</span>
+                </button>
+                <button type="button" class="rung" role="radio" aria-checked="false" data-rung="time">
+                  <span class="rung__mark" aria-hidden="true"></span><span class="rung__name">具体时刻</span><span class="rung__ex" data-ex>今天 15:00</span>
+                </button>
+                <button type="button" class="rung" role="radio" aria-checked="false" data-rung="none">
+                  <span class="rung__mark" aria-hidden="true"></span><span class="rung__name">不限</span><span class="rung__ex" data-ex>收集箱</span>
+                </button>
+              </div>
+
+              <div class="rung-detail" id="detail"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============ 03 迷你月历 ============ -->
+        <h2 class="sec-title">迷你月历：只在「某一天」及更细的档出现</h2>
+        <p class="sec-lede">「下个月 / 这周 / 不限」不需要日历——它们不从格子里取日子。档位越细，才需要越精确的地点。</p>
+
+        <div class="card">
+          <p class="card__label">选择具体日期</p>
+          <div class="mgrid" id="mgrid" style="max-inline-size:22rem">
+            <div class="mgrid__head">
+              <button type="button" class="mgrid__nav" data-nav="-1" aria-label="上个月">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+              </button>
+              <span class="mgrid__label" id="mgridLabel">2026年11月</span>
+              <button type="button" class="mgrid__nav" data-nav="1" aria-label="下个月">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </button>
+            </div>
+            <div class="mgrid__dow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+            <div class="mgrid__grid" id="mgridGrid"></div>
+          </div>
+          <p class="rd__hint" style="margin-block-start:var(--sp-3)">
+            <b id="miniPicked">选中 11月26日</b> · 点一天 → 档位自动落在「某一天」，行上写成「11月30日」这样的具体日期。
+            今天有蓝环，选中的一天是实心填充。
+          </p>
+        </div>
+
+        <!-- ============ 04 上周未完成 ============ -->
+        <h2 class="sec-title">「上周·未完成」与「顺延到本周」</h2>
+        <p class="sec-lede">计划窗口过去，不自动滚动、不标红，只留一个 <code style="font-size:var(--text-xs);background:var(--bg-sunken);padding:0 4px;border-radius:4px">--warning-ink</code> 的记号。往前挪要你亲自点。</p>
+
+        <div class="scrollrule">
+          <div>
+            <ol class="scrollrule__steps">
+              <li><b>「这周」存的是创建时那一周的周一</b>，不是浮动的。它不是「永远本周」。</li>
+              <li>周一 00:00 之后，这条如果还没完成，行上写成 <b>「上周·未完成」</b>，颜色用 warning，<b>不是 danger</b>——计划窗口不是承诺。</li>
+              <li><b>不自动跳进本周。</b>自动滚 = 用户永远看不见自己拖了多久。</li>
+              <li>点 <b>「顺延到本周」</b>，日期才移动一次，并进入撤销栈。</li>
+            </ol>
+            <p class="rd__hint" style="margin-block-start:var(--sp-3)">
+              代价讲清楚：板上一眼能看到「上周还没做完」这件事，是矩阵价值的一部分。
+              一个会自己滚动的「这周」，等于一个永远不会失败的承诺。
+            </p>
+          </div>
+
+          <div class="windowcard" id="windowCard">
+            <div class="windowrow">
+              <span class="windowrow__title">读完《深度工作》</span>
+              <span class="when when--late-soft" data-when="1">上周·未完成</span>
+              <button type="button" class="btn btn--secondary btn-action" data-defer="1" style="block-size:var(--control-h-sm);font-size:var(--text-sm)">顺延到本周</button>
+            </div>
+            <div class="windowrow">
+              <span class="windowrow__title">写季度总结</span>
+              <span class="when when--week" data-when="2">这周</span>
+              <span style="inline-size:5.5rem;flex:none"></span>
+            </div>
+            <p class="windowcard__foot" id="windowFoot">
+              点「顺延」→ 日期从 <b>11-16</b> 挪到 <b>11-23</b>，行上回到「这周」。这是一个真实的选择，不是自动发生的。
+            </p>
+          </div>
+        </div>
+
+        <!-- ============ 05 规则 ---------- -->
+        <h2 class="sec-title">这套控件的四条硬规则</h2>
+        <ul class="lawlist">
+          <li><b>只有 <code style="font-size:var(--text-xs);background:var(--bg-sunken);padding:0 4px;border-radius:4px">urgent</code>（已过期）进 Q1。</b><span class="is-warning">马上到期（24 小时内）不进 Q1</span>，只在行上加「明天到期」的字样和 warning 色。否则 Q1 会长期拥挤，矩阵退化成按日期排的列表。</li>
+          <li><b>week / month 永不过期。</b>窗口过去用 warning，不用 danger；它不会掉进 Q1 的红色里。</li>
+          <li><b>用户能标紧急，但压不低时间。</b>明天到期的事不能说它不急；想让它不急，把日期推远——那是一个留下痕迹的决定。</li>
+          <li><b>选完不一定收起。</b>在捕获条里，选一个预设就收；在详情面板里，档位的子选项本来就摊开在同一处，改完接着放下一个字段。</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var K = window.Kairos;
+  if (!K) return;
+
+  var WEEK_START = K.WEEK_START;
+  var TODAY = K.TODAY;
+  var RUNG_ORDER = ['month', 'week', 'day', 'period', 'time', 'none']; /* 粗窗口在前，不限最后 */
+  var RUNG_EX = { none: '收集箱', month: '12月', week: '11-23 起', day: '明天', period: '今天下午', time: '今天 15:00' };
+
+  /* 样本取自数据模块的真实一条：跟进合同签署（明天 · 某一天 · Q1 · 用户没标紧急）。
+     选它是因为它落在 near：行上有「明天到期」的紧迫字样，却**不进 Q1** ——
+     这是整套阶梯里最容易被实现错、也最值得在参考稿里演示的一条。 */
+  var sample = Object.assign({}, K.ITEMS.filter(function (i) { return i.id === 6; })[0]);
+  var gridOpen = false;
+  var gridView = new Date(2026, 10, 1);
+
+  var el = {
+    ladder: document.getElementById('ladder'),
+    detail: document.getElementById('detail'),
+    sampleTitle: document.getElementById('sampleTitle'),
+    sampleWhen: document.getElementById('sampleWhen'),
+    readout: document.getElementById('readout'),
+    lawlist: document.getElementById('lawlist'),
+    rows: document.getElementById('rungRows'),
+    mgrid: document.getElementById('mgrid'),
+    mgridLabel: document.getElementById('mgridLabel'),
+    mgridGrid: document.getElementById('mgridGrid'),
+    windowCard: document.getElementById('windowCard'),
+    windowFoot: document.getElementById('windowFoot')
+  };
+
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function listName(id) {
+    var l = K.LISTS.filter(function (x) { return x.id === id; })[0];
+    return l ? l.name : K.LISTS[0].name;
+  }
+  /* 「不限」在行上显示的是这条事所在的清单名，不是写死的「收集箱」
+     （ADR 0004「每一档的具体形状」最后一行）。 */
+  function rowLabel(it) {
+    if (it.rung === 'none') return listName(it.list);
+    return K.rungLabel(it);
+  }
+  function whenClass(it) {
+    if (K.isLate(it)) return 'when--late';
+    if (K.isWindowPassed(it)) return 'when--late-soft';
+    return 'when--' + it.rung;
+  }
+
+  function renderSample() {
+    /* 窗口已过时行上要带「未完成」——这是 ADR 0004 §3 定死的措辞，
+       单写「上周」会被读成一条带日期的普通安排。 */
+    var flag = K.isWindowPassed(sample)
+      ? '<span class="when__flag">未完成</span>' : '';
+    el.sampleWhen.className = 'when ' + whenClass(sample);
+    el.sampleWhen.innerHTML = esc(rowLabel(sample)) + flag;
+
+    var lvl = K.urgencyOf(sample);
+    /* 时间侧只读五级（ADR 0004 §4）。这里刻意用一条「明天到期、用户没标紧急」的
+       样本：它落在 near，行上有 warning 字样，但**不进 Q1**。这是整套阶梯里
+       最容易被实现错的一条，所以让它当默认样本。 */
+    var tone = 'muted';
+    var levelText = '不急';
+    if (K.isLate(sample)) { tone = 'danger'; levelText = 'urgent · 已过期'; }
+    else if (K.isWindowPassed(sample)) { tone = 'warning'; levelText = 'far · 窗口已过'; }
+    else if (lvl === 'near') { tone = 'warning'; levelText = 'near · 24 小时内'; }
+    else if (lvl === 'soon') { tone = 'warning'; levelText = 'soon · 3 天内'; }
+    else if (lvl === 'far') { levelText = 'far · 还有几天'; }
+    else { levelText = 'none · 还早'; }
+
+    var q1 = (lvl === 'urgent');
+    var dueWord;
+    if (sample.rung === 'none') dueWord = '不排期';
+    else if (sample.rung === 'month' || sample.rung === 'week') dueWord = K.rungLabel(sample) + ' · 计划窗口';
+    else if (K.isLate(sample)) dueWord = rowLabel(sample) + ' 已过';
+    else if (sample.rung === 'day') dueWord = K.rungLabel(sample) + '到期';
+    else dueWord = rowLabel(sample) + ' 到期';
+
+    el.readout.innerHTML =
+      '<span class="readout__k">时间读数</span>' +
+      '<span class="readout__v readout__v--' + tone + '">' + esc(dueWord) + '</span>' +
+      '<span class="readout__k">时间侧五级</span>' +
+      '<span class="readout__v readout__v--' + tone + '">' + levelText + '</span>' +
+      '<span class="readout__k">进 Q1 吗</span>' +
+      '<span class="readout__v readout__v--' + (q1 ? 'danger' : 'muted') + '">' + (q1 ? '是，只有已过期才进' : '否') + '</span>' +
+      '<span class="readout__note" id="readoutNote"></span>';
+
+    var note;
+    if (K.isWindowPassed(sample)) note = '计划窗口已过去：warning，不进 Q1。「上周」是它自己的名字，不是一个红色警报。';
+    else if (lvl === 'urgent') note = '时间真的过了头，所以走 danger 并进 Q1——这是时间侧唯一能进 Q1 的情况。';
+    else if (lvl === 'near') note = '24 小时内只是「马上到期」：行上加 warning 字样，卡片不动，也不进 Q1。';
+    else if (lvl === 'soon') note = '3 天内，警示线还没到。行上照常写日期。';
+    else if (sample.rung === 'none') note = '无日期的事不会因为时间而紧急；用户仍可以手动标它紧急（那是另一条来路，见下面第 1 条规则）。';
+    else note = '时间只负责把那件事读出来。什么时候进 Q1，由下面的规则决定。';
+    document.getElementById('readoutNote').textContent = note;
+  }
+
+  function renderLadder() {
+    Array.prototype.forEach.call(el.ladder.querySelectorAll('.rung'), function (btn) {
+      var rung = btn.getAttribute('data-rung');
+      btn.setAttribute('aria-checked', String(rung === sample.rung));
+      var ex = btn.querySelector('[data-ex]');
+      if (!ex) return;
+      if (rung === sample.rung) ex.textContent = rowLabel(sample);
+      else if (rung === 'none') ex.textContent = listName(sample.list);
+      else ex.textContent = RUNG_EX[rung];
+    });
+    Array.prototype.forEach.call(el.rows.querySelectorAll('[data-rung-row]'), function (tr) {
+      tr.setAttribute('aria-selected', String(tr.getAttribute('data-rung-row') === sample.rung));
+    });
+  }
+
+  function renderDetail() {
+    var html = '';
+    if (sample.rung === 'none') {
+      html = '<p class="rd__hint">不排期。不进日历，不参与日期提醒，排在所有档之后。</p>';
+      el.detail.innerHTML = html;
+      return;
+    }
+    if (sample.rung === 'month') {
+      var months = [
+        { v: '2026-11-01', label: '这个月' },
+        { v: '2026-12-01', label: '下个月' },
+        { v: '2027-01-01', label: '2027年1月' }
+      ];
+      html = '<div class="rd__chips">' + months.map(function (m) {
+        return '<button type="button" class="chip' + (sample.date === m.v ? ' chip--on' : '') + '" data-month="' + m.v + '" aria-pressed="' + (sample.date === m.v) + '">' + m.label + '</button>';
+      }).join('') + '</div><p class="rd__hint">一个整月，不从格子里取日子。</p>';
+      el.detail.innerHTML = html;
+      return;
+    }
+    if (sample.rung === 'week') {
+      var weeks = [-1, 0, 1].map(function (n) {
+        var d = K.addDays(WEEK_START, n * 7);
+        return { v: d, label: K.rungLabel({ rung: 'week', date: d }) };
+      });
+      html = '<div class="rd__chips">' + weeks.map(function (w) {
+        return '<button type="button" class="chip' + (sample.date === w.v ? ' chip--on' : '') + '" data-week="' + w.v + '" aria-pressed="' + (sample.date === w.v) + '">' + w.label + '</button>';
+      }).join('') + '</div><p class="rd__hint">整周。周一到了也不会自己跳进本周。</p>';
+      el.detail.innerHTML = html;
+      return;
+    }
+
+    var days = [0, 1, 2].map(function (n) {
+      var d = K.addDays(TODAY, n);
+      return { v: d, label: K.rungLabel({ rung: 'day', date: d }) };
+    });
+    html = '<div class="rd__chips">' + days.map(function (d) {
+      return '<button type="button" class="chip' + (sample.date === d.v ? ' chip--on' : '') + '" data-day="' + d.v + '" aria-pressed="' + (sample.date === d.v) + '">' + d.label + '</button>';
+    }).join('');
+    html += '<button type="button" class="chip chip--cal" data-grid>' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>' +
+      (gridOpen ? '收起日历' : '选日期') + '</button></div>';
+    if (gridOpen) html += renderGridHTML(sample);
+
+    if (sample.rung === 'period') {
+      html += '<div class="seg" role="group" aria-label="时段">' +
+        ['morning', 'afternoon', 'evening'].map(function (p) {
+          return '<button type="button" class="chip' + (sample.period === p ? ' chip--on' : '') + '" data-period="' + p + '" aria-pressed="' + (sample.period === p) + '">' + K.PERIOD_LABEL[p] + '</button>';
+        }).join('') + '</div><p class="rd__hint">到这半天结束才过期。</p>';
+    } else if (sample.rung === 'time') {
+      html += '<div class="rd__row"><span class="rd__label">时刻</span><div class="rd__chips">' +
+        ['09:00', '12:00', '15:00', '18:00', '21:00'].map(function (t) {
+          return '<button type="button" class="chip' + (sample.time === t ? ' chip--on' : '') + '" data-time="' + t + '" aria-pressed="' + (sample.time === t) + '">' + t + '</button>';
+        }).join('') + '</div></div><p class="rd__hint">到这个时刻就过期。</p>';
+    } else {
+      html += '<p class="rd__hint">到当天 24:00 才过期。</p>';
+    }
+    el.detail.innerHTML = html;
+  }
+
+  function renderGridHTML(it) {
+    var y = gridView.getFullYear();
+    var m = gridView.getMonth();
+    var first = new Date(y, m, 1);
+    var offset = (first.getDay() + 6) % 7;
+    var start = new Date(y, m, 1 - offset);
+    var cells = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var ds = K.fmt(d);
+      var out = d.getMonth() !== m;
+      var cls = 'mgrid__day' + (out ? ' mgrid__day--out' : '') +
+        (ds === TODAY ? ' mgrid__day--today' : '') +
+        (ds === it.date ? ' mgrid__day--sel' : '');
+      cells += '<button type="button" class="' + cls + '" data-pick="' + ds + '" aria-pressed="' + (ds === it.date) + '">' + d.getDate() + '</button>';
+    }
+    return '<div class="mgrid">' +
+      '<div class="mgrid__head">' +
+      '<button type="button" class="mgrid__nav" data-dnav="-1" aria-label="上个月"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>' +
+      '<span class="mgrid__label">' + y + '年' + (m + 1) + '月</span>' +
+      '<button type="button" class="mgrid__nav" data-dnav="1" aria-label="下个月"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>' +
+      '</div>' +
+      '<div class="mgrid__dow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>' +
+      '<div class="mgrid__grid">' + cells + '</div></div>';
+  }
+
+  function renderAll() {
+    renderLadder();
+    renderDetail();
+    renderSample();
+    syncMiniCaption();
+  }
+
+  /* ---- 档位点击 ---- */
+  el.ladder.addEventListener('click', function (e) {
+    var btn = e.target.closest('.rung');
+    if (!btn) return;
+    var rung = btn.getAttribute('data-rung');
+    if (rung === sample.rung) return;
+    sample.rung = rung;
+    if (rung === 'month') sample.date = '2026-12-01';
+    else if (rung === 'week') sample.date = WEEK_START;
+    else if (rung === 'day') sample.date = TODAY;
+    else if (rung === 'period') { sample.date = TODAY; sample.period = 'afternoon'; }
+    else if (rung === 'time') { sample.date = TODAY; sample.time = '15:00'; }
+    else if (rung === 'none') { delete sample.date; delete sample.period; delete sample.time; }
+    gridOpen = false;
+    if (sample.date) {
+      var gd = K.parse(sample.date);
+      gridView = new Date(gd.getFullYear(), gd.getMonth(), 1);
+    }
+    renderAll();
+    renderMini();
+  });
+
+  el.ladder.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    var idx = RUNG_ORDER.indexOf(sample.rung);
+    var next = RUNG_ORDER[(idx + (e.key === 'ArrowDown' ? 1 : RUNG_ORDER.length - 1)) % RUNG_ORDER.length];
+    var btn = el.ladder.querySelector('[data-rung="' + next + '"]');
+    if (btn) { btn.focus(); btn.click(); }
+  });
+
+  /* ---- 表格行也是档位入口 ---- */
+  el.rows.addEventListener('click', function (e) {
+    var tr = e.target.closest('[data-rung-row]');
+    if (!tr) return;
+    var rung = tr.getAttribute('data-rung-row');
+    var btn = el.ladder.querySelector('[data-rung="' + rung + '"]');
+    if (btn) btn.click();
+  });
+
+  /* ---- 档位子选项 ---- */
+  el.detail.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+
+    if (btn.hasAttribute('data-grid')) {
+      gridOpen = !gridOpen;
+      if (gridOpen && sample.date) {
+        var d = K.parse(sample.date);
+        gridView = new Date(d.getFullYear(), d.getMonth(), 1);
+      }
+      renderDetail();
+      return;
+    }
+    if (btn.hasAttribute('data-dnav')) {
+      var dir = +btn.getAttribute('data-dnav');
+      gridView = new Date(gridView.getFullYear(), gridView.getMonth() + dir, 1);
+      renderDetail();
+      return;
+    }
+    if (btn.hasAttribute('data-month')) sample.date = btn.getAttribute('data-month');
+    else if (btn.hasAttribute('data-week')) sample.date = btn.getAttribute('data-week');
+    else if (btn.hasAttribute('data-day')) sample.date = btn.getAttribute('data-day');
+    else if (btn.hasAttribute('data-pick')) { sample.date = btn.getAttribute('data-pick'); gridOpen = false; }
+    else if (btn.hasAttribute('data-period')) sample.period = btn.getAttribute('data-period');
+    else if (btn.hasAttribute('data-time')) sample.time = btn.getAttribute('data-time');
+    else return;
+
+    /* 在这里改日子 = 换了一天，档位保持不变。详情面板里的日历是
+       「这一天」的编辑器，不是换档入口——换档只发生在上面那六行。 */
+
+    /* 独立迷你月历的那只网格跟着选中日走：两块日历不该各说各的。 */
+    renderAll();
+    if (sample.date) {
+      var pd = K.parse(sample.date);
+      gridView = new Date(pd.getFullYear(), pd.getMonth(), 1);
+    }
+    renderMini();
+    syncMiniCaption();
+  });
+
+  /* ---- 独立迷你月历 ---- */
+  function renderMini() {
+    var y = gridView.getFullYear();
+    var m = gridView.getMonth();
+    el.mgridLabel.textContent = y + '年' + (m + 1) + '月';
+    var first = new Date(y, m, 1);
+    var offset = (first.getDay() + 6) % 7;
+    var start = new Date(y, m, 1 - offset);
+    var cells = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var ds = K.fmt(d);
+      var out = d.getMonth() !== m;
+      var cls = 'mgrid__day' + (out ? ' mgrid__day--out' : '') +
+        (ds === TODAY ? ' mgrid__day--today' : '') +
+        (ds === sample.date ? ' mgrid__day--sel' : '');
+      cells += '<button type="button" class="' + cls + '" data-mini="' + ds + '" aria-pressed="' + (ds === sample.date) + '">' + d.getDate() + '</button>';
+    }
+    el.mgridGrid.innerHTML = cells;
+  }
+  el.mgrid.addEventListener('click', function (e) {
+    var nav = e.target.closest('[data-nav]');
+    if (nav) {
+      gridView = new Date(gridView.getFullYear(), gridView.getMonth() + (+nav.getAttribute('data-nav')), 1);
+      renderMini();
+      return;
+    }
+    var day = e.target.closest('[data-mini]');
+    if (!day) return;
+    sample.rung = 'day';
+    sample.date = day.getAttribute('data-mini');
+    gridView = new Date(K.parse(sample.date).getFullYear(), K.parse(sample.date).getMonth(), 1);
+    renderAll();
+    renderMini();
+  });
+
+  el.miniPicked = document.getElementById('miniPicked');
+  function syncMiniCaption() {
+    if (!el.miniPicked) return;
+    if (sample.rung === 'day' || sample.rung === 'period' || sample.rung === 'time') {
+      var d = K.parse(sample.date);
+      el.miniPicked.textContent = '选中 ' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    } else {
+      el.miniPicked.textContent = '当前档不用挑具体日子';
+    }
+  }
+
+  /* ---- 顺延到本周 ---- */
+  function deferButton(n) {
+    var btn = el.windowCard.querySelector('[data-defer="' + n + '"]');
+    var when = el.windowCard.querySelector('[data-when="' + n + '"]');
+    var row = btn.closest('.windowrow');
+    var dateShown = n === 1 ? '11-16' : '11-16';
+    btn.addEventListener('click', function () {
+      if (btn.disabled) return;
+      btn.disabled = true;
+      when.className = 'when when--week';
+      when.textContent = '这周';
+      var moved = document.createElement('span');
+      moved.className = 'moved';
+      moved.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>已顺延到 11-23';
+      btn.replaceWith(moved);
+      el.windowFoot.innerHTML = '已从 <b>' + dateShown + '</b> 挪到 <b>11-23</b>。这一步进了撤销栈，按 Ctrl+Z 可以退回去。';
+    });
+  }
+  deferButton('1');
+
+  renderAll();
+  renderMini();
+  syncMiniCaption();
+});
+</script>
+</body>
+</html>

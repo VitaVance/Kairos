@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 弹窗与确认</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<style>
+/* ============================================================================
+   11 弹窗与确认 —— 每个弹窗一张独立标本。
+   规则出处：DESIGN-LANGUAGE §5.4（原生 dialog、安全动作优先、600ms 迟滞）。
+   ========================================================================== */
+/* .btn / .hysteresis 自带 display，会压过 UA 的 [hidden]；补回。 */
+[hidden] { display: none !important; }
+
+body {
+  --scrim: color-mix(in oklab, var(--ink-1) 32%, transparent);
+}
+body[data-theme="dark"] {
+  --scrim: color-mix(in oklab, var(--bg-sunken) 74%, transparent);
+}
+
+.topbar { padding-inline-end: 19rem; }
+.content { padding: 0; }
+
+.doc {
+  max-inline-size: 980px;
+  margin-inline: auto;
+  padding: var(--sp-5) var(--sp-4) var(--sp-10);
+}
+.doc__title { margin: 0 0 var(--sp-2); font-size: var(--text-2xl); font-weight: 600; letter-spacing: -.01em; }
+.doc__lead { margin: 0 0 var(--sp-6); max-inline-size: 70ch; color: var(--ink-2); font-size: var(--text-md); }
+
+.spec { margin-block-end: var(--sp-8); }
+.spec__cap {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  color: var(--ink-2); font-size: var(--text-sm);
+}
+.spec__no { font-variant-numeric: tabular-nums; color: var(--ink-quiet); font-weight: 600; }
+.spec__hint { color: var(--ink-quiet); font-size: var(--text-xs); }
+.spec__hint::before { content: "·"; margin-inline-end: var(--sp-2); }
+
+.spec__frame {
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  overflow: hidden;
+}
+.spec__frame--stage {
+  position: relative;
+  display: grid; place-items: start center;
+  block-size: 24rem;
+  padding: var(--sp-6);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.spec__frame--stage .dlg { position: relative; z-index: 1; }
+.spec__frame--stage .stage-scrim {
+  position: absolute; inset: 0; background: var(--scrim);
+}
+.spec__frame--split {
+  display: grid; grid-template-columns: 1fr 1fr;
+}
+.spec__frame--split > div {
+  padding: var(--sp-5);
+  display: grid; place-items: center;
+  background: var(--bg-sunken);
+}
+.spec__frame--split > div + div { border-inline-start: 1px solid var(--hairline); }
+.spec__note {
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-inline-start: 2px solid var(--hairline-strong);
+  color: var(--ink-2); font-size: var(--text-sm);
+  max-inline-size: 72ch;
+}
+.spec__note b { color: var(--ink-1); }
+
+/* ---- 弹窗外壳 -------------------------------------------------------- */
+.dlg {
+  inline-size: 100%;
+  max-inline-size: 26rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--ink-1);
+  overflow: hidden;
+}
+.dlg--wide { max-inline-size: 30rem; }
+.dlg__body { padding: var(--sp-5) var(--sp-5) var(--sp-4); }
+.dlg__row { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.dlg__icon {
+  flex: none;
+  inline-size: 2rem; block-size: 2rem;
+  border-radius: var(--radius-md);
+  display: grid; place-items: center;
+  background: var(--bg-sunken); color: var(--ink-2);
+}
+.dlg__icon--danger { background: var(--danger-tint); color: var(--danger-ink); }
+.dlg__icon--warn { background: var(--danger-tint); color: var(--danger-ink); }
+.dlg__icon--ok { background: var(--accent-tint); color: var(--accent-ink); }
+.dlg__title { margin: 0 0 var(--sp-1); font-size: var(--text-lg); font-weight: 600; }
+.dlg__text { margin: 0; color: var(--ink-2); font-size: var(--text-body); max-inline-size: 40ch; }
+.dlg__cost {
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--bg-sunken);
+  color: var(--ink-1); font-size: var(--text-body);
+}
+.dlg__cost strong { font-variant-numeric: tabular-nums; }
+.dlg__undo {
+  margin: var(--sp-3) 0 0;
+  display: flex; align-items: center; gap: var(--sp-2);
+  color: var(--ink-quiet); font-size: var(--text-sm);
+}
+.dlg__undo kbd { flex: none; }
+.dlg__foot {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-block-start: 1px solid var(--hairline);
+  background: var(--bg-subtle);
+}
+.dlg__foot .spacer { flex: 1; }
+/* 破坏性按钮右侧末尾，与取消之间有 16px 的空栈栏，不会紧贴触发按钮。 */
+.dlg__danger-sep { inline-size: 1px; block-size: 1.25rem; background: var(--hairline-strong); margin-inline: var(--sp-2); }
+
+.btn--destructive {
+  background: var(--danger-ink); color: var(--bg-surface); font-weight: 600;
+}
+.btn--destructive:hover:not(:disabled) { background: var(--danger); }
+.btn--destructive:disabled {
+  background: var(--bg-sunken); color: var(--ink-2); cursor: not-allowed;
+}
+.btn--destructive:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.hysteresis {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-inline-end: var(--sp-1);
+  color: var(--ink-quiet); font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+.hysteresis[hidden] { display: none; }
+.hysteresis__bar {
+  inline-size: 3.5rem; block-size: 3px;
+  border-radius: var(--radius-full);
+  background: var(--hairline-strong);
+  overflow: hidden;
+}
+.hysteresis__fill {
+  block-size: 100%;
+  background: var(--ink-quiet);
+  transform-origin: left center;
+}
+
+/* progress */
+.progress {
+  display: grid; gap: var(--sp-2);
+  margin-block-start: var(--sp-3);
+}
+.progress__meta { display: flex; justify-content: space-between; color: var(--ink-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+.progress__track {
+  block-size: 6px; border-radius: var(--radius-full);
+  background: var(--bg-sunken);
+  overflow: hidden;
+}
+.progress__fill {
+  block-size: 100%; inline-size: 0%;
+  background: var(--accent);
+  border-radius: var(--radius-full);
+  transition: inline-size var(--dur-base) var(--ease);
+}
+
+/* 快捷键帮助 */
+.keys-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 0 var(--sp-6);
+  padding: var(--sp-4) var(--sp-5);
+  max-block-size: 22rem; overflow-y: auto;
+}
+.keys-group { grid-column: 1 / -1; padding-block: var(--sp-2) var(--sp-1); font-size: var(--text-xs); font-weight: 600; color: var(--ink-quiet); }
+.keys-group:first-child { padding-block-start: 0; }
+.keys-row {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3);
+  padding-block: var(--sp-2);
+  border-block-end: 1px solid var(--hairline-soft);
+  font-size: var(--text-body);
+}
+.keys-row span { color: var(--ink-1); }
+.keys-row .keys { display: inline-flex; gap: var(--sp-1); flex: none; }
+
+kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-inline-size: 1.25rem; block-size: 1.125rem;
+  padding: 0 var(--sp-1);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-xs);
+  background: var(--bg-subtle);
+  color: var(--ink-2);
+  font: inherit; font-size: var(--text-xs); line-height: 1;
+  box-shadow: 0 1px 0 var(--hairline-strong);
+}
+
+/* 标本下的触发按钮 */
+.trigger-row { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; padding: var(--sp-4) var(--sp-5); }
+.trigger-row__hint { color: var(--ink-quiet); font-size: var(--text-xs); margin-inline-start: var(--sp-2); }
+
+/* 原生 dialog */
+dialog.native-dlg {
+  padding: 0; border: 0; background: transparent;
+  inline-size: min(26rem, calc(100vw - var(--sp-8)));
+  max-block-size: none;
+  margin: auto;
+  overflow: visible;
+}
+dialog.native-dlg::backdrop { background: var(--scrim); }
+dialog.native-dlg:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-xl); }
+/* 弹窗打开时焦点是程序放的，键盘用户也要看得见落点。 */
+dialog.native-dlg .btn:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+dialog.native-dlg--wide { inline-size: min(30rem, calc(100vw - var(--sp-8))); }
+
+/* toast */
+.toast {
+  position: fixed; inset-block-end: var(--sp-6); inset-inline: 0;
+  margin-inline: auto; inline-size: max-content; max-inline-size: calc(100vw - var(--sp-8));
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-md);
+  background: var(--ink-1); color: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; gap: var(--sp-3);
+  font-size: var(--text-body);
+  z-index: var(--z-toast);
+}
+.toast button {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  color: inherit; text-decoration: underline; font: inherit; font-weight: 600;
+  padding: 0;
+}
+.toast[hidden] { display: none; }
+
+@media (max-width: 720px) {
+  .spec__frame--split { grid-template-columns: 1fr; }
+  .spec__frame--split > div + div { border-inline-start: 0; border-block-start: 1px solid var(--hairline); }
+  .keys-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress__fill { transition: none; }
+}
+</style>
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<div class="app app--wide">
+  <nav class="rail" aria-label="主导航">
+    <div class="rail__group">
+      <button type="button" class="rail__item" aria-label="四象限" title="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="日历" title="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="搜索" title="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button type="button" class="rail__item" aria-label="备份" title="备份">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="设置" title="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="更多" title="更多">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">弹窗与确认</h1>
+      <span class="topbar__sub">2026年11月26日 周四</span>
+    </header>
+
+    <div class="content">
+      <div class="doc">
+        <h2 class="doc__title">弹窗与确认</h2>
+        <p class="doc__lead">
+          每个弹窗一张标本。破坏性确认遵守 DESIGN-LANGUAGE §5.4：原生 <code>&lt;dialog&gt;</code>、
+          焦点落在安全动作、破坏性按钮在右侧末尾、打开后 600ms 内禁用。每个下面的按钮能真的打开它，Esc 能关。
+        </p>
+
+        <!-- 01 破坏性确认 -->
+        <section class="spec">
+          <p class="spec__cap"><span class="spec__no">01</span>破坏性确认 · 清空全部数据
+            <span class="spec__hint">取消获得焦点；确认按钮在 600ms 内禁用</span></p>
+          <div class="spec__frame spec__frame--stage">
+            <div class="stage-scrim" aria-hidden="true"></div>
+            <div class="dlg" role="group" aria-label="清空全部数据确认（静态）">
+              <div class="dlg__body">
+                <div class="dlg__row">
+                  <span class="dlg__icon dlg__icon--danger" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+                  </span>
+                  <div>
+                    <h3 class="dlg__title">清空全部数据？</h3>
+                    <p class="dlg__text">这台机器上的全部事情与清单会被删除，无法恢复。</p>
+                    <p class="dlg__cost">将删除 <strong data-wipe-count>20</strong> 件事、<strong data-list-count>4</strong> 个清单</p>
+                  </div>
+                </div>
+              </div>
+              <div class="dlg__foot">
+                <button type="button" class="btn btn--secondary" autofocus data-demo-cancel>取消</button>
+                <span class="spacer"></span>
+                <span class="hysteresis">
+                  <span class="hysteresis__bar"><span class="hysteresis__fill" style="inline-size:34%"></span></span>
+                  <span>600ms 后可点</span>
+                </span>
+                <button type="button" class="btn btn--destructive" disabled data-demo-wipe>清空全部数据</button>
+              </div>
+            </div>
+          </div>
+          <div class="trigger-row">
+            <button type="button" class="btn btn--secondary" data-open="wipe">打开「清空全部数据」</button>
+            <span class="trigger-row__hint">演示：600ms 后按钮才可用，原因写在按钮左边</span>
+          </div>
+        </section>
+
+        <!-- 02 删除一件事 -->
+        <section class="spec">
+          <p class="spec__cap"><span class="spec__no">02</span>删除一件事
+            <span class="spec__hint">轻量确认，带撤销</span></p>
+          <div class="spec__frame spec__frame--stage" style="block-size: 22rem">
+            <div class="stage-scrim" aria-hidden="true"></div>
+            <div class="dlg" role="group" aria-label="删除一件事（静态）">
+              <div class="dlg__body">
+                <div class="dlg__row">
+                  <span class="dlg__icon" aria-hidden="true">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </span>
+                  <div>
+                    <h3 class="dlg__title">删除「交报销单」？</h3>
+                    <p class="dlg__text">这件事会从清单与日历里移除。</p>
+                    <p class="dlg__undo"><kbd>Ctrl</kbd><kbd>Z</kbd> 可以撤销这一步。</p>
+                  </div>
+                </div>
+              </div>
+              <div class="dlg__foot">
+                <button type="button" class="btn btn--secondary" autofocus data-demo-cancel>取消</button>
+                <span class="spacer"></span>
+                <button type="button" class="btn btn--danger" data-demo-delete>删除</button>
+              </div>
+            </div>
+          </div>
+          <div class="trigger-row">
+            <button type="button" class="btn btn--secondary" data-open="delete">打开「删除一件事」</button>
+            <span class="trigger-row__hint">删除后左下角出现 5 秒的「撤销」</span>
+          </div>
+        </section>
+
+        <!-- 03 快捷键帮助 -->
+        <section class="spec">
+          <p class="spec__cap"><span class="spec__no">03</span>快捷键帮助
+            <span class="spec__hint">两列；含 Ctrl+N（审计 §5.1 的缺口）</span></p>
+          <div class="spec__frame">
+            <div class="keys-grid">
+              <div class="keys-group">打开</div>
+              <div class="keys-row"><span>搜索</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+              <div class="keys-row"><span>搜索</span><span class="keys"><kbd>Ctrl</kbd><kbd>F</kbd></span></div>
+              <div class="keys-row"><span>捕获</span><span class="keys"><kbd>Ctrl</kbd><kbd>N</kbd></span></div>
+              <div class="keys-row"><span>设置</span><span class="keys"><kbd>Ctrl</kbd><kbd>,</kbd></span></div>
+              <div class="keys-row"><span>快捷键帮助</span><span class="keys"><kbd>?</kbd></span></div>
+
+              <div class="keys-group">视图</div>
+              <div class="keys-row"><span>四象限</span><span class="keys"><kbd>G</kbd><kbd>Q</kbd></span></div>
+              <div class="keys-row"><span>月</span><span class="keys"><kbd>G</kbd><kbd>M</kbd></span></div>
+              <div class="keys-row"><span>周</span><span class="keys"><kbd>G</kbd><kbd>W</kbd></span></div>
+              <div class="keys-row"><span>日</span><span class="keys"><kbd>G</kbd><kbd>D</kbd></span></div>
+              <div class="keys-row"><span>议程</span><span class="keys"><kbd>G</kbd><kbd>A</kbd></span></div>
+
+              <div class="keys-group">编辑</div>
+              <div class="keys-row"><span>撤销</span><span class="keys"><kbd>Ctrl</kbd><kbd>Z</kbd></span></div>
+              <div class="keys-row"><span>重做</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Z</kbd></span></div>
+              <div class="keys-row"><span>关闭 / 返回</span><span class="keys"><kbd>Esc</kbd></span></div>
+            </div>
+          </div>
+          <div class="trigger-row">
+            <button type="button" class="btn btn--secondary" data-open="keys">打开「快捷键帮助」</button>
+            <span class="trigger-row__hint">同样按 ? 打开</span>
+          </div>
+        </section>
+
+        <!-- 04 导出进度 / 成功 -->
+        <section class="spec">
+          <p class="spec__cap"><span class="spec__no">04</span>导出进度 / 成功
+            <span class="spec__hint">小状态弹窗；数字来自同一份数据</span></p>
+          <div class="spec__frame spec__frame--split">
+            <div>
+              <div class="dlg" role="group" aria-label="导出中（静态）">
+                <div class="dlg__body">
+                  <div class="dlg__row">
+                    <span class="dlg__icon dlg__icon--ok" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+                    </span>
+                    <div style="flex:1;min-inline-size:0">
+                      <h3 class="dlg__title">正在导出完整备份…</h3>
+                      <p class="dlg__text">关闭这个窗口不会中断导出。</p>
+                      <div class="progress">
+                        <div class="progress__meta"><span data-export-step>写入事情 12 / 20</span><span>60%</span></div>
+                        <div class="progress__track"><div class="progress__fill" style="inline-size:60%"></div></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dlg__foot">
+                  <span class="spacer"></span>
+                  <button type="button" class="btn btn--ghost">后台运行</button>
+                  <button type="button" class="btn btn--secondary">取消导出</button>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="dlg" role="group" aria-label="导出成功（静态）">
+                <div class="dlg__body">
+                  <div class="dlg__row">
+                    <span class="dlg__icon dlg__icon--ok" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                    </span>
+                    <div>
+                      <h3 class="dlg__title">导出完成</h3>
+                      <p class="dlg__text">完整备份已保存。里面是全部事情与清单，可用来还原。</p>
+                      <p class="dlg__cost"><strong data-export-count>20</strong> 件事 · <strong>4</strong> 个清单 · <strong>设置</strong> — <span style="color:var(--ink-quiet);font-size:var(--text-xs)">kairos-backup-2026-11-26.json</span></p>
+                    </div>
+                  </div>
+                </div>
+                <div class="dlg__foot">
+                  <button type="button" class="btn btn--ghost">在文件夹中显示</button>
+                  <span class="spacer"></span>
+                  <button type="button" class="btn btn--primary" autofocus>完成</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="trigger-row">
+            <button type="button" class="btn btn--secondary" data-open="export">打开「导出」状态弹窗</button>
+            <span class="trigger-row__hint">先显示进度，1.2s 后变成成功</span>
+          </div>
+        </section>
+
+        <!-- 05 未保存警告：不存在 -->
+        <section class="spec">
+          <p class="spec__cap"><span class="spec__no">05</span>未保存警告 · <b>没有这个弹窗</b>
+            <span class="spec__hint">v2 每次改动立即写入</span></p>
+          <div class="spec__frame">
+            <p class="spec__note">
+              <b>为什么这里空着。</b> 详情面板与捕获条都是「改了就写」，没有草稿态，所以不存在
+              「有未保存改动」这个状态——也就没有「离开前要保存吗？」的弹窗。旧版的事件编辑器有
+              保存 / 取消 / 脏检查（审计 §4.4），合并后这套模型消失：同一件事只有一个编辑器，
+              它和清单、日期、象限一样，改一下就已经生效。
+              <br><br>
+              代价写在明处：误改无法靠「取消」反悔，只能靠撤销栈（<kbd>Ctrl</kbd><kbd>Z</kbd>）。
+              这是有意的取舍——保存按钮逼用户每次都想「我改了没有」，而撤销栈只在那一次误操作时出现。
+            </p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 真实弹窗：破坏性确认 -->
+<dialog class="native-dlg" id="dlgWipe" aria-labelledby="wipeTitle" aria-describedby="wipeDesc">
+  <div class="dlg">
+    <div class="dlg__body">
+      <div class="dlg__row">
+        <span class="dlg__icon dlg__icon--danger" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>
+        </span>
+        <div>
+          <h3 class="dlg__title" id="wipeTitle">清空全部数据？</h3>
+          <p class="dlg__text" id="wipeDesc">这台机器上的全部事情与清单会被删除，无法恢复。</p>
+          <p class="dlg__cost">将删除 <strong data-wipe-count>20</strong> 件事、<strong data-list-count>4</strong> 个清单</p>
+        </div>
+      </div>
+    </div>
+    <div class="dlg__foot">
+      <button type="button" class="btn btn--secondary" autofocus data-cancel>取消</button>
+      <span class="spacer"></span>
+      <span class="hysteresis" data-hysteresis hidden>
+        <span class="hysteresis__bar"><span class="hysteresis__fill" style="inline-size:100%"></span></span>
+        <span data-hysteresis-label>600ms</span>
+      </span>
+      <button type="button" class="btn btn--destructive" disabled data-confirm-wipe>清空全部数据</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 真实弹窗：删除一件事 -->
+<dialog class="native-dlg" id="dlgDelete" aria-labelledby="delTitle">
+  <div class="dlg">
+    <div class="dlg__body">
+      <div class="dlg__row">
+        <span class="dlg__icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+        </span>
+        <div>
+          <h3 class="dlg__title" id="delTitle">删除「交报销单」？</h3>
+          <p class="dlg__text">这件事会从清单与日历里移除。</p>
+          <p class="dlg__undo"><kbd>Ctrl</kbd><kbd>Z</kbd> 可以撤销这一步。</p>
+        </div>
+      </div>
+    </div>
+    <div class="dlg__foot">
+      <button type="button" class="btn btn--secondary" autofocus data-cancel>取消</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--danger" data-confirm-delete>删除</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 真实弹窗：快捷键帮助 -->
+<dialog class="native-dlg native-dlg--wide" id="dlgKeys" aria-labelledby="keysTitle" style="inline-size:min(46rem, calc(100vw - var(--sp-8)))">
+  <div class="dlg dlg--wide" style="max-inline-size:none">
+    <div class="dlg__body" style="padding-block-end:0">
+      <div class="dlg__row">
+        <span class="dlg__icon" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="6" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>
+        </span>
+        <div>
+          <h3 class="dlg__title" id="keysTitle">快捷键</h3>
+          <p class="dlg__text">按 ? 或 Ctrl+/ 随时打开这张表。</p>
+        </div>
+      </div>
+    </div>
+    <div class="keys-grid">
+      <div class="keys-group">打开</div>
+      <div class="keys-row"><span>搜索</span><span class="keys"><kbd>Ctrl</kbd><kbd>K</kbd></span></div>
+      <div class="keys-row"><span>搜索</span><span class="keys"><kbd>Ctrl</kbd><kbd>F</kbd></span></div>
+      <div class="keys-row"><span>捕获</span><span class="keys"><kbd>Ctrl</kbd><kbd>N</kbd></span></div>
+      <div class="keys-row"><span>设置</span><span class="keys"><kbd>Ctrl</kbd><kbd>,</kbd></span></div>
+      <div class="keys-row"><span>快捷键帮助</span><span class="keys"><kbd>?</kbd></span></div>
+      <div class="keys-group">视图</div>
+      <div class="keys-row"><span>四象限</span><span class="keys"><kbd>G</kbd><kbd>Q</kbd></span></div>
+      <div class="keys-row"><span>月</span><span class="keys"><kbd>G</kbd><kbd>M</kbd></span></div>
+      <div class="keys-row"><span>周</span><span class="keys"><kbd>G</kbd><kbd>W</kbd></span></div>
+      <div class="keys-row"><span>日</span><span class="keys"><kbd>G</kbd><kbd>D</kbd></span></div>
+      <div class="keys-row"><span>议程</span><span class="keys"><kbd>G</kbd><kbd>A</kbd></span></div>
+      <div class="keys-group">编辑</div>
+      <div class="keys-row"><span>撤销</span><span class="keys"><kbd>Ctrl</kbd><kbd>Z</kbd></span></div>
+      <div class="keys-row"><span>重做</span><span class="keys"><kbd>Ctrl</kbd><kbd>Shift</kbd><kbd>Z</kbd></span></div>
+      <div class="keys-row"><span>关闭 / 返回</span><span class="keys"><kbd>Esc</kbd></span></div>
+    </div>
+    <div class="dlg__foot">
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--secondary" autofocus data-cancel>关闭</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 真实弹窗：导出 -->
+<dialog class="native-dlg" id="dlgExport" aria-labelledby="exportTitle">
+  <div class="dlg">
+    <div class="dlg__body">
+      <div class="dlg__row">
+        <span class="dlg__icon dlg__icon--ok" aria-hidden="true" id="exportIcon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        </span>
+        <div style="flex:1;min-inline-size:0">
+          <h3 class="dlg__title" id="exportTitle">正在导出完整备份…</h3>
+          <p class="dlg__text" id="exportText">关闭这个窗口不会中断导出。</p>
+          <div class="progress" id="exportProgressWrap">
+            <div class="progress__meta"><span id="exportStep">写入事情 0 / 20</span><span id="exportPct">0%</span></div>
+            <div class="progress__track"><div class="progress__fill" id="exportFill"></div></div>
+          </div>
+          <p class="dlg__cost" id="exportDone" hidden><strong data-export-count>20</strong> 件事 · <strong>4</strong> 个清单 · <strong>设置</strong> — <span style="color:var(--ink-quiet);font-size:var(--text-xs)">kairos-backup-2026-11-26.json</span></p>
+        </div>
+      </div>
+    </div>
+    <div class="dlg__foot">
+      <button type="button" class="btn btn--ghost" id="exportShow">在文件夹中显示</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn btn--secondary" data-cancel id="exportCancel">取消导出</button>
+      <button type="button" class="btn btn--primary" id="exportDoneBtn" hidden autofocus>完成</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden>
+  <span data-toast-text></span>
+  <button type="button" data-toast-undo hidden>撤销</button>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var K = null;
+  var HYSTERESIS_MS = 600;
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function toast(text, undoLabel, onUndo) {
+    var el = document.getElementById('toast');
+    var txt = el.querySelector('[data-toast-text]');
+    var btn = el.querySelector('[data-toast-undo]');
+    txt.textContent = text;
+    if (undoLabel) {
+      btn.hidden = false;
+      btn.textContent = undoLabel;
+      btn.onclick = function () { el.hidden = true; if (onUndo) onUndo(); };
+    } else {
+      btn.hidden = true;
+    }
+    el.hidden = false;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.hidden = true; }, undoLabel ? 5000 : 2400);
+  }
+
+  /* ---- 600ms 迟滞 ------------------------------------------------------ */
+  function armHysteresis(hint, btn, label) {
+    var start = performance.now();
+    hint.hidden = false;
+    btn.disabled = true;
+    var fill = hint.querySelector('.hysteresis__fill');
+    var lab = hint.querySelector('[data-hysteresis-label]') || hint.querySelector('span:last-child');
+    if (fill) {
+      fill.style.transition = 'none';
+      fill.style.inlineSize = '100%';
+      void fill.offsetWidth;
+      fill.style.transition = 'inline-size ' + HYSTERESIS_MS + 'ms linear';
+      fill.style.inlineSize = '0%';
+    }
+
+    function tick(now) {
+      var left = Math.max(0, HYSTERESIS_MS - (now - start));
+      if (left > 0) {
+        if (lab) lab.textContent = Math.ceil(left) + 'ms';
+        requestAnimationFrame(tick);
+        return;
+      }
+      if (lab) lab.textContent = '可用了';
+      btn.disabled = false;
+      // 让禁用原因停留一下再收起，避免按钮一变就消失的「闪一下」。
+      setTimeout(function () { hint.hidden = true; }, 220);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ---- 打开 / 关闭 ----------------------------------------------------- */
+  function openDialog(id) {
+    var d = document.getElementById(id);
+    if (!d || d.open) return;
+    d.showModal();
+    if (id === 'dlgWipe') {
+      var btn = d.querySelector('[data-confirm-wipe]');
+      var hint = d.querySelector('[data-hysteresis]');
+      armHysteresis(hint, btn);
+    }
+    if (id === 'dlgExport') startExport();
+  }
+
+  var exportTimer = null;
+  var exportRaf = null;
+
+  function startExport() {
+    var d = document.getElementById('dlgExport');
+    var total = K ? K.ITEMS.length : 20;
+    var step = d.querySelector('#exportStep');
+    var pct = d.querySelector('#exportPct');
+    var fill = d.querySelector('#exportFill');
+    var wrap = d.querySelector('#exportProgressWrap');
+    var done = d.querySelector('#exportDone');
+    var titleEl = d.querySelector('#exportTitle');
+    var textEl = d.querySelector('#exportText');
+    var cancel = d.querySelector('#exportCancel');
+    var doneBtn = d.querySelector('#exportDoneBtn');
+    var show = d.querySelector('#exportShow');
+
+    // reset
+    clearTimeout(exportTimer);
+    wrap.hidden = false; wrap.style.display = ''; done.hidden = true; doneBtn.hidden = true; cancel.hidden = false; show.hidden = true;
+    titleEl.textContent = '正在导出完整备份…';
+    textEl.textContent = '关闭这个窗口不会中断导出。';
+    step.textContent = '写入事情 0 / ' + total;
+    pct.textContent = '0%';
+    fill.style.inlineSize = '0%';
+
+    var start = performance.now();
+    var DURATION = 1200;
+    function frame(now) {
+      var t = Math.min(1, (now - start) / DURATION);
+      var n = Math.round(t * total);
+      step.textContent = '写入事情 ' + n + ' / ' + total;
+      pct.textContent = Math.round(t * 100) + '%';
+      fill.style.inlineSize = (t * 100) + '%';
+      if (t < 1) {
+        exportRaf = requestAnimationFrame(frame);
+        return;
+      }
+      finishExport(total);
+    }
+    exportRaf = requestAnimationFrame(frame);
+  }
+
+  function finishExport(total) {
+    var d = document.getElementById('dlgExport');
+    cancelAnimationFrame(exportRaf);
+    d.querySelector('#exportProgressWrap').hidden = true;
+    d.querySelector('#exportDone').hidden = false;
+    d.querySelector('#exportTitle').textContent = '导出完成';
+    d.querySelector('#exportText').textContent = '完整备份已保存。里面是全部事情与清单，可用来还原。';
+    d.querySelector('#exportCancel').hidden = true;
+    d.querySelector('#exportProgressWrap').style.display = 'none';
+    d.querySelector('#exportShow').hidden = false;
+    var doneBtn = d.querySelector('#exportDoneBtn');
+    doneBtn.hidden = false;
+    doneBtn.focus();
+  }
+
+  function boot() {
+    K = window.Kairos;
+    var total = K ? K.ITEMS.length : 20;
+    var listCount = K ? K.LISTS.length : 4;
+    document.querySelectorAll('[data-wipe-count]').forEach(function (el) { el.textContent = String(total); });
+    document.querySelectorAll('[data-export-count]').forEach(function (el) { el.textContent = String(total); });
+    document.querySelectorAll('[data-export-step]').forEach(function (el) {
+      el.textContent = '写入事情 12 / ' + total;
+    });
+
+    document.addEventListener('click', function (e) {
+      var opener = e.target.closest('[data-open]');
+      if (opener) {
+        var map = { wipe: 'dlgWipe', delete: 'dlgDelete', keys: 'dlgKeys', export: 'dlgExport' };
+        openDialog(map[opener.dataset.open]);
+        return;
+      }
+      var cancel = e.target.closest('[data-cancel]');
+      if (cancel) { cancel.closest('dialog').close(); return; }
+      if (e.target.closest('[data-confirm-wipe]')) {
+        var d = document.getElementById('dlgWipe');
+        d.close();
+        toast('已清空全部数据。');
+        return;
+      }
+      if (e.target.closest('[data-confirm-delete]')) {
+        document.getElementById('dlgDelete').close();
+        toast('已删除「交报销单」', '撤销', function () { toast('已撤销删除。'); });
+        return;
+      }
+      if (e.target.closest('#exportDoneBtn') || e.target.closest('#exportShow')) {
+        document.getElementById('dlgExport').close();
+        return;
+      }
+    });
+
+    // Esc handled natively by <dialog>.
+
+    // ? 打开快捷键帮助
+    document.addEventListener('keydown', function (e) {
+      if (e.target.closest('input, textarea, select, [contenteditable]')) return;
+      if (e.key === '?' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        var d = document.getElementById('dlgKeys');
+        if (!d.open) d.showModal();
+      }
+    });
+
+    // 关闭导出弹窗时取消动画
+    document.getElementById('dlgExport').addEventListener('close', function () {
+      cancelAnimationFrame(exportRaf);
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

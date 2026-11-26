@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 详情面板</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+  body {
+    margin: 0;
+    background: var(--bg-app);
+    color: var(--ink-1);
+    font: var(--text-md)/1.5 var(--font-sans);
+  }
+
+  /* ---------- 左栏：视图与清单 ---------- */
+  .srow {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    block-size: var(--control-h);
+    padding: 0 var(--sp-2);
+    border-radius: var(--radius-sm);
+    color: var(--ink-1);
+    font-size: var(--text-body);
+  }
+  .srow--current {
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .srow__dot {
+    inline-size: 6px;
+    block-size: 6px;
+    border-radius: 50%;
+    flex: none;
+  }
+  .srow .sidebar__count { margin-inline-start: auto; color: var(--ink-quiet); }
+  /* shared.css 的 .sidebar__count / .topbar__sub / .when--none 用 --ink-3，
+     在 refined/light 的 --bg-app 上只有 4.22–4.33，低于 4.5 的文字下限。
+     --ink-quiet 六个组合都在 5.4 以上，所以在这一页覆盖。 */
+  .sidebar__count,
+  .topbar__sub,
+  .when--none { color: var(--ink-quiet); }
+  .sidebar__sep {
+    block-size: 1px;
+    margin: var(--sp-2) var(--sp-2);
+    background: var(--hairline);
+  }
+  .sidebar__hint {
+    margin: auto 0 var(--sp-1);
+    padding: var(--sp-3) var(--sp-2) 0;
+    border-block-start: 1px solid var(--hairline);
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  /* ---------- 顶栏 ---------- */
+  .kbd-hint {
+    margin-inline-start: auto;
+    padding-inline-end: 13rem; /* clear the fixed demo bar */
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+  }
+  .kbd-hint kbd {
+    display: inline-block;
+    padding: 1px 5px;
+    border: 1px solid var(--hairline-strong);
+    border-block-end-width: 2px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: 10px;
+    line-height: 1.4;
+  }
+
+  /* ---------- 工作区 ---------- */
+  .workarea {
+    flex: 1;
+    min-block-size: 0;
+    display: flex;
+    overflow: hidden;
+    background: var(--bg-app);
+  }
+  .listpane {
+    flex: 1;
+    min-inline-size: 0;
+    overflow-y: auto;
+    padding: var(--sp-4) var(--sp-5) var(--sp-8);
+  }
+  .listpane__hint {
+    margin: 0 0 var(--sp-3);
+    padding: 0 var(--sp-2);
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+  }
+  .rows { display: flex; flex-direction: column; gap: 2px; }
+
+  .lrow {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    inline-size: 100%;
+    block-size: 40px;
+    padding: 0 var(--sp-2) 0 var(--sp-3);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-1);
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+  .lrow:hover { background: var(--bg-hover); }
+  .lrow:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: -2px;
+  }
+  .lrow--sel,
+  .lrow--sel:hover {
+    background: var(--bg-surface);
+    box-shadow: inset 2px 0 0 var(--accent), inset 0 0 0 1px var(--hairline-strong);
+  }
+  .lrow__title {
+    flex: 1;
+    min-inline-size: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-md);
+  }
+  .lrow--sel .lrow__title { font-weight: 600; }
+  .lrow .when { flex: none; }
+
+  /* ---------- 右侧 inspector ---------- */
+  .inspector {
+    inline-size: 380px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    min-block-size: 0;
+    background: var(--bg-surface);
+    border-inline-start: 1px solid var(--hairline);
+    box-shadow: var(--shadow-sm);
+  }
+  .inspector[hidden] { display: none; }
+
+  .insp__head {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-5);
+    border-block-end: 1px solid var(--hairline);
+  }
+  .insp__eyebrow {
+    font-size: var(--text-xs);
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .saved {
+    margin-inline-start: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-1);
+    color: var(--success-ink);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    opacity: 0;
+    translate: 0 2px;
+    transition: opacity var(--dur-fast) var(--ease), translate var(--dur-fast) var(--ease);
+  }
+  .saved[data-on] { opacity: 1; translate: 0 0; }
+  .saved svg { flex: none; }
+
+  .insp__body {
+    flex: 1;
+    min-block-size: 0;
+    overflow-y: auto;
+    padding: 0 var(--sp-5);
+  }
+  .dsec {
+    padding-block: var(--sp-4);
+    border-block-end: 1px solid var(--hairline);
+  }
+  .dsec:last-child { border-block-end: 0; }
+  .dsec--title { padding-block-start: var(--sp-4); }
+  .dsec__head {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    min-block-size: var(--sp-5);
+    margin-block-end: var(--sp-2);
+  }
+  .dsec__head h3 {
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .dsec__foot {
+    margin: var(--sp-2) 0 0;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+  .dsec__foot b { color: var(--ink-2); font-weight: 600; }
+  .dsec__foot b.is-danger { color: var(--danger-ink); }
+  .dsec__foot b.is-warning { color: var(--warning-ink); }
+
+  .due {
+    margin-inline-start: auto;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .due--danger { color: var(--danger-ink); }
+  .due--warning { color: var(--warning-ink); }
+  .due--normal { color: var(--ink-2); }
+  .due--muted { color: var(--ink-quiet); font-weight: 500; }
+
+  .insp__title {
+    appearance: none;
+    display: block;
+    inline-size: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-1);
+    font: inherit;
+    font-size: var(--text-xl);
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.01em;
+  }
+  .insp__title::placeholder { color: var(--ink-quiet); font-weight: 500; }
+  .insp__title:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 4px;
+    border-radius: var(--radius-xs);
+  }
+  .insp__meta {
+    margin: var(--sp-2) 0 0;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+  }
+
+  /* ---------- 时间阶梯：一条轴，六个停靠点 ---------- */
+  .ladder {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: relative;
+  }
+  /* 精度轴：竖线从第一颗点到最后一颗点。行底色盖住行内那一段，
+     只在行与行之间露出，读成一架梯子而不是六个按钮。 */
+  .ladder::before {
+    content: "";
+    position: absolute;
+    inset-block: 15px;
+    inset-inline-start: 14px;
+    inline-size: 1px;
+    background: var(--hairline-strong);
+  }
+  .rung {
+    appearance: none;
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    inline-size: 100%;
+    block-size: 30px;
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-body);
+    text-align: start;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+  .rung:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .rung:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+  .rung__mark {
+    inline-size: 7px;
+    block-size: 7px;
+    flex: none;
+    margin-inline-start: 3px;
+    border: 1.5px solid var(--ink-4);
+    border-radius: 50%;
+    background: var(--bg-surface);
+  }
+  .rung__name { font-weight: 500; }
+  .rung__ex {
+    margin-inline-start: auto;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  .rung[aria-checked="true"] {
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    box-shadow: inset 0 0 0 1px var(--accent-ink);
+  }
+  .rung[aria-checked="true"] .rung__name { font-weight: 600; }
+  .rung[aria-checked="true"] .rung__mark {
+    border-color: var(--accent-ink);
+    background: var(--accent-ink);
+  }
+  .rung[aria-checked="true"] .rung__ex { color: var(--accent-ink); }
+
+  /* 选中档的上下文编辑器：不是新面板，只是同一控件展开的子行 */
+  .rung-detail { margin-block-start: var(--sp-2); }
+  .rd__chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+  .chip {
+    appearance: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .chip--on {
+    border-color: var(--accent-ink);
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    font-weight: 600;
+  }
+  .chip--cal { border-style: dashed; }
+  .rd__hint {
+    margin: var(--sp-2) 0 0;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  .seg {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border-radius: var(--radius-md);
+    background: var(--bg-sunken);
+  }
+  .seg .chip {
+    flex: 1;
+    justify-content: center;
+    block-size: 26px;
+    border-color: transparent;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+  .seg .chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .seg .chip--on {
+    background: var(--bg-surface);
+    color: var(--ink-1);
+    box-shadow: var(--shadow-sm);
+    border-color: transparent;
+  }
+  .rd__seg { margin-block-start: var(--sp-2); }
+  .rd__row { display: flex; align-items: center; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+  .rd__label { color: var(--ink-quiet); font-size: var(--text-xs); flex: none; }
+
+  /* 迷你月历 */
+  .mgrid {
+    margin-block-start: var(--sp-2);
+    padding: var(--sp-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+  }
+  .mgrid__head { display: flex; align-items: center; gap: var(--sp-1); margin-block-end: var(--sp-1); }
+  .mgrid__label {
+    flex: 1;
+    text-align: center;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .mgrid__nav {
+    appearance: none;
+    display: grid;
+    place-items: center;
+    inline-size: 24px;
+    block-size: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-2);
+    cursor: pointer;
+  }
+  .mgrid__nav:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .mgrid__nav:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .mgrid__dow,
+  .mgrid__grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .mgrid__dow { margin-block-end: 2px; }
+  .mgrid__dow span {
+    text-align: center;
+    color: var(--ink-quiet);
+    font-size: var(--text-xs);
+    line-height: 1.8;
+  }
+  .mgrid__day {
+    appearance: none;
+    block-size: 26px;
+    min-inline-size: 0;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-1);
+    font: inherit;
+    font-size: var(--text-xs);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .mgrid__day:hover { background: var(--bg-hover); }
+  .mgrid__day:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+  .mgrid__day--out { color: var(--ink-quiet); }
+  .mgrid__day--today { border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .mgrid__day--sel {
+    border-color: var(--accent-strong);
+    background: var(--accent-strong);
+    color: var(--accent-contrast);
+    font-weight: 600;
+  }
+
+  /* ---------- 象限 ---------- */
+  .qgrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-1);
+  }
+  .qbtn {
+    appearance: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-inline-size: 0;
+    block-size: 34px;
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    text-align: start;
+    cursor: pointer;
+    --q-tint: transparent;
+    --q-ink: var(--ink-2);
+  }
+  .qbtn:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .qbtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .qbtn[aria-checked="true"] {
+    background: var(--q-tint);
+    border-color: var(--q-ink);
+    color: var(--q-ink);
+    font-weight: 600;
+  }
+  .qbtn[data-q="1"] { --q-tint: var(--q1-t); --q-ink: var(--q1-i); }
+  .qbtn[data-q="2"] { --q-tint: var(--q2-t); --q-ink: var(--q2-i); }
+  .qbtn[data-q="3"] { --q-tint: var(--q3-t); --q-ink: var(--q3-i); }
+  .qbtn[data-q="4"] { --q-tint: var(--q4-t); --q-ink: var(--q4-i); }
+
+  /* ---------- 清单选择 ---------- */
+  .selectwrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    block-size: var(--control-h);
+    padding: 0 var(--sp-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+  }
+  .selectwrap:hover { border-color: var(--hairline-strong); }
+  .selectwrap:focus-within {
+    outline: 2px solid var(--focus);
+    outline-offset: -1px;
+    border-color: var(--accent);
+  }
+  .ldot {
+    inline-size: 7px;
+    block-size: 7px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--ink-4);
+  }
+  .select {
+    appearance: none;
+    flex: 1;
+    min-inline-size: 0;
+    block-size: 100%;
+    padding: 0 20px 0 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink-1);
+    font: inherit;
+    font-size: var(--text-body);
+    cursor: pointer;
+  }
+  .select:focus-visible { outline: none; }
+  .selectwrap svg {
+    position: absolute;
+    inset-inline-end: var(--sp-2);
+    color: var(--ink-quiet);
+    pointer-events: none;
+  }
+
+  /* ---------- 备注 ---------- */
+  .field--area { min-block-size: 64px; }
+
+  /* ---------- 底栏 ---------- */
+  .insp__foot {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-5);
+    border-block-start: 1px solid var(--hairline);
+  }
+  .insp__del { color: var(--danger-ink); }
+  .insp__del:hover { background: var(--danger-tint); color: var(--danger-ink); }
+
+  /* ---------- toast ---------- */
+  .toast-host {
+    inset-block-end: var(--sp-5);
+    pointer-events: none;
+  }
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    color: var(--ink-1);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--text-body);
+    opacity: 0;
+    translate: 0 8px;
+    pointer-events: none;
+    transition: opacity var(--dur-base) var(--ease), translate var(--dur-base) var(--ease);
+  }
+  .toast[data-on] { opacity: 1; translate: 0 0; pointer-events: auto; }
+  /* Measured 1.0:1: this toast is rendered inside an ancestor that is still at
+     opacity:0 before it opens, and the undo label inherited that. It also sat
+     transparent on the surface. Give it an explicit ground so the label reads
+     as soon as the toast is shown. */
+  .toast__undo {
+    appearance: none;
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-2);
+    border: 0;
+    border-radius: var(--radius-sm);
+    background: var(--accent-tint);
+    color: var(--accent-ink);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .toast__undo:hover { background: var(--bg-hover); }
+  .toast__undo:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .saved, .toast { transition: none; }
+  }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+<div class="app">
+
+  <nav class="rail" aria-label="主导航">
+    <span class="rail__avatar" aria-hidden="true">K</span>
+    <div class="rail__group">
+      <button type="button" class="rail__item" aria-current="page" aria-label="所有事情">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button type="button" class="rail__item" aria-label="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <aside class="sidebar" aria-label="清单">
+    <div class="sidebar__head"><span>视图</span></div>
+    <div class="sidebar__group">
+      <div class="srow srow--current">所有事情 <span class="sidebar__count" id="countAll">19</span></div>
+      <div class="srow">今天 <span class="sidebar__count" id="countToday">5</span></div>
+    </div>
+    <div class="sidebar__sep" aria-hidden="true"></div>
+    <div class="sidebar__head"><span>清单</span><span id="countLists">4</span></div>
+    <div class="sidebar__group" id="listRows"></div>
+    <p class="sidebar__hint">字段一改就保存。<br>没有「保存」按钮，也没有第二个编辑器。</p>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">所有事情</h1>
+      <span class="topbar__sub" id="count">19 件未完成</span>
+      <span class="kbd-hint">按 <kbd>Ctrl</kbd>+<kbd>N</kbd> 捕获新的一件事</span>
+      <div class="topbar__actions"></div>
+    </header>
+
+    <div class="workarea">
+      <div class="listpane">
+        <p class="listpane__hint">按时间精度排 · 粗窗口在前 · 不限最后 · 点一行打开右侧详情</p>
+        <div class="rows" id="rows"></div>
+      </div>
+
+      <aside class="inspector" id="inspector" aria-label="事情详情">
+        <header class="insp__head">
+          <span class="insp__eyebrow">事情详情</span>
+          <span class="saved" id="saved" role="status" aria-live="polite"></span>
+        </header>
+
+        <div class="insp__body" id="inspBody">
+          <section class="dsec dsec--title">
+            <input class="insp__title" id="titleInput" type="text" aria-label="标题" autocomplete="off" spellcheck="false">
+            <p class="insp__meta">改动即保存 · 关闭不需要确认</p>
+          </section>
+
+          <section class="dsec">
+            <div class="dsec__head">
+              <h3>时间</h3>
+              <span class="due due--warning" id="due">明天到期</span>
+            </div>
+            <div class="ladder" id="ladder" role="radiogroup" aria-label="时间精度">
+              <button type="button" class="rung" role="radio" aria-checked="false" data-rung="month">
+                <span class="rung__mark" aria-hidden="true"></span>
+                <span class="rung__name">下个月</span>
+                <span class="rung__ex" data-ex>12月</span>
+              </button>
+              <button type="button" class="rung" role="radio" aria-checked="false" data-rung="week">
+                <span class="rung__mark" aria-hidden="true"></span>
+                <span class="rung__name">这周</span>
+                <span class="rung__ex" data-ex>11-23 起</span>
+              </button>
+              <button type="button" class="rung" role="radio" aria-checked="true" data-rung="day">
+                <span class="rung__mark" aria-hidden="true"></span>
+                <span class="rung__name">某一天</span>
+                <span class="rung__ex" data-ex>明天</span>
+              </button>
+              <button type="button" class="rung" role="radio" aria-checked="false" data-rung="period">
+                <span class="rung__mark" aria-hidden="true"></span>
+                <span class="rung__name">上午·下午·晚上</span>
+                <span class="rung__ex" data-ex>今天下午</span>
+              </button>
+              <button type="button" class="rung" role="radio" aria-checked="false" data-rung="time">
+                <span class="rung__mark" aria-hidden="true"></span>
+                <span class="rung__name">具体时刻</span>
+                <span class="rung__ex" data-ex>今天 15:00</span>
+              </button>
+              <button type="button" class="rung" role="radio" aria-checked="false" data-rung="none">
+                <span class="rung__mark" aria-hidden="true"></span>
+                <span class="rung__name">不限</span>
+                <span class="rung__ex" data-ex>收集箱</span>
+              </button>
+            </div>
+            <div class="rung-detail" id="rungDetail"></div>
+            <p class="dsec__foot" id="dueFoot"></p>
+          </section>
+
+          <section class="dsec">
+            <div class="dsec__head"><h3>象限</h3></div>
+            <div class="qgrid" id="qgrid" role="radiogroup" aria-label="象限">
+              <button type="button" class="qbtn" role="radio" aria-checked="false" data-q="1"><span class="qdot qdot--1" aria-hidden="true"></span>重要且紧急</button>
+              <button type="button" class="qbtn" role="radio" aria-checked="false" data-q="2"><span class="qdot qdot--2" aria-hidden="true"></span>重要不紧急</button>
+              <button type="button" class="qbtn" role="radio" aria-checked="false" data-q="3"><span class="qdot qdot--3" aria-hidden="true"></span>不重要但紧急</button>
+              <button type="button" class="qbtn" role="radio" aria-checked="false" data-q="4"><span class="qdot qdot--4" aria-hidden="true"></span>不重要不紧急</button>
+            </div>
+          </section>
+
+          <section class="dsec">
+            <div class="dsec__head"><h3>清单</h3></div>
+            <div class="selectwrap">
+              <span class="ldot" id="listDot" aria-hidden="true"></span>
+              <select class="select" id="listSel" aria-label="清单"></select>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </div>
+          </section>
+
+          <section class="dsec">
+            <div class="dsec__head"><h3>备注</h3></div>
+            <textarea class="field field--area" id="notes" placeholder="添加备注…" aria-label="备注"></textarea>
+          </section>
+        </div>
+
+        <footer class="insp__foot">
+          <button type="button" class="btn btn--ghost insp__del" id="btnDelete">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+            删除
+          </button>
+          <span class="spacer"></span>
+          <button type="button" class="btn btn--secondary" id="btnClose">关闭</button>
+        </footer>
+      </aside>
+    </div>
+
+    <!-- toast 挂在 .main 里，用共享的 .floating-center（容器查询），
+         不用 100vw 减侧栏宽度的算法。 -->
+    <div class="floating-center toast-host">
+      <div class="toast" id="toast" role="status" aria-live="polite">
+        <span id="toastText"></span>
+        <button type="button" class="toast__undo" id="toastUndo">撤销</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var K = window.Kairos;
+  if (!K) return;
+
+  var RANK = { month: 0, week: 1, day: 2, period: 3, time: 4, none: 5 };
+  var RUNG_ORDER = ['month', 'week', 'day', 'period', 'time', 'none']; /* 粗窗口在前，不限最后 */
+  var RUNG_EX = {
+    none: '清单名', month: '12月', week: '11-23 起',
+    day: '明天', period: '今天下午', time: '今天 15:00'
+  };
+
+  var items = K.ITEMS.filter(function (i) { return !i.done; }).map(function (i) {
+    return Object.assign({}, i);
+  });
+  var notes = {};
+  var selectedId = 6;
+  var savedTimer = null;
+  var toastTimer = null;
+  var toastAction = null;
+  var gridOpen = false;
+  var gridMonth = new Date(2026, 10, 1);
+
+  var el = {
+    rows: document.getElementById('rows'),
+    inspector: document.getElementById('inspector'),
+    inspBody: document.getElementById('inspBody'),
+    title: document.getElementById('titleInput'),
+    due: document.getElementById('due'),
+    dueFoot: document.getElementById('dueFoot'),
+    ladder: document.getElementById('ladder'),
+    detail: document.getElementById('rungDetail'),
+    qgrid: document.getElementById('qgrid'),
+    listSel: document.getElementById('listSel'),
+    listDot: document.getElementById('listDot'),
+    notes: document.getElementById('notes'),
+    saved: document.getElementById('saved'),
+    count: document.getElementById('count'),
+    countAll: document.getElementById('countAll'),
+    countToday: document.getElementById('countToday'),
+    listRows: document.getElementById('listRows'),
+    toast: document.getElementById('toast'),
+    toastText: document.getElementById('toastText'),
+    toastUndo: document.getElementById('toastUndo')
+  };
+
+  function current() {
+    for (var i = 0; i < items.length; i++) if (items[i].id === selectedId) return items[i];
+    return null;
+  }
+  function listOf(id) {
+    for (var i = 0; i < K.LISTS.length; i++) if (K.LISTS[i].id === id) return K.LISTS[i];
+    return K.LISTS[0];
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function rowLabel(it) {
+    if (it.rung === 'none') return listOf(it.list).name;
+    var label = K.rungLabel(it);
+    if (K.isWindowPassed(it)) label += '·未完成';
+    return label;
+  }
+  function whenClass(it) {
+    if (K.isLate(it)) return 'when--late';
+    if (K.isWindowPassed(it)) return 'when--late-soft';
+    return 'when--' + it.rung;
+  }
+
+  /* ---- 紧急读数：时间只负责读，不移动卡片 ---- */
+  function dueInfo(it) {
+    var lvl = K.urgencyOf(it);
+    if (K.isLate(it)) return { text: rowLabel(it) + ' 已过', tone: 'danger' };
+    if (K.isWindowPassed(it)) {
+      return { text: (it.rung === 'week' ? '上周' : '上个月') + ' · 未完成', tone: 'warning' };
+    }
+    if (it.rung === 'none') return { text: '不排期', tone: 'muted' };
+    if (it.rung === 'month' || it.rung === 'week') {
+      return { text: K.rungLabel(it) + ' · 计划窗口', tone: 'normal' };
+    }
+    if (it.rung === 'day') {
+      var n = K.diffDays(it.date, K.TODAY);
+      var txt = n === 0 ? '今天到期' : n === 1 ? '明天到期' : n > 1 ? n + ' 天后到期' : '已过';
+      return { text: txt, tone: n <= 2 ? 'warning' : 'normal' };
+    }
+    var tone = lvl === 'urgent' ? 'danger' : lvl === 'near' ? 'warning' : 'normal';
+    return { text: K.rungLabel(it) + ' 到期', tone: tone };
+  }
+
+  function urgencyWord(it) {
+    if (it.rung === 'none') return { word: '无时间读数', tone: 'muted' };
+    var lvl = K.urgencyOf(it);
+    if (lvl === 'urgent') return { word: it.urgent && !K.isLate(it) ? '已标紧急' : '已过期', tone: 'danger' };
+    if (lvl === 'near') return { word: '马上到期', tone: 'warning' };
+    if (lvl === 'soon') return { word: '临近', tone: 'warning' };
+    return { word: '不急', tone: 'muted' };
+  }
+
+  function flashSaved() {
+    if (!el.saved) return;
+    el.saved.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>已保存';
+    el.saved.setAttribute('data-on', '');
+    clearTimeout(savedTimer);
+    savedTimer = setTimeout(function () {
+      el.saved.removeAttribute('data-on');
+      setTimeout(function () { el.saved.textContent = ''; }, 180);
+    }, 1400);
+  }
+
+  /* ---- 左栏列表 ---- */
+  function renderList() {
+    var sorted = items.slice().sort(function (a, b) {
+      var d = RANK[a.rung] - RANK[b.rung];
+      if (d) return d;
+      var ad = a.date || '9999-99-99';
+      var bd = b.date || '9999-99-99';
+      return ad < bd ? -1 : ad > bd ? 1 : a.id - b.id;
+    });
+    var open = !el.inspector.hidden;
+    el.rows.innerHTML = sorted.map(function (it) {
+      var flag = K.isLate(it) ? '<span class="when__flag">已过</span>' : '';
+      var sel = open && it.id === selectedId;
+      return '<button type="button" class="lrow' + (sel ? ' lrow--sel' : '') + '" data-id="' + it.id + '"' +
+        (sel ? ' aria-current="true"' : '') + '>' +
+        '<span class="qdot qdot--' + it.q + '" aria-hidden="true"></span>' +
+        '<span class="lrow__title">' + esc(it.title) + '</span>' +
+        '<span class="when ' + whenClass(it) + '">' + esc(rowLabel(it)) + flag + '</span>' +
+        '</button>';
+    }).join('');
+  }
+
+  function renderCounts() {
+    el.count.textContent = items.length + ' 件未完成';
+    el.countAll.textContent = items.length;
+    var today = items.filter(function (i) { return i.date === K.TODAY; }).length;
+    el.countToday.textContent = today;
+    K.LISTS.forEach(function (l) {
+      var node = el.listRows.querySelector('[data-list-count="' + l.id + '"]');
+      if (node) node.textContent = items.filter(function (i) { return i.list === l.id; }).length;
+    });
+  }
+
+  function buildSidebar() {
+    el.listRows.innerHTML = K.LISTS.map(function (l) {
+      return '<div class="srow">' +
+        '<span class="srow__dot" style="background:' + l.color + '" aria-hidden="true"></span>' +
+        '<span>' + esc(l.name) + '</span>' +
+        '<span class="sidebar__count" data-list-count="' + l.id + '">0</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  /* ---- 面板 ---- */
+  function renderLadder() {
+    var it = current();
+    if (!it) return;
+    Array.prototype.forEach.call(el.ladder.querySelectorAll('.rung'), function (btn) {
+      var rung = btn.getAttribute('data-rung');
+      btn.setAttribute('aria-checked', String(rung === it.rung));
+      var ex = btn.querySelector('[data-ex]');
+      if (!ex) return;
+      /* 每一行右边那一格是「如果选它，行上会写成什么」。所以「不限」
+         显示的是这条事所在清单的名字，不是占位符。 */
+      if (rung === it.rung) ex.textContent = rowLabel(it);
+      else if (rung === 'none') ex.textContent = listOf(it.list).name;
+      else ex.textContent = RUNG_EX[rung];
+    });
+  }
+
+  function renderDetail() {
+    var it = current();
+    if (!it) { el.detail.innerHTML = ''; return; }
+    var html = '';
+    if (it.rung === 'none') {
+      html += '<p class="rd__hint">不排期。排在所有档之后，不进日历，也不参与日期提醒。</p>';
+      el.detail.innerHTML = html;
+      return;
+    }
+    if (it.rung === 'month') {
+      var months = [
+        { v: '2026-11-01', label: K.rungLabel({ rung: 'month', date: '2026-11-01' }) },
+        { v: '2026-12-01', label: K.rungLabel({ rung: 'month', date: '2026-12-01' }) },
+        { v: '2027-01-01', label: K.rungLabel({ rung: 'month', date: '2027-01-01' }) }
+      ];
+      html += '<div class="rd__chips">' + months.map(function (m) {
+        return '<button type="button" class="chip' + (it.date === m.v ? ' chip--on' : '') + '" data-set-month="' + m.v + '" aria-pressed="' + (it.date === m.v) + '">' + m.label + '</button>';
+      }).join('') + '</div>';
+      html += '<p class="rd__hint">一个计划窗口，按整月计。跨月后显示「上个月·未完成」，但不算逾期。</p>';
+      el.detail.innerHTML = html;
+      return;
+    }
+    if (it.rung === 'week') {
+      var weeks = [-1, 0, 1].map(function (n) {
+        var d = K.addDays(K.WEEK_START, n * 7);
+        return { v: d, label: K.rungLabel({ rung: 'week', date: d }) };
+      });
+      html += '<div class="rd__chips">' + weeks.map(function (w) {
+        return '<button type="button" class="chip' + (it.date === w.v ? ' chip--on' : '') + '" data-set-week="' + w.v + '" aria-pressed="' + (it.date === w.v) + '">' + w.label + '</button>';
+      }).join('') + '</div>';
+      html += '<p class="rd__hint">一个计划窗口，按整周计。周一到了也不会自己跳进本周。</p>';
+      el.detail.innerHTML = html;
+      return;
+    }
+
+    /* day / period / time 共用同一排日期，再按档位加时段的细分 */
+    var days = [0, 1, 2].map(function (n) {
+      var d = K.addDays(K.TODAY, n);
+      return { v: d, label: K.rungLabel({ rung: 'day', date: d }) };
+    });
+    html += '<div class="rd__chips">' + days.map(function (d) {
+      return '<button type="button" class="chip' + (it.date === d.v ? ' chip--on' : '') + '" data-set-day="' + d.v + '" aria-pressed="' + (it.date === d.v) + '">' + d.label + '</button>';
+    }).join('');
+    html += '<button type="button" class="chip chip--cal" data-toggle-grid aria-expanded="' + gridOpen + '">' +
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>' +
+      (gridOpen ? '收起日历' : '选日期') + '</button></div>';
+
+    if (gridOpen) html += gridHTML(it);
+
+    if (it.rung === 'period') {
+      html += '<div class="seg rd__seg" role="group" aria-label="时段">' +
+        ['morning', 'afternoon', 'evening'].map(function (p) {
+          return '<button type="button" class="chip' + (it.period === p ? ' chip--on' : '') + '" data-set-period="' + p + '" aria-pressed="' + (it.period === p) + '">' + K.PERIOD_LABEL[p] + '</button>';
+        }).join('') + '</div>';
+      html += '<p class="rd__hint">到这半天结束才过期。</p>';
+    } else if (it.rung === 'time') {
+      html += '<div class="rd__row"><span class="rd__label">时刻</span><div class="rd__chips">' +
+        ['09:00', '12:00', '15:00', '18:00', '21:00'].map(function (t) {
+          return '<button type="button" class="chip' + (it.time === t ? ' chip--on' : '') + '" data-set-time="' + t + '" aria-pressed="' + (it.time === t) + '">' + t + '</button>';
+        }).join('') + '</div></div>';
+      html += '<p class="rd__hint">到这个时刻就过期。到期前 24 小时只是「马上到期」，不进 Q1。</p>';
+    } else {
+      html += '<p class="rd__hint">到当天 24:00 才过期。</p>';
+    }
+    el.detail.innerHTML = html;
+  }
+
+  function gridHTML(it) {
+    var y = gridMonth.getFullYear();
+    var m = gridMonth.getMonth();
+    var first = new Date(y, m, 1);
+    var offset = (first.getDay() + 6) % 7;
+    var start = new Date(y, m, 1 - offset);
+    var cells = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var ds = K.fmt(d);
+      var out = d.getMonth() !== m;
+      var cls = 'mgrid__day' + (out ? ' mgrid__day--out' : '') +
+        (ds === K.TODAY ? ' mgrid__day--today' : '') +
+        (ds === it.date ? ' mgrid__day--sel' : '');
+      cells += '<button type="button" class="' + cls + '" data-day="' + ds + '" aria-pressed="' + (ds === it.date) + '">' + d.getDate() + '</button>';
+    }
+    return '<div class="mgrid">' +
+      '<div class="mgrid__head">' +
+      '<button type="button" class="mgrid__nav" data-nav="-1" aria-label="上个月"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>' +
+      '<span class="mgrid__label">' + y + '年' + (m + 1) + '月</span>' +
+      '<button type="button" class="mgrid__nav" data-nav="1" aria-label="下个月"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>' +
+      '</div>' +
+      '<div class="mgrid__dow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>' +
+      '<div class="mgrid__grid">' + cells + '</div></div>';
+  }
+
+  function renderDue() {
+    var it = current();
+    if (!it) return;
+    var info = dueInfo(it);
+    el.due.textContent = info.text;
+    el.due.className = 'due due--' + info.tone;
+    var u = urgencyWord(it);
+    var tail;
+    if (it.rung === 'none') tail = '无日期，不参与日期提醒';
+    else if (K.isWindowPassed(it)) tail = '计划窗口已过，不算逾期';
+    else if (K.urgencyOf(it) === 'urgent') tail = '会进 Q1';
+    else if (K.urgencyOf(it) === 'near') tail = '24 小时内，但不进 Q1';
+    else if (K.urgencyOf(it) === 'soon') tail = '3 天内，不移动卡片';
+    else tail = '不进 Q1';
+    el.dueFoot.innerHTML = '时间读数 <b class="is-' + u.tone + '">' + u.word + '</b> · ' + tail;
+  }
+
+  function renderQuad() {
+    var it = current();
+    if (!it) return;
+    Array.prototype.forEach.call(el.qgrid.querySelectorAll('.qbtn'), function (btn) {
+      btn.setAttribute('aria-checked', String(+btn.getAttribute('data-q') === it.q));
+    });
+  }
+
+  function renderSelect() {
+    var it = current();
+    if (!it) return;
+    el.listSel.value = it.list;
+    el.listDot.style.background = listOf(it.list).color;
+  }
+
+  function bindPanel() {
+    var it = current();
+    if (!it) return;
+    el.title.value = it.title;
+    el.notes.value = notes[it.id] || '';
+    renderSelect();
+    renderLadder();
+    renderDetail();
+    renderDue();
+    renderQuad();
+    el.inspBody.scrollTop = 0;
+  }
+
+  function openPanel(id) {
+    selectedId = id;
+    el.inspector.hidden = false;
+    bindPanel();
+    renderList();
+  }
+
+  function closePanel() {
+    el.inspector.hidden = true;
+    renderList();
+  }
+
+  function showToast(text, action) {
+    el.toastText.textContent = text;
+    el.toastUndo.hidden = !action;
+    toastAction = action || null;
+    el.toast.setAttribute('data-on', '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(hideToast, 6000);
+  }
+  function hideToast() {
+    el.toast.removeAttribute('data-on');
+    toastAction = null;
+  }
+
+  /* ---- 事件 ---- */
+  el.rows.addEventListener('click', function (e) {
+    var row = e.target.closest('.lrow');
+    if (!row) return;
+    openPanel(+row.getAttribute('data-id'));
+  });
+
+  el.title.addEventListener('input', function () {
+    var it = current();
+    if (!it) return;
+    it.title = el.title.value;
+    var node = el.rows.querySelector('.lrow[data-id="' + it.id + '"] .lrow__title');
+    if (node) node.textContent = it.title || '未命名';
+    flashSaved();
+  });
+
+  el.notes.addEventListener('input', function () {
+    var it = current();
+    if (!it) return;
+    notes[it.id] = el.notes.value;
+    flashSaved();
+  });
+
+  el.ladder.addEventListener('click', function (e) {
+    var btn = e.target.closest('.rung');
+    if (!btn) return;
+    var it = current();
+    if (!it) return;
+    var rung = btn.getAttribute('data-rung');
+    if (rung === it.rung) return;
+    it.rung = rung;
+    if (rung === 'month') it.date = '2026-12-01';
+    else if (rung === 'week') it.date = K.WEEK_START;
+    else if (rung === 'day') it.date = K.TODAY;
+    else if (rung === 'period') { it.date = K.TODAY; it.period = 'afternoon'; }
+    else if (rung === 'time') { it.date = K.TODAY; it.time = '15:00'; }
+    else if (rung === 'none') { delete it.date; delete it.period; delete it.time; }
+    gridOpen = false;
+    renderLadder(); renderDetail(); renderDue(); renderList(); flashSaved();
+  });
+
+  el.ladder.addEventListener('keydown', function (e) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    var it = current();
+    if (!it) return;
+    var idx = RUNG_ORDER.indexOf(it.rung);
+    var next = RUNG_ORDER[(idx + (e.key === 'ArrowDown' ? 1 : RUNG_ORDER.length - 1)) % RUNG_ORDER.length];
+    var btn = el.ladder.querySelector('[data-rung="' + next + '"]');
+    if (btn) { btn.focus(); btn.click(); }
+  });
+
+  el.detail.addEventListener('click', function (e) {
+    var btn = e.target.closest('button');
+    if (!btn) return;
+    var it = current();
+    if (!it) return;
+    var changed = true;
+
+    if (btn.hasAttribute('data-toggle-grid')) {
+      gridOpen = !gridOpen;
+      if (gridOpen && it.date) {
+        var d = K.parse(it.date);
+        gridMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+      }
+      changed = false;
+    } else if (btn.hasAttribute('data-nav')) {
+      var dir = +btn.getAttribute('data-nav');
+      gridMonth = new Date(gridMonth.getFullYear(), gridMonth.getMonth() + dir, 1);
+      changed = false;
+    } else if (btn.hasAttribute('data-set-month')) {
+      it.date = btn.getAttribute('data-set-month');
+    } else if (btn.hasAttribute('data-set-week')) {
+      it.date = btn.getAttribute('data-set-week');
+    } else if (btn.hasAttribute('data-set-day')) {
+      it.date = btn.getAttribute('data-set-day');
+    } else if (btn.hasAttribute('data-day')) {
+      it.date = btn.getAttribute('data-day');
+      gridOpen = false;
+    } else if (btn.hasAttribute('data-set-period')) {
+      it.period = btn.getAttribute('data-set-period');
+    } else if (btn.hasAttribute('data-set-time')) {
+      it.time = btn.getAttribute('data-set-time');
+    } else {
+      return;
+    }
+
+    renderLadder(); renderDetail();
+    if (changed) { renderDue(); renderList(); flashSaved(); }
+  });
+
+  el.qgrid.addEventListener('click', function (e) {
+    var btn = e.target.closest('.qbtn');
+    if (!btn) return;
+    var it = current();
+    if (!it) return;
+    it.q = +btn.getAttribute('data-q');
+    renderQuad(); renderList(); flashSaved();
+  });
+
+  el.listSel.addEventListener('change', function () {
+    var it = current();
+    if (!it) return;
+    it.list = el.listSel.value;
+    el.listDot.style.background = listOf(it.list).color;
+    renderLadder(); renderDue(); renderList(); renderCounts(); flashSaved();
+  });
+
+  document.getElementById('btnDelete').addEventListener('click', function () {
+    var it = current();
+    if (!it) return;
+    var idx = items.indexOf(it);
+    var removed = items.splice(idx, 1)[0];
+    selectedId = null;
+    el.inspector.hidden = true;
+    renderList(); renderCounts();
+    showToast('已删除「' + removed.title + '」', function () {
+      items.splice(Math.min(idx, items.length), 0, removed);
+      selectedId = removed.id;
+      el.inspector.hidden = false;
+      bindPanel(); renderList(); renderCounts();
+    });
+  });
+
+  document.getElementById('btnClose').addEventListener('click', closePanel);
+
+  el.toastUndo.addEventListener('click', function () {
+    var action = toastAction;
+    hideToast();
+    if (action) action();
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !el.inspector.hidden) closePanel();
+  });
+
+  /* ---- 初始化 ---- */
+  buildSidebar();
+  K.LISTS.forEach(function (l) {
+    var opt = document.createElement('option');
+    opt.value = l.id;
+    opt.textContent = l.name;
+    el.listSel.appendChild(opt);
+  });
+  bindPanel();
+  renderList();
+  renderCounts();
+});
+</script>
+</body>
+</html>

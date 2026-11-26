@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos v2 · 17 图标总表</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+  :root {
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+
+  .app { block-size: auto; min-block-size: 100vh; overflow: visible; }
+  .rail { position: sticky; inset-block-start: 0; block-size: 100vh; }
+  .main { overflow: visible; }
+  .content { overflow: visible; padding: var(--sp-5) var(--sp-6) var(--sp-10); }
+  .topbar { background: var(--bg-surface); }
+  .topbar__sub { color: var(--ink-quiet); }
+
+  .sheet { display: flex; flex-direction: column; gap: var(--sp-8); max-inline-size: 1240px; }
+
+  .intro { display: grid; gap: var(--sp-3); }
+  .intro__title { margin: 0; font-size: var(--text-2xl); font-weight: 600; letter-spacing: -.02em; }
+  .intro__lede { margin: 0; max-inline-size: 64ch; color: var(--ink-2); font-size: var(--text-md); }
+  .intro__lede a { color: var(--accent-ink); }
+  .rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); padding: 0; margin: var(--sp-1) 0 0; list-style: none; }
+  .rules li {
+    padding: var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm); color: var(--ink-2);
+  }
+  .rules b { display: block; margin-block-end: var(--sp-1); color: var(--ink-1); font-size: var(--text-body); }
+  .rules code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-2); }
+
+  .sec { display: grid; gap: var(--sp-3); }
+  .sec__head { display: grid; gap: 2px; padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+  .sec__eyebrow { display: flex; align-items: center; gap: var(--sp-2); }
+  .sec__num {
+    font-size: var(--text-xs); font-weight: 600;
+    color: var(--accent-ink); background: var(--accent-tint);
+    padding: 1px var(--sp-2); border-radius: var(--radius-xs);
+  }
+  .sec__kicker { font-size: var(--text-xs); color: var(--ink-quiet); }
+  .sec__title { margin: 0; font-size: var(--text-xl); font-weight: 600; letter-spacing: -.01em; }
+  .sec__desc { margin: 0; max-inline-size: 78ch; color: var(--ink-quiet); font-size: var(--text-sm); }
+
+  .cap { font-size: var(--text-xs); color: var(--ink-quiet); }
+  .mono { font-family: var(--mono); }
+
+  .callout {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--bg-subtle);
+    border: 1px solid var(--hairline);
+    border-inline-start: 3px solid var(--ink-4);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm); color: var(--ink-2); line-height: 1.6;
+  }
+  .callout b { color: var(--ink-1); }
+  .callout code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-1); }
+  .callout a { color: var(--accent-ink); }
+  .callout--info { border-inline-start-color: var(--accent-ink); }
+  .callout--danger { border-inline-start-color: var(--danger-ink); background: var(--danger-tint); }
+  .callout--warn { border-inline-start-color: var(--warning-ink); }
+  .callout__icon { color: var(--ink-quiet); margin-block-start: 2px; }
+  .callout--danger .callout__icon { color: var(--danger-ink); }
+  .callout--info .callout__icon { color: var(--accent-ink); }
+  .callout--warn .callout__icon { color: var(--warning-ink); }
+
+  .readout {
+    position: sticky; inset-block-start: 0; z-index: 20;
+    display: flex; align-items: center; gap: var(--sp-3);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    font-size: var(--text-sm);
+  }
+  .readout__icon { display: grid; place-items: center; color: var(--accent-ink); inline-size: 20px; block-size: 20px; flex: none; }
+  .readout__icon svg { display: block; }
+  .readout__text { min-inline-size: 0; }
+  .readout__name { font-family: var(--mono); font-size: var(--text-body); color: var(--ink-1); margin-inline-end: var(--sp-2); }
+  .readout__cn { color: var(--ink-2); }
+  .readout__state {
+    margin-inline-start: auto; flex: none;
+    font-size: var(--text-xs); color: var(--ink-quiet);
+    padding: 1px var(--sp-2); border-radius: var(--radius-full); background: var(--bg-subtle);
+  }
+  .readout[data-copied] .readout__state { color: var(--success-ink); }
+  .readout[data-copied] .readout__state::before { content: ""; display: inline-block; inline-size: 5px; block-size: 5px; border-radius: 50%; background: var(--success-ink); margin-inline-end: 5px; vertical-align: 1px; }
+
+  .tbl-wrap { border: 1px solid var(--hairline); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-surface); }
+  .itbl { inline-size: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .itbl thead th { background: var(--bg-subtle); font-size: var(--text-xs); color: var(--ink-quiet); font-weight: 600; padding: var(--sp-2) var(--sp-3); text-align: start; }
+  .itbl thead th.isize__h { text-align: center; font-variant-numeric: tabular-nums; }
+  .itbl thead th.isize__h span { display: block; font-weight: 500; color: var(--ink-quiet); font-size: var(--text-xs); }
+  .itbl tbody tr { border-block-start: 1px solid var(--hairline-soft); }
+  .itbl tbody tr:hover { background: var(--bg-hover); }
+  .itbl tbody tr:has(.ibtn:focus-visible) { background: var(--bg-hover); box-shadow: inset 0 0 0 2px var(--focus); }
+  .iname { inline-size: 240px; padding: var(--sp-2) var(--sp-3); text-align: start; vertical-align: middle; }
+  /* 名字本身是按钮：真正的可聚焦目标，而不是给 <tr> 套一个 role="button" */
+  .ibtn {
+    appearance: none; border: 0; background: transparent; cursor: copy;
+    display: grid; justify-items: start; gap: 1px;
+    inline-size: 100%; padding: var(--sp-1) var(--sp-2); margin: calc(-1 * var(--sp-1)) calc(-1 * var(--sp-2));
+    border-radius: var(--radius-sm); text-align: start; font: inherit;
+  }
+  .ibtn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .iname__cn { display: block; color: var(--ink-1); font-size: var(--text-body); font-weight: 500; }
+  .iname code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+  .isize { text-align: center; padding: var(--sp-2); vertical-align: middle; }
+  .isize__box { display: inline-grid; place-items: center; color: var(--ink-1); }
+  .isize__box--14 { inline-size: 28px; block-size: 28px; }
+  .isize__box--16 { inline-size: 30px; block-size: 30px; }
+  .isize__box--18 { inline-size: 32px; block-size: 32px; }
+  .isize__box--24 { inline-size: 40px; block-size: 40px; }
+  .isize__box--32 { inline-size: 48px; block-size: 48px; }
+  .isize__box svg { display: block; }
+  .itbl tbody tr:hover .isize__box { color: var(--accent-ink); }
+
+  .stroke-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-3); }
+  .stroke-card {
+    display: grid; gap: var(--sp-3); justify-items: center;
+    padding: var(--sp-5);
+    background: var(--bg-surface); border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  }
+  .stroke-card--bad { border-inline-start: 3px solid var(--danger-ink); }
+  .stroke-card--good { border-inline-start: 3px solid var(--success-ink); }
+  .stroke-card__label { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--ink-2); }
+  .stroke-card__label code { font-family: var(--mono); color: var(--ink-1); }
+  .stroke-ladder { display: flex; align-items: flex-end; gap: var(--sp-5); padding: var(--sp-4); background: var(--bg-subtle); border-radius: var(--radius-md); flex-wrap: wrap; }
+  .stroke-ladder__item { display: grid; gap: var(--sp-1); justify-items: center; color: var(--ink-1); }
+  .stroke-ladder__item span { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+  .zoom18 { inline-size: 92px; block-size: 92px; display: grid; place-items: center; background: var(--bg-subtle); border-radius: var(--radius-md); color: var(--ink-1); }
+  .zoom18 svg { width: 64px; height: 64px; }
+
+  .inkgrid { display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius-lg); overflow: hidden; }
+  .inkgrid__row { display: grid; grid-template-columns: 240px 64px minmax(0, 1fr) 132px; gap: var(--sp-3); align-items: center; background: var(--bg-surface); padding: var(--sp-3) var(--sp-4); }
+  .inkgrid__row--head { background: var(--bg-subtle); font-size: var(--text-xs); font-weight: 600; color: var(--ink-quiet); }
+  .inkgrid__name { display: flex; align-items: center; gap: var(--sp-2); color: var(--ink-1); font-size: var(--text-body); }
+  .inkgrid__name code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+  .inkgrid__sample { display: grid; place-items: center; }
+  .inkgrid__use { font-size: var(--text-sm); color: var(--ink-2); }
+  .inkgrid__ratio { font-family: var(--mono); font-size: var(--text-sm); font-variant-numeric: tabular-nums; color: var(--ink-1); text-align: end; }
+  .inkgrid__ratio small { display: block; font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 400; color: var(--ink-quiet); }
+  .inkgrid__ratio[data-fail] { color: var(--danger-ink); }
+
+  .gear-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-3); }
+  .gear-card {
+    display: grid; gap: var(--sp-2); justify-items: center; text-align: center;
+    padding: var(--sp-4);
+    background: var(--bg-surface); border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  }
+  .gear-card--bad { border-color: var(--hairline); background: var(--danger-tint); }
+  .gear-card--good { border-color: var(--hairline); background: var(--accent-tint); }
+  .gear-card__art { display: grid; place-items: center; block-size: 88px; }
+  .gear-card__art svg { color: var(--ink-1); }
+  .gear-card--bad .gear-card__art svg { color: var(--danger-ink); }
+  .gear-card--good .gear-card__art svg { color: var(--accent-ink); }
+  .gear-card__title { margin: 0; font-size: var(--text-body); font-weight: 600; color: var(--ink-1); }
+  .gear-card__body { margin: 0; font-size: var(--text-sm); line-height: 1.55; color: var(--ink-2); max-inline-size: 30ch; }
+  .gear-card__verdict { font-size: var(--text-xs); font-weight: 600; }
+  .gear-card--bad .gear-card__verdict { color: var(--danger-ink); }
+  .gear-card--good .gear-card__verdict { color: var(--accent-ink); }
+
+  @media (max-width: 1100px) {
+    .rules, .stroke-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .gear-grid { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<div class="app app--wide">
+  <nav class="rail" aria-label="主导航">
+    <div class="rail__avatar" aria-hidden="true">K</div>
+    <div class="rail__group">
+      <button class="rail__item" type="button" aria-label="四象限"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/> <rect width="7" height="7" x="14" y="3" rx="1"/> <rect width="7" height="7" x="14" y="14" rx="1"/> <rect width="7" height="7" x="3" y="14" rx="1"/></svg></button>
+      <button class="rail__item" type="button" aria-label="清单"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01"/> <path d="M3 12h.01"/> <path d="M3 19h.01"/> <path d="M8 5h13"/> <path d="M8 12h13"/> <path d="M8 19h13"/></svg></button>
+      <button class="rail__item" type="button" aria-label="日历"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></button>
+      <button class="rail__item" type="button" aria-label="搜索"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button class="rail__item" type="button" aria-label="设置" aria-current="page"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">图标总表</h1>
+      <span class="topbar__sub">17 · 56 个图标 · Lucide 几何 · currentColor</span>
+    </header>
+
+    <div class="content">
+      <div class="sheet">
+
+        <section class="intro" aria-labelledby="intro-title">
+          <h2 class="intro__title" id="intro-title">一套图标，一条规矩</h2>
+          <p class="intro__lede">
+            全 app 只有这一套图标，几何一律取自 <a href="https://lucide.dev">Lucide</a>（ISC 许可）。
+            每条路径都画在 24×24 的网格上，描边随尺寸缩放，颜色只有 <code class="mono">currentColor</code> 一种。
+            这张表是实现的对照物：新图标先来这里比对，不要自己推导形状。
+          </p>
+          <ul class="rules">
+            <li><b>24×24 网格</b>路径直接取自 Lucide，<code>fill="none"</code>，圆头圆角。</li>
+            <li><b>描边随尺寸</b>14→1.9 · 16→1.8 · 18→1.7 · ≥24→1.6。</li>
+            <li><b>一种颜色</b><code>currentColor</code>，继承控件，不单独写图标状态。</li>
+            <li><b>无名称</b>每个 svg 都 <code>aria-hidden="true"</code>，名字属于控件。</li>
+          </ul>
+        </section>
+
+        <div class="readout" id="readout" aria-live="polite">
+          <span class="readout__icon" id="readout-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span>
+          <span class="readout__text" id="readout-text">
+            <span class="readout__name">—</span><span class="readout__cn">悬停任意一行，这里显示名字；点一下复制</span>
+          </span>
+          <span class="readout__state" id="readout-state">待命</span>
+        </div>
+        <p class="cap" style="margin:calc(-1 * var(--sp-2)) 0 0">点图标名复制到剪贴板；Tab 可逐行聚焦，Enter / 空格同样复制。</p>
+
+      <section class="sec" aria-labelledby="g-nav">
+        <div class="sec__head">
+          <div class="sec__eyebrow"><span class="sec__num">01</span><span class="sec__kicker">15 个 · 侧栏、顶栏、视图切换</span></div>
+          <h2 class="sec__title" id="g-nav">导航与视图</h2>
+        </div>
+        <div class="tbl-wrap">
+          <table class="itbl">
+            <caption class="visually-hidden">导航与视图：日历、日历（带日期）、三行、宫格、列表、清单勾选、收集箱、搜索、设置、工具、文件夹、打开文件夹、标签、筛选、升序</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="iname">图标 · 名字</th>
+                <th scope="col" class="isize isize__h">14px<span>stroke 1.9</span></th><th scope="col" class="isize isize__h">16px<span>stroke 1.8</span></th><th scope="col" class="isize isize__h">18px<span>stroke 1.7</span></th><th scope="col" class="isize isize__h">24px<span>stroke 1.6</span></th><th scope="col" class="isize isize__h">32px<span>stroke 1.6</span></th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr class="irow" data-icon="calendar" data-label="日历">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="calendar" aria-label="复制图标名 calendar · 日历"><span class="iname__cn">日历</span><code>calendar</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="calendar-days" data-label="日历（带日期）">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="calendar-days" aria-label="复制图标名 calendar-days · 日历（带日期）"><span class="iname__cn">日历（带日期）</span><code>calendar-days</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/> <path d="M16 2v3"/> <rect x="3" y="3" width="18" height="18" rx="2"/> <path d="M3 9h18"/> <path d="M8 13h.01"/> <path d="M12 13h.01"/> <path d="M16 13h.01"/> <path d="M8 17h.01"/> <path d="M12 17h.01"/> <path d="M16 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/> <path d="M16 2v3"/> <rect x="3" y="3" width="18" height="18" rx="2"/> <path d="M3 9h18"/> <path d="M8 13h.01"/> <path d="M12 13h.01"/> <path d="M16 13h.01"/> <path d="M8 17h.01"/> <path d="M12 17h.01"/> <path d="M16 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/> <path d="M16 2v3"/> <rect x="3" y="3" width="18" height="18" rx="2"/> <path d="M3 9h18"/> <path d="M8 13h.01"/> <path d="M12 13h.01"/> <path d="M16 13h.01"/> <path d="M8 17h.01"/> <path d="M12 17h.01"/> <path d="M16 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/> <path d="M16 2v3"/> <rect x="3" y="3" width="18" height="18" rx="2"/> <path d="M3 9h18"/> <path d="M8 13h.01"/> <path d="M12 13h.01"/> <path d="M16 13h.01"/> <path d="M8 17h.01"/> <path d="M12 17h.01"/> <path d="M16 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v3"/> <path d="M16 2v3"/> <rect x="3" y="3" width="18" height="18" rx="2"/> <path d="M3 9h18"/> <path d="M8 13h.01"/> <path d="M12 13h.01"/> <path d="M16 13h.01"/> <path d="M8 17h.01"/> <path d="M12 17h.01"/> <path d="M16 17h.01"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="rows-3" data-label="三行">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="rows-3" aria-label="复制图标名 rows-3 · 三行"><span class="iname__cn">三行</span><code>rows-3</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/> <path d="M21 9H3"/> <path d="M21 15H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/> <path d="M21 9H3"/> <path d="M21 15H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/> <path d="M21 9H3"/> <path d="M21 15H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/> <path d="M21 9H3"/> <path d="M21 15H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/> <path d="M21 9H3"/> <path d="M21 15H3"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="layout-grid" data-label="宫格">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="layout-grid" aria-label="复制图标名 layout-grid · 宫格"><span class="iname__cn">宫格</span><code>layout-grid</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/> <rect width="7" height="7" x="14" y="3" rx="1"/> <rect width="7" height="7" x="14" y="14" rx="1"/> <rect width="7" height="7" x="3" y="14" rx="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/> <rect width="7" height="7" x="14" y="3" rx="1"/> <rect width="7" height="7" x="14" y="14" rx="1"/> <rect width="7" height="7" x="3" y="14" rx="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/> <rect width="7" height="7" x="14" y="3" rx="1"/> <rect width="7" height="7" x="14" y="14" rx="1"/> <rect width="7" height="7" x="3" y="14" rx="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/> <rect width="7" height="7" x="14" y="3" rx="1"/> <rect width="7" height="7" x="14" y="14" rx="1"/> <rect width="7" height="7" x="3" y="14" rx="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/> <rect width="7" height="7" x="14" y="3" rx="1"/> <rect width="7" height="7" x="14" y="14" rx="1"/> <rect width="7" height="7" x="3" y="14" rx="1"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="list" data-label="列表">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="list" aria-label="复制图标名 list · 列表"><span class="iname__cn">列表</span><code>list</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01"/> <path d="M3 12h.01"/> <path d="M3 19h.01"/> <path d="M8 5h13"/> <path d="M8 12h13"/> <path d="M8 19h13"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01"/> <path d="M3 12h.01"/> <path d="M3 19h.01"/> <path d="M8 5h13"/> <path d="M8 12h13"/> <path d="M8 19h13"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01"/> <path d="M3 12h.01"/> <path d="M3 19h.01"/> <path d="M8 5h13"/> <path d="M8 12h13"/> <path d="M8 19h13"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01"/> <path d="M3 12h.01"/> <path d="M3 19h.01"/> <path d="M8 5h13"/> <path d="M8 12h13"/> <path d="M8 19h13"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 5h.01"/> <path d="M3 12h.01"/> <path d="M3 19h.01"/> <path d="M8 5h13"/> <path d="M8 12h13"/> <path d="M8 19h13"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="list-checks" data-label="清单勾选">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="list-checks" aria-label="复制图标名 list-checks · 清单勾选"><span class="iname__cn">清单勾选</span><code>list-checks</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5h8"/> <path d="M13 12h8"/> <path d="M13 19h8"/> <path d="m3 17 2 2 4-4"/> <path d="m3 7 2 2 4-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5h8"/> <path d="M13 12h8"/> <path d="M13 19h8"/> <path d="m3 17 2 2 4-4"/> <path d="m3 7 2 2 4-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5h8"/> <path d="M13 12h8"/> <path d="M13 19h8"/> <path d="m3 17 2 2 4-4"/> <path d="m3 7 2 2 4-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5h8"/> <path d="M13 12h8"/> <path d="M13 19h8"/> <path d="m3 17 2 2 4-4"/> <path d="m3 7 2 2 4-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 5h8"/> <path d="M13 12h8"/> <path d="M13 19h8"/> <path d="m3 17 2 2 4-4"/> <path d="m3 7 2 2 4-4"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="inbox" data-label="收集箱">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="inbox" aria-label="复制图标名 inbox · 收集箱"><span class="iname__cn">收集箱</span><code>inbox</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="search" data-label="搜索">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="search" aria-label="复制图标名 search · 搜索"><span class="iname__cn">搜索</span><code>search</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="settings" data-label="设置">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="settings" aria-label="复制图标名 settings · 设置"><span class="iname__cn">设置</span><code>settings</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="wrench" data-label="工具">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="wrench" aria-label="复制图标名 wrench · 工具"><span class="iname__cn">工具</span><code>wrench</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.106-3.105c.32-.322.863-.22.983.218a6 6 0 0 1-8.259 7.057l-7.91 7.91a1 1 0 0 1-2.999-3l7.91-7.91a6 6 0 0 1 7.057-8.259c.438.12.54.662.219.984z"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="folder" data-label="文件夹">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="folder" aria-label="复制图标名 folder · 文件夹"><span class="iname__cn">文件夹</span><code>folder</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="folder-open" data-label="打开文件夹">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="folder-open" aria-label="复制图标名 folder-open · 打开文件夹"><span class="iname__cn">打开文件夹</span><code>folder-open</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="tag" data-label="标签">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="tag" aria-label="复制图标名 tag · 标签"><span class="iname__cn">标签</span><code>tag</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/> <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/> <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/> <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/> <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/> <circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="filter" data-label="筛选">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="filter" aria-label="复制图标名 filter · 筛选"><span class="iname__cn">筛选</span><code>filter</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="sort-asc" data-label="升序">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="sort-asc" aria-label="复制图标名 sort-asc · 升序"><span class="iname__cn">升序</span><code>sort-asc</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/> <path d="M7 4v16"/> <path d="M11 12h4"/> <path d="M11 16h7"/> <path d="M11 20h10"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/> <path d="M7 4v16"/> <path d="M11 12h4"/> <path d="M11 16h7"/> <path d="M11 20h10"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/> <path d="M7 4v16"/> <path d="M11 12h4"/> <path d="M11 16h7"/> <path d="M11 20h10"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/> <path d="M7 4v16"/> <path d="M11 12h4"/> <path d="M11 16h7"/> <path d="M11 20h10"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 8 4-4 4 4"/> <path d="M7 4v16"/> <path d="M11 12h4"/> <path d="M11 16h7"/> <path d="M11 20h10"/></svg></span></td>
+        </tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="sec" aria-labelledby="g-act">
+        <div class="sec__head">
+          <div class="sec__eyebrow"><span class="sec__num">02</span><span class="sec__kicker">14 个 · 对一件事直接做什么</span></div>
+          <h2 class="sec__title" id="g-act">动作</h2>
+        </div>
+        <div class="tbl-wrap">
+          <table class="itbl">
+            <caption class="visually-hidden">动作：添加、减少、关闭、完成、删除、下载、上传、撤销、编辑、保存、外链、更多、拖拽把手、退出</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="iname">图标 · 名字</th>
+                <th scope="col" class="isize isize__h">14px<span>stroke 1.9</span></th><th scope="col" class="isize isize__h">16px<span>stroke 1.8</span></th><th scope="col" class="isize isize__h">18px<span>stroke 1.7</span></th><th scope="col" class="isize isize__h">24px<span>stroke 1.6</span></th><th scope="col" class="isize isize__h">32px<span>stroke 1.6</span></th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr class="irow" data-icon="plus" data-label="添加">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="plus" aria-label="复制图标名 plus · 添加"><span class="iname__cn">添加</span><code>plus</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="M12 5v14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="M12 5v14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="M12 5v14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="M12 5v14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="M12 5v14"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="minus" data-label="减少">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="minus" aria-label="复制图标名 minus · 减少"><span class="iname__cn">减少</span><code>minus</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="x" data-label="关闭">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="x" aria-label="复制图标名 x · 关闭"><span class="iname__cn">关闭</span><code>x</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/> <path d="m6 6 12 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/> <path d="m6 6 12 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/> <path d="m6 6 12 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/> <path d="m6 6 12 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/> <path d="m6 6 12 12"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="check" data-label="完成">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="check" aria-label="复制图标名 check · 完成"><span class="iname__cn">完成</span><code>check</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="trash-2" data-label="删除">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="trash-2" aria-label="复制图标名 trash-2 · 删除"><span class="iname__cn">删除</span><code>trash-2</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/> <path d="M14 11v6"/> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/> <path d="M3 6h18"/> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/> <path d="M14 11v6"/> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/> <path d="M3 6h18"/> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/> <path d="M14 11v6"/> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/> <path d="M3 6h18"/> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/> <path d="M14 11v6"/> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/> <path d="M3 6h18"/> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 11v6"/> <path d="M14 11v6"/> <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/> <path d="M3 6h18"/> <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="download" data-label="下载">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="download" aria-label="复制图标名 download · 下载"><span class="iname__cn">下载</span><code>download</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/> <path d="m7 10 5 5 5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/> <path d="m7 10 5 5 5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/> <path d="m7 10 5 5 5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/> <path d="m7 10 5 5 5-5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/> <path d="m7 10 5 5 5-5"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="upload" data-label="上传">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="upload" aria-label="复制图标名 upload · 上传"><span class="iname__cn">上传</span><code>upload</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/> <path d="m17 8-5-5-5 5"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/> <path d="m17 8-5-5-5 5"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/> <path d="m17 8-5-5-5 5"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/> <path d="m17 8-5-5-5 5"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/> <path d="m17 8-5-5-5 5"/> <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="undo-2" data-label="撤销">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="undo-2" aria-label="复制图标名 undo-2 · 撤销"><span class="iname__cn">撤销</span><code>undo-2</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/> <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="pencil" data-label="编辑">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="pencil" aria-label="复制图标名 pencil · 编辑"><span class="iname__cn">编辑</span><code>pencil</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/> <path d="m15 5 4 4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/> <path d="m15 5 4 4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/> <path d="m15 5 4 4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/> <path d="m15 5 4 4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/> <path d="m15 5 4 4"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="save" data-label="保存">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="save" aria-label="复制图标名 save · 保存"><span class="iname__cn">保存</span><code>save</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/> <path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/> <path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/> <path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/> <path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/> <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/> <path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="external-link" data-label="外链">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="external-link" aria-label="复制图标名 external-link · 外链"><span class="iname__cn">外链</span><code>external-link</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/> <path d="M10 14 21 3"/> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/> <path d="M10 14 21 3"/> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/> <path d="M10 14 21 3"/> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/> <path d="M10 14 21 3"/> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/> <path d="M10 14 21 3"/> <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="more-horizontal" data-label="更多">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="more-horizontal" aria-label="复制图标名 more-horizontal · 更多"><span class="iname__cn">更多</span><code>more-horizontal</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/> <circle cx="19" cy="12" r="1"/> <circle cx="5" cy="12" r="1"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="grip-vertical" data-label="拖拽把手">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="grip-vertical" aria-label="复制图标名 grip-vertical · 拖拽把手"><span class="iname__cn">拖拽把手</span><code>grip-vertical</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/> <circle cx="9" cy="5" r="1"/> <circle cx="9" cy="19" r="1"/> <circle cx="15" cy="12" r="1"/> <circle cx="15" cy="5" r="1"/> <circle cx="15" cy="19" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/> <circle cx="9" cy="5" r="1"/> <circle cx="9" cy="19" r="1"/> <circle cx="15" cy="12" r="1"/> <circle cx="15" cy="5" r="1"/> <circle cx="15" cy="19" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/> <circle cx="9" cy="5" r="1"/> <circle cx="9" cy="19" r="1"/> <circle cx="15" cy="12" r="1"/> <circle cx="15" cy="5" r="1"/> <circle cx="15" cy="19" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/> <circle cx="9" cy="5" r="1"/> <circle cx="9" cy="19" r="1"/> <circle cx="15" cy="12" r="1"/> <circle cx="15" cy="5" r="1"/> <circle cx="15" cy="19" r="1"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1"/> <circle cx="9" cy="5" r="1"/> <circle cx="9" cy="19" r="1"/> <circle cx="15" cy="12" r="1"/> <circle cx="15" cy="5" r="1"/> <circle cx="15" cy="19" r="1"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="log-out" data-label="退出">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="log-out" aria-label="复制图标名 log-out · 退出"><span class="iname__cn">退出</span><code>log-out</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 17 5-5-5-5"/> <path d="M21 12H9"/> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 17 5-5-5-5"/> <path d="M21 12H9"/> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 17 5-5-5-5"/> <path d="M21 12H9"/> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 17 5-5-5-5"/> <path d="M21 12H9"/> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 17 5-5-5-5"/> <path d="M21 12H9"/> <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/></svg></span></td>
+        </tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="sec" aria-labelledby="g-state">
+        <div class="sec__head">
+          <div class="sec__eyebrow"><span class="sec__num">03</span><span class="sec__kicker">11 个 · 这件事现在怎么样</span></div>
+          <h2 class="sec__title" id="g-state">状态与元信息</h2>
+        </div>
+        <div class="tbl-wrap">
+          <table class="itbl">
+            <caption class="visually-hidden">状态与元信息：紧急标记、错误、信息、成功、提醒、时间、收藏、显示、隐藏、安全、数据</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="iname">图标 · 名字</th>
+                <th scope="col" class="isize isize__h">14px<span>stroke 1.9</span></th><th scope="col" class="isize isize__h">16px<span>stroke 1.8</span></th><th scope="col" class="isize isize__h">18px<span>stroke 1.7</span></th><th scope="col" class="isize isize__h">24px<span>stroke 1.6</span></th><th scope="col" class="isize isize__h">32px<span>stroke 1.6</span></th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr class="irow" data-icon="flag" data-label="紧急标记">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="flag" aria-label="复制图标名 flag · 紧急标记"><span class="iname__cn">紧急标记</span><code>flag</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="alert-circle" data-label="错误">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="alert-circle" aria-label="复制图标名 alert-circle · 错误"><span class="iname__cn">错误</span><code>alert-circle</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="info" data-label="信息">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="info" aria-label="复制图标名 info · 信息"><span class="iname__cn">信息</span><code>info</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="M12 16v-4"/> <path d="M12 8h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="M12 16v-4"/> <path d="M12 8h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="M12 16v-4"/> <path d="M12 8h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="M12 16v-4"/> <path d="M12 8h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="M12 16v-4"/> <path d="M12 8h.01"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="circle-check" data-label="成功">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="circle-check" aria-label="复制图标名 circle-check · 成功"><span class="iname__cn">成功</span><code>circle-check</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="bell" data-label="提醒">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="bell" aria-label="复制图标名 bell · 提醒"><span class="iname__cn">提醒</span><code>bell</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="clock" data-label="时间">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="clock" aria-label="复制图标名 clock · 时间"><span class="iname__cn">时间</span><code>clock</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="star" data-label="收藏">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="star" aria-label="复制图标名 star · 收藏"><span class="iname__cn">收藏</span><code>star</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="eye" data-label="显示">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="eye" aria-label="复制图标名 eye · 显示"><span class="iname__cn">显示</span><code>eye</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/> <circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/> <circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/> <circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/> <circle cx="12" cy="12" r="3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/> <circle cx="12" cy="12" r="3"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="eye-off" data-label="隐藏">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="eye-off" aria-label="复制图标名 eye-off · 隐藏"><span class="iname__cn">隐藏</span><code>eye-off</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/> <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/> <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/> <path d="m2 2 20 20"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/> <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/> <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/> <path d="m2 2 20 20"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/> <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/> <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/> <path d="m2 2 20 20"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/> <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/> <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/> <path d="m2 2 20 20"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/> <path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/> <path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/> <path d="m2 2 20 20"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="shield" data-label="安全">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="shield" aria-label="复制图标名 shield · 安全"><span class="iname__cn">安全</span><code>shield</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="database" data-label="数据">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="database" aria-label="复制图标名 database · 数据"><span class="iname__cn">数据</span><code>database</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/> <path d="M3 5V19A9 3 0 0 0 21 19V5"/> <path d="M3 12A9 3 0 0 0 21 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/> <path d="M3 5V19A9 3 0 0 0 21 19V5"/> <path d="M3 12A9 3 0 0 0 21 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/> <path d="M3 5V19A9 3 0 0 0 21 19V5"/> <path d="M3 12A9 3 0 0 0 21 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/> <path d="M3 5V19A9 3 0 0 0 21 19V5"/> <path d="M3 12A9 3 0 0 0 21 12"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"/> <path d="M3 5V19A9 3 0 0 0 21 19V5"/> <path d="M3 12A9 3 0 0 0 21 12"/></svg></span></td>
+        </tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="sec" aria-labelledby="g-arrow">
+        <div class="sec__head">
+          <div class="sec__eyebrow"><span class="sec__num">04</span><span class="sec__kicker">6 个 · 方向，不承担别的语义</span></div>
+          <h2 class="sec__title" id="g-arrow">箭头</h2>
+        </div>
+        <div class="tbl-wrap">
+          <table class="itbl">
+            <caption class="visually-hidden">箭头：左、右、下、上、前进、返回</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="iname">图标 · 名字</th>
+                <th scope="col" class="isize isize__h">14px<span>stroke 1.9</span></th><th scope="col" class="isize isize__h">16px<span>stroke 1.8</span></th><th scope="col" class="isize isize__h">18px<span>stroke 1.7</span></th><th scope="col" class="isize isize__h">24px<span>stroke 1.6</span></th><th scope="col" class="isize isize__h">32px<span>stroke 1.6</span></th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr class="irow" data-icon="chevron-left" data-label="左">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="chevron-left" aria-label="复制图标名 chevron-left · 左"><span class="iname__cn">左</span><code>chevron-left</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="chevron-right" data-label="右">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="chevron-right" aria-label="复制图标名 chevron-right · 右"><span class="iname__cn">右</span><code>chevron-right</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="chevron-down" data-label="下">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="chevron-down" aria-label="复制图标名 chevron-down · 下"><span class="iname__cn">下</span><code>chevron-down</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="chevron-up" data-label="上">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="chevron-up" aria-label="复制图标名 chevron-up · 上"><span class="iname__cn">上</span><code>chevron-up</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="arrow-right" data-label="前进">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="arrow-right" aria-label="复制图标名 arrow-right · 前进"><span class="iname__cn">前进</span><code>arrow-right</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="m12 5 7 7-7 7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="m12 5 7 7-7 7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="m12 5 7 7-7 7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="m12 5 7 7-7 7"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/> <path d="m12 5 7 7-7 7"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="arrow-left" data-label="返回">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="arrow-left" aria-label="复制图标名 arrow-left · 返回"><span class="iname__cn">返回</span><code>arrow-left</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/> <path d="M19 12H5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/> <path d="M19 12H5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/> <path d="M19 12H5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/> <path d="M19 12H5"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 19-7-7 7-7"/> <path d="M19 12H5"/></svg></span></td>
+        </tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="sec" aria-labelledby="g-sys">
+        <div class="sec__head">
+          <div class="sec__eyebrow"><span class="sec__num">05</span><span class="sec__kicker">10 个 · 外观、文件、账户</span></div>
+          <h2 class="sec__title" id="g-sys">界面与系统</h2>
+        </div>
+        <div class="tbl-wrap">
+          <table class="itbl">
+            <caption class="visually-hidden">界面与系统：重复、浅色、深色、跟随系统、键盘、帮助、文档、图片、链接、账户</caption>
+            <thead>
+              <tr>
+                <th scope="col" class="iname">图标 · 名字</th>
+                <th scope="col" class="isize isize__h">14px<span>stroke 1.9</span></th><th scope="col" class="isize isize__h">16px<span>stroke 1.8</span></th><th scope="col" class="isize isize__h">18px<span>stroke 1.7</span></th><th scope="col" class="isize isize__h">24px<span>stroke 1.6</span></th><th scope="col" class="isize isize__h">32px<span>stroke 1.6</span></th>
+              </tr>
+            </thead>
+            <tbody>
+        <tr class="irow" data-icon="repeat" data-label="重复">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="repeat" aria-label="复制图标名 repeat · 重复"><span class="iname__cn">重复</span><code>repeat</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/> <path d="M3 11v-1a4 4 0 0 1 4-4h14"/> <path d="m7 22-4-4 4-4"/> <path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/> <path d="M3 11v-1a4 4 0 0 1 4-4h14"/> <path d="m7 22-4-4 4-4"/> <path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/> <path d="M3 11v-1a4 4 0 0 1 4-4h14"/> <path d="m7 22-4-4 4-4"/> <path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/> <path d="M3 11v-1a4 4 0 0 1 4-4h14"/> <path d="m7 22-4-4 4-4"/> <path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/> <path d="M3 11v-1a4 4 0 0 1 4-4h14"/> <path d="m7 22-4-4 4-4"/> <path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="sun" data-label="浅色">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="sun" aria-label="复制图标名 sun · 浅色"><span class="iname__cn">浅色</span><code>sun</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/> <path d="M12 2v2"/> <path d="M12 20v2"/> <path d="m4.93 4.93 1.41 1.41"/> <path d="m17.66 17.66 1.41 1.41"/> <path d="M2 12h2"/> <path d="M20 12h2"/> <path d="m6.34 17.66-1.41 1.41"/> <path d="m19.07 4.93-1.41 1.41"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="moon" data-label="深色">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="moon" aria-label="复制图标名 moon · 深色"><span class="iname__cn">深色</span><code>moon</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="monitor" data-label="跟随系统">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="monitor" aria-label="复制图标名 monitor · 跟随系统"><span class="iname__cn">跟随系统</span><code>monitor</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="14" x="2" y="3" rx="2"/> <line x1="8" x2="16" y1="21" y2="21"/> <line x1="12" x2="12" y1="17" y2="21"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="keyboard" data-label="键盘">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="keyboard" aria-label="复制图标名 keyboard · 键盘"><span class="iname__cn">键盘</span><code>keyboard</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h.01"/> <path d="M12 12h.01"/> <path d="M14 8h.01"/> <path d="M16 12h.01"/> <path d="M18 8h.01"/> <path d="M6 8h.01"/> <path d="M7 16h10"/> <path d="M8 12h.01"/> <rect width="20" height="16" x="2" y="4" rx="2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h.01"/> <path d="M12 12h.01"/> <path d="M14 8h.01"/> <path d="M16 12h.01"/> <path d="M18 8h.01"/> <path d="M6 8h.01"/> <path d="M7 16h10"/> <path d="M8 12h.01"/> <rect width="20" height="16" x="2" y="4" rx="2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h.01"/> <path d="M12 12h.01"/> <path d="M14 8h.01"/> <path d="M16 12h.01"/> <path d="M18 8h.01"/> <path d="M6 8h.01"/> <path d="M7 16h10"/> <path d="M8 12h.01"/> <rect width="20" height="16" x="2" y="4" rx="2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h.01"/> <path d="M12 12h.01"/> <path d="M14 8h.01"/> <path d="M16 12h.01"/> <path d="M18 8h.01"/> <path d="M6 8h.01"/> <path d="M7 16h10"/> <path d="M8 12h.01"/> <rect width="20" height="16" x="2" y="4" rx="2"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 8h.01"/> <path d="M12 12h.01"/> <path d="M14 8h.01"/> <path d="M16 12h.01"/> <path d="M18 8h.01"/> <path d="M6 8h.01"/> <path d="M7 16h10"/> <path d="M8 12h.01"/> <rect width="20" height="16" x="2" y="4" rx="2"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="help-circle" data-label="帮助">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="help-circle" aria-label="复制图标名 help-circle · 帮助"><span class="iname__cn">帮助</span><code>help-circle</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="file-text" data-label="文档">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="file-text" aria-label="复制图标名 file-text · 文档"><span class="iname__cn">文档</span><code>file-text</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/> <path d="M14 2v5a1 1 0 0 0 1 1h5"/> <path d="M10 9H8"/> <path d="M16 13H8"/> <path d="M16 17H8"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/> <path d="M14 2v5a1 1 0 0 0 1 1h5"/> <path d="M10 9H8"/> <path d="M16 13H8"/> <path d="M16 17H8"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/> <path d="M14 2v5a1 1 0 0 0 1 1h5"/> <path d="M10 9H8"/> <path d="M16 13H8"/> <path d="M16 17H8"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/> <path d="M14 2v5a1 1 0 0 0 1 1h5"/> <path d="M10 9H8"/> <path d="M16 13H8"/> <path d="M16 17H8"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"/> <path d="M14 2v5a1 1 0 0 0 1 1h5"/> <path d="M10 9H8"/> <path d="M16 13H8"/> <path d="M16 17H8"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="image" data-label="图片">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="image" aria-label="复制图标名 image · 图片"><span class="iname__cn">图片</span><code>image</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/> <circle cx="9" cy="9" r="2"/> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/> <circle cx="9" cy="9" r="2"/> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/> <circle cx="9" cy="9" r="2"/> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/> <circle cx="9" cy="9" r="2"/> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/> <circle cx="9" cy="9" r="2"/> <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="link" data-label="链接">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="link" aria-label="复制图标名 link · 链接"><span class="iname__cn">链接</span><code>link</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/> <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></span></td>
+        </tr>
+        <tr class="irow" data-icon="user" data-label="账户">
+          <th scope="row" class="iname"><button class="ibtn" type="button" data-copy="user" aria-label="复制图标名 user · 账户"><span class="iname__cn">账户</span><code>user</code></button></th><td class="isize"><span class="isize__box isize__box--14"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/> <circle cx="12" cy="7" r="4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--16"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/> <circle cx="12" cy="7" r="4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/> <circle cx="12" cy="7" r="4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--24"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/> <circle cx="12" cy="7" r="4"/></svg></span></td><td class="isize"><span class="isize__box isize__box--32"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/> <circle cx="12" cy="7" r="4"/></svg></span></td>
+        </tr></tbody>
+          </table>
+        </div>
+      </section>
+
+        <section class="sec" aria-labelledby="s-stroke">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">06</span><span class="sec__kicker">描边 · stroke-width</span></div>
+            <h2 class="sec__title" id="s-stroke">描边是网格的固定比例，不是固定像素</h2>
+            <p class="sec__desc">
+              同一个 24 网格缩到 16px，1.7 的描边看起来会比 24px 时粗一档——因为描边占的比例变了。
+              所以描边随尺寸反向补偿，让「看起来的粗细」保持恒定。下面这条阶梯是唯一的写法。
+            </p>
+          </div>
+
+          <div class="stroke-ladder" aria-label="描边阶梯">
+            <div class="stroke-ladder__item" title="14px · stroke 1.9">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg>
+              <span>14px · 1.9</span>
+            </div>
+            <div class="stroke-ladder__item" title="16px · stroke 1.8">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg>
+              <span>16px · 1.8</span>
+            </div>
+            <div class="stroke-ladder__item" title="18px · stroke 1.7">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg>
+              <span>18px · 1.7</span>
+            </div>
+            <div class="stroke-ladder__item" title="24px · stroke 1.6">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg>
+              <span>24px · 1.6</span>
+            </div>
+            <div class="stroke-ladder__item" title="32px · stroke 1.6">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.27 21a2 2 0 0 0 3.46 0"/><path d="M3.26 15.32A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.68C19.41 13.97 18 12.29 18 8A6 6 0 0 0 6 8c0 4.29-1.41 5.97-2.74 7.32"/></svg>
+              <span>32px · 1.6</span>
+            </div>
+          </div>
+
+          <div class="stroke-grid">
+            <div class="stroke-card stroke-card--good">
+              <div class="stroke-card__label"><code>18px · stroke 1.7</code><span class="cap">规定值</span></div>
+              <div class="zoom18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <span class="cap">齿有平直侧壁，18px 下仍是一颗齿轮（此处放大到 64px 查看）</span>
+            </div>
+            <div class="stroke-card stroke-card--bad">
+              <div class="stroke-card__label"><code>18px · stroke 1.9</code><span class="cap">过粗</span></div>
+              <div class="zoom18"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" stroke-width="1.9"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <span class="cap">同一个 18px 盒子，齿缝被吃掉，糊成一团</span>
+            </div>
+          </div>
+
+          <div class="callout callout--info">
+            <span class="callout__icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="M12 16v-4"/> <path d="M12 8h.01"/></svg></span>
+            <div>
+              两格的差别不在缩放，只在 <code>stroke-width</code>。图中放大到 64px 是为了让眼差分得清；
+              真实界面里它们都画在 18px 的盒子里。实现一律走 <code>strokeFor(size)</code>，不要手填。
+            </div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s-color">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">07</span><span class="sec__kicker">颜色 · currentColor</span></div>
+            <h2 class="sec__title" id="s-color">一种颜色：继承控件，只换墨的深浅</h2>
+            <p class="sec__desc">
+              图标永远写 <code class="mono">stroke="currentColor"</code>，不写具体颜色。下面五档是它可能继承到的墨，
+              对比度对 <code class="mono">--bg-surface</code> 现场量取。非文字对比的下限是 <b>3:1</b>。
+            </p>
+          </div>
+
+          <div class="inkgrid" role="table" aria-label="图标墨色的实测对比">
+            <div class="inkgrid__row inkgrid__row--head" role="row">
+              <span role="columnheader">墨</span>
+              <span role="columnheader">样张</span>
+              <span role="columnheader">用在哪</span>
+              <span role="columnheader" style="text-align:end">对比 surface</span>
+            </div>
+            <div class="inkgrid__row" role="row">
+              <span class="inkgrid__name" role="cell"><code>--ink-1</code></span>
+              <span class="inkgrid__sample" role="cell" style="color:var(--ink-1)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span>
+              <span class="inkgrid__use" role="cell">正文图标：行首、侧栏、工具按钮</span>
+              <span class="inkgrid__ratio" role="cell" data-ink="ink-1" data-ground="bg-surface">—<small>测量中</small></span>
+            </div>
+            <div class="inkgrid__row" role="row">
+              <span class="inkgrid__name" role="cell"><code>--ink-2</code></span>
+              <span class="inkgrid__sample" role="cell" style="color:var(--ink-2)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span>
+              <span class="inkgrid__use" role="cell">默认图标：顶栏、次要动作</span>
+              <span class="inkgrid__ratio" role="cell" data-ink="ink-2" data-ground="bg-surface">—<small>测量中</small></span>
+            </div>
+            <div class="inkgrid__row" role="row">
+              <span class="inkgrid__name" role="cell"><code>--ink-3</code></span>
+              <span class="inkgrid__sample" role="cell" style="color:var(--ink-3)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span>
+              <span class="inkgrid__use" role="cell">装饰性图标：只在 ≥3:1 场景</span>
+              <span class="inkgrid__ratio" role="cell" data-ink="ink-3" data-ground="bg-surface">—<small>测量中</small></span>
+            </div>
+            <div class="inkgrid__row" role="row">
+              <span class="inkgrid__name" role="cell"><code>--accent-ink</code></span>
+              <span class="inkgrid__sample" role="cell" style="color:var(--accent-ink)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span>
+              <span class="inkgrid__use" role="cell">选中态的图标：当前视图、当前清单</span>
+              <span class="inkgrid__ratio" role="cell" data-ink="accent-ink" data-ground="bg-surface">—<small>测量中</small></span>
+            </div>
+            <div class="inkgrid__row" role="row">
+              <span class="inkgrid__name" role="cell"><code>--danger-ink</code></span>
+              <span class="inkgrid__sample" role="cell" style="color:var(--danger-ink)"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <path d="m16 9-5.5 5.5L8 12"/></svg></span>
+              <span class="inkgrid__use" role="cell">危险动作的图标：删除、错误</span>
+              <span class="inkgrid__ratio" role="cell" data-ink="danger-ink" data-ground="bg-surface">—<small>测量中</small></span>
+            </div>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout__icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span>
+            <div>
+              <b>不要用色相令牌直接画图标。</b>
+              <code>--accent</code>（3.7:1）、<code>--danger</code>（3.1:1）、<code>--q1..q4</code>（2.2–3.7:1）只够当
+              点、边，不够当线。图标是一根 1.7 的线，比色块更难看清，所以必须用 <code>-ink</code> 兄弟。
+              表格里跌破 3:1 的格子会标红。
+            </div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s-gear">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">08</span><span class="sec__kicker">反例 · 不要手绘</span></div>
+            <h2 class="sec__title" id="s-gear">手绘齿轮在这个仓库失败过两次</h2>
+            <p class="sec__desc">
+              两次都栽在同一件事上：<b>齿缺少平直侧壁</b>。左图像太阳（三角光芒），中图像带凸起的轮子；
+              只有右边 Lucide 的那颗，齿有顶面、两侧竖直，缩小到 18px 仍读得出是齿轮。
+            </p>
+          </div>
+
+          <div class="gear-grid">
+            <article class="gear-card gear-card--bad">
+              <div class="gear-card__art">
+                <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="4.2"/>
+                  <path d="M12 1.8v3M12 19.2v3M1.8 12h3M19.2 12h3M4.8 4.8l2.1 2.1M17.1 17.1l2.1 2.1M4.8 19.2l2.1-2.1M17.1 6.9l2.1-2.1"/>
+                </svg>
+              </div>
+              <span class="gear-card__verdict">失败 · 看起来像太阳</span>
+              <h3 class="gear-card__title">三角光芒</h3>
+              <p class="gear-card__body">半径 4.2 的圆加八根等粗射线。射线是「光」的语法，不是「齿」的语法。</p>
+            </article>
+
+            <article class="gear-card gear-card--bad">
+              <div class="gear-card__art">
+                <svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="5.4"/>
+                  <circle cx="12" cy="4" r="1.7"/>
+                  <circle cx="17.7" cy="8" r="1.7"/>
+                  <circle cx="17.7" cy="16" r="1.7"/>
+                  <circle cx="12" cy="20" r="1.7"/>
+                  <circle cx="6.3" cy="16" r="1.7"/>
+                  <circle cx="6.3" cy="8" r="1.7"/>
+                  <circle cx="12" cy="12" r="2.1"/>
+                </svg>
+              </div>
+              <span class="gear-card__verdict">失败 · 看起来像轮子</span>
+              <h3 class="gear-card__title">圆点凸起</h3>
+              <p class="gear-card__body">用六个小圆当齿。圆没有侧壁，接缝处是圆的切点，读起来像轮毂或药片。</p>
+            </article>
+
+            <article class="gear-card gear-card--good">
+              <div class="gear-card__art"><svg width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <span class="gear-card__verdict">正确 · Lucide settings</span>
+              <h3 class="gear-card__title">平直齿</h3>
+              <p class="gear-card__body">齿有顶面与两条竖直侧壁，内圈三段圆角。18px 下仍是一颗齿轮，不是光或轮子。</p>
+            </article>
+          </div>
+
+          <div class="callout callout--danger">
+            <span class="callout__icon" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/> <line x1="12" x2="12" y1="8" y2="12"/> <line x1="12" x2="12.01" y1="16" y2="16"/></svg></span>
+            <div>
+              <b>规则：不要手绘路径。</b>
+              在 <a href="https://lucide.dev">lucide.dev</a> 找到同名图标 → 复制 path →
+              加进 <code>packages/ui/src/icons.tsx</code> → 在 14/16/18/24px 与两套主题下目视确认。
+              上面两颗齿轮是反例，不是备选方案；它们只出现在这张警告表里。
+            </div>
+          </div>
+        </section>
+
+        <section class="sec" aria-labelledby="s-count">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">09</span><span class="sec__kicker">交付清单</span></div>
+            <h2 class="sec__title" id="s-count">56 个，没有一个是字体</h2>
+          </div>
+          <div class="tbl-wrap">
+            <table class="itbl">
+              <thead>
+                <tr><th scope="col" class="iname">分组</th><th scope="col" style="text-align:start;inline-size:72px;white-space:nowrap">数量</th><th scope="col" style="text-align:start">Lucide 名称</th></tr>
+              </thead>
+              <tbody><tr style="cursor:default"><th scope="row" class="iname"><span class="iname__cn">导航与视图</span></th><td style="padding:8px 12px;color:var(--ink-2)">15</td><td style="padding:8px 12px"><code style="font-family:var(--mono);font-size:var(--text-xs);color:var(--ink-quiet);line-height:1.8">calendar · calendar-days · rows-3 · layout-grid · list · list-checks · inbox · search · settings · wrench · folder · folder-open · tag · filter · sort-asc</code></td></tr><tr style="cursor:default"><th scope="row" class="iname"><span class="iname__cn">动作</span></th><td style="padding:8px 12px;color:var(--ink-2)">14</td><td style="padding:8px 12px"><code style="font-family:var(--mono);font-size:var(--text-xs);color:var(--ink-quiet);line-height:1.8">plus · minus · x · check · trash-2 · download · upload · undo-2 · pencil · save · external-link · more-horizontal · grip-vertical · log-out</code></td></tr><tr style="cursor:default"><th scope="row" class="iname"><span class="iname__cn">状态与元信息</span></th><td style="padding:8px 12px;color:var(--ink-2)">11</td><td style="padding:8px 12px"><code style="font-family:var(--mono);font-size:var(--text-xs);color:var(--ink-quiet);line-height:1.8">flag · alert-circle · info · circle-check · bell · clock · star · eye · eye-off · shield · database</code></td></tr><tr style="cursor:default"><th scope="row" class="iname"><span class="iname__cn">箭头</span></th><td style="padding:8px 12px;color:var(--ink-2)">6</td><td style="padding:8px 12px"><code style="font-family:var(--mono);font-size:var(--text-xs);color:var(--ink-quiet);line-height:1.8">chevron-left · chevron-right · chevron-down · chevron-up · arrow-right · arrow-left</code></td></tr><tr style="cursor:default"><th scope="row" class="iname"><span class="iname__cn">界面与系统</span></th><td style="padding:8px 12px;color:var(--ink-2)">10</td><td style="padding:8px 12px"><code style="font-family:var(--mono);font-size:var(--text-xs);color:var(--ink-quiet);line-height:1.8">repeat · sun · moon · monitor · keyboard · help-circle · file-text · image · link · user</code></td></tr>
+                <tr style="cursor:default"><th scope="row" class="iname"><span class="iname__cn">合计</span></th><td style="padding:8px 12px;color:var(--ink-1);font-weight:600">56</td><td style="padding:8px 12px" class="cap">全部内联 SVG · 24×24 网格 · 无图标字体 · 无 emoji</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------
+     读出口：悬停高亮 + 点击复制。file:// 下 clipboard 可能被拒，
+     失败就退回 execCommand，不抛错。
+     ------------------------------------------------------------------ */
+  var readout = document.getElementById('readout');
+  var readoutIcon = document.getElementById('readout-icon');
+  var readoutText = document.getElementById('readout-text');
+  var readoutState = document.getElementById('readout-state');
+
+  var SVG_SOURCE = new Map();
+  document.querySelectorAll('.irow').forEach(function (row) {
+    var source = row.querySelector('.isize__box--24 svg');
+    if (source) SVG_SOURCE.set(row.dataset.icon, source.outerHTML);
+  });
+
+  readoutIcon.dataset.idle = readoutIcon.innerHTML;
+  var resetTimer = null;
+
+  function show(row, mode) {
+    var markup = SVG_SOURCE.get(row.dataset.icon);
+    if (markup) readoutIcon.innerHTML = markup;
+    readoutText.innerHTML =
+      '<span class="readout__name">' + row.dataset.icon + '</span>' +
+      '<span class="readout__cn">' + row.dataset.label + '</span>';
+    readoutState.textContent = mode === 'copied' ? '已复制' : '点击复制';
+    if (mode === 'copied') readout.setAttribute('data-copied', '');
+    else readout.removeAttribute('data-copied');
+  }
+
+  function reset() {
+    readoutIcon.innerHTML = readoutIcon.dataset.idle;
+    readoutText.innerHTML =
+      '<span class="readout__name">—</span>' +
+      '<span class="readout__cn">悬停任意一行，这里显示名字；点一下复制</span>';
+    readoutState.textContent = '待命';
+    readout.removeAttribute('data-copied');
+  }
+
+  function fallback(text) {
+    var area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.cssText = 'position:fixed;inset-block-start:-1000px';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); } catch (e) { /* 只影响提示文案 */ }
+    area.remove();
+  }
+
+  function copy(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).catch(function () { fallback(text); });
+    }
+    fallback(text);
+    return Promise.resolve();
+  }
+
+  /* 悬停整行高亮读出口；激活与焦点落在名字按钮上。 */
+  document.querySelectorAll('.irow').forEach(function (row) {
+    var trigger = row.querySelector('.ibtn');
+    if (!trigger) return;
+
+    row.addEventListener('mouseenter', function () { clearTimeout(resetTimer); show(row, 'hover'); });
+    row.addEventListener('mouseleave', function () { reset(); });
+
+    trigger.addEventListener('focus', function () { clearTimeout(resetTimer); show(row, 'hover'); });
+    trigger.addEventListener('blur', function () { reset(); });
+
+    trigger.addEventListener('click', function (event) {
+      show(row, 'copied');
+      copy(row.dataset.icon);
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(function () { show(row, 'hover'); }, 2200);
+    });
+  });
+
+  /* ------------------------------------------------------------------
+     07 颜色：现场量，切换皮肤/主题后重算
+     ------------------------------------------------------------------ */
+  function parseColor(variable) {
+    var probe = document.createElement('span');
+    probe.style.color = 'var(' + variable + ')';
+    document.body.appendChild(probe);
+    var resolved = getComputedStyle(probe).color;
+    probe.remove();
+    var match = resolved.match(/rgba?\(([^)]+)\)/);
+    if (!match) return null;
+    var parts = match[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+  }
+
+  function channel(v) {
+    var s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(c) {
+    return 0.2126 * channel(c.r) + 0.7152 * channel(c.g) + 0.0722 * channel(c.b);
+  }
+
+  function contrast(inkVar, groundVar) {
+    var ink = parseColor('--' + inkVar);
+    var ground = parseColor('--' + groundVar);
+    if (!ink || !ground) return null;
+    var fg = ink.a < 1 ? {
+      r: ink.r * ink.a + ground.r * (1 - ink.a),
+      g: ink.g * ink.a + ground.g * (1 - ink.a),
+      b: ink.b * ink.a + ground.b * (1 - ink.a)
+    } : ink;
+    var a = luminance(fg), b = luminance(ground);
+    return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+  }
+
+  function paint() {
+    document.querySelectorAll('.inkgrid__ratio[data-ink]').forEach(function (cell) {
+      var value = contrast(cell.dataset.ink, cell.dataset.ground);
+      if (value == null) { cell.textContent = '—'; return; }
+      cell.innerHTML = value.toFixed(2) + ':1<small>' + (value >= 3 ? '过 3:1' : '跌破 3:1') + '</small>';
+      if (value < 3) cell.setAttribute('data-fail', '');
+      else cell.removeAttribute('data-fail');
+    });
+  }
+
+  paint();
+
+  var lastSkin = document.body.getAttribute('data-skin');
+  var lastTheme = document.body.getAttribute('data-theme');
+  new MutationObserver(function () {
+    var skin = document.body.getAttribute('data-skin');
+    var theme = document.body.getAttribute('data-theme');
+    if (skin === lastSkin && theme === lastTheme) return;
+    lastSkin = skin;
+    lastTheme = theme;
+    paint();
+  }).observe(document.body, { attributes: true, attributeFilter: ['data-skin', 'data-theme'] });
+})();
+</script>
+</body>
+</html>

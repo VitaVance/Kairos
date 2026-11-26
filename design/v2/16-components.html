@@ -1,0 +1,2017 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos v2 · 16 组件总表</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+  /* ==========================================================================
+     这是一张随内容增长的参考表，不是固定高度的工作台。
+     外壳沿用 .app / .rail / .main，但解开 100vh 锁，让所有状态都能被滚动与截图看到。
+     ========================================================================== */
+  .app { block-size: auto; min-block-size: 100vh; overflow: visible; }
+  .rail { position: sticky; inset-block-start: 0; block-size: 100vh; }
+  .main { overflow: visible; }
+  .content { overflow: visible; padding: var(--sp-5) var(--sp-6) var(--sp-10); }
+  .topbar { background: var(--bg-surface); }
+  .topbar__sub { color: var(--ink-quiet); }
+
+  .sheet { display: flex; flex-direction: column; gap: var(--sp-8); max-inline-size: 1240px; }
+
+  /* ---- 引言 ---- */
+  .intro { display: grid; gap: var(--sp-3); }
+  .intro__title { margin: 0; font-size: var(--text-2xl); font-weight: 600; letter-spacing: -.02em; }
+  .intro__lede { margin: 0; max-inline-size: 62ch; color: var(--ink-2); font-size: var(--text-md); }
+  .rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-2); padding: 0; margin: var(--sp-1) 0 0; list-style: none; }
+  .rules li {
+    padding: var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm); color: var(--ink-2);
+  }
+  .rules b { display: block; margin-block-end: var(--sp-1); color: var(--ink-1); font-size: var(--text-body); }
+  .rules code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-2); }
+
+  /* ---- 分区 ---- */
+  .sec { display: grid; gap: var(--sp-3); }
+  .sec__head { display: grid; gap: 2px; padding-block-end: var(--sp-2); border-block-end: 1px solid var(--hairline); }
+  .sec__eyebrow { display: flex; align-items: center; gap: var(--sp-2); }
+  .sec__num {
+    font-size: var(--text-xs); font-weight: 600;
+    color: var(--accent-ink); background: var(--accent-tint);
+    padding: 1px var(--sp-2); border-radius: var(--radius-xs);
+  }
+  .sec__kicker { font-size: var(--text-xs); color: var(--ink-quiet); }
+  .sec__title { margin: 0; font-size: var(--text-xl); font-weight: 600; letter-spacing: -.01em; }
+  .sec__desc { margin: 0; max-inline-size: 76ch; color: var(--ink-quiet); font-size: var(--text-sm); }
+
+  /* ---- 状态矩阵 ---- */
+  .mx {
+    display: grid;
+    grid-template-columns: 112px repeat(var(--cols, 4), minmax(0, 1fr));
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+  .mx__h, .mx__rh { background: var(--bg-subtle); }
+  .mx__h {
+    display: flex; align-items: center; gap: var(--sp-1);
+    padding: var(--sp-2) var(--sp-3);
+    font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+  }
+  .mx__rh { display: grid; gap: 2px; align-content: center; padding: var(--sp-2) var(--sp-3); }
+  .mx__rh b { font-size: var(--text-sm); font-weight: 500; color: var(--ink-1); }
+  .mx__rh code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+  .mx__c {
+    display: grid; place-items: center; gap: var(--sp-2);
+    min-block-size: 72px; padding: var(--sp-3);
+    background: var(--bg-surface);
+  }
+  .mx__c--start { place-items: start stretch; align-content: start; }
+  .mx__c--start > .btn { justify-self: start; }
+  /* 这两个网格没有行标题列，内容从左一列开始 */
+  .mx--pair .mx__c { display: grid; justify-items: start; gap: var(--sp-2); align-content: start; }
+  .mx__c--tall { min-block-size: 140px; }
+  /* 没有行标题的两列对照：不要留出第一列的 112px 空槽 */
+  .mx--pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .mono { font-family: var(--mono); }
+  .cap { font-size: var(--text-xs); color: var(--ink-quiet); }
+
+  /* ---- 提示块 ---- */
+  .callout {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: var(--sp-3);
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--bg-subtle);
+    border: 1px solid var(--hairline);
+    border-inline-start: 3px solid var(--ink-4);
+    border-radius: var(--radius-md);
+    font-size: var(--text-sm); color: var(--ink-2); line-height: 1.6;
+  }
+  .callout b { color: var(--ink-1); }
+  .callout code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-1); }
+  .callout--info { border-inline-start-color: var(--accent-ink); }
+  .callout--danger { border-inline-start-color: var(--danger-ink); background: var(--danger-tint); }
+  .callout--warn { border-inline-start-color: var(--warning-ink); }
+  .callout__icon { color: var(--ink-3); margin-block-start: 2px; }
+  .callout--danger .callout__icon { color: var(--danger-ink); }
+  .callout--info .callout__icon { color: var(--accent-ink); }
+  .callout--warn .callout__icon { color: var(--warning-ink); }
+
+  /* ---- 按钮 ---- */
+  .btn.is-focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .btn.btn--primary.is-hover { background: var(--cta-bg-hover); }
+  .btn.btn--secondary.is-hover { background: var(--bg-hover); }
+  .btn.btn--ghost.is-hover { background: var(--bg-hover); color: var(--ink-1); }
+  /* 危险按钮：静止是淡底墨字，悬停才转实心。实心底取 --danger-ink，
+     配 --accent-contrast —— 六个组合下都 ≥ 6.5:1。 */
+  .btn--danger.is-hover,
+  .btn--danger:hover:not(:disabled) { background: var(--danger-ink); color: var(--accent-contrast); }
+  .btn:active:not(:disabled) { transform: scale(.995); }
+  .btn--ghost:active:not(:disabled) { background: var(--bg-sunken); }
+  .btn.is-loading { cursor: progress; }
+  /* 「错」的示范：淡出禁用 */
+  .btn.is-wrong { opacity: .45; cursor: not-allowed; }
+
+  .spin { inline-size: 14px; block-size: 14px; flex: none; animation: k-spin 720ms linear infinite; }
+  @keyframes k-spin { to { rotate: 360deg; } }
+
+  .try-row {
+    display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap;
+    padding: var(--sp-3) var(--sp-4);
+    background: var(--bg-subtle); border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  }
+  .try-row__out { font-size: var(--text-sm); color: var(--ink-2); }
+
+  /* ---- 输入 ---- */
+  .field:disabled {
+    background: var(--bg-sunken);
+    border-color: var(--hairline);
+    color: var(--ink-2);
+    cursor: not-allowed;
+    opacity: 1; /* 禁用是颜色，不是淡出 */
+  }
+  .field::placeholder { color: var(--ink-quiet); opacity: 1; }
+  .field.is-hover { border-color: var(--hairline-strong); }
+  .field.is-focus { outline: 2px solid var(--focus); outline-offset: -1px; border-color: var(--accent); }
+  .field.is-error { border-color: var(--danger-ink); }
+  .field.is-error.is-focus { outline-color: var(--danger-ink); }
+  .field-wrap { display: grid; gap: var(--sp-1); inline-size: 100%; }
+  .field-msg {
+    display: flex; align-items: center; gap: var(--sp-1);
+    font-size: var(--text-xs); color: var(--danger-ink);
+  }
+  .field-msg svg { flex: none; }
+  .sel-wrap { position: relative; inline-size: 100%; }
+  .sel-wrap select.field {
+    appearance: none; padding-inline-end: var(--sp-6);
+    background: var(--bg-subtle);
+  }
+  .sel-wrap svg {
+    position: absolute; inset-inline-end: var(--sp-2); inset-block-start: 50%;
+    translate: 0 -50%; color: var(--ink-2); pointer-events: none;
+  }
+  .sel-wrap.is-error svg { color: var(--danger-ink); }
+  .sel-wrap.is-disabled svg { color: var(--ink-3); }
+
+  /* ---- 复选框 ---- */
+  .cb {
+    appearance: none; flex: none; margin: 0;
+    inline-size: 16px; block-size: 16px;
+    border: 1.5px solid var(--hairline-strong);
+    border-radius: var(--radius-xs);
+    background: var(--bg-surface);
+    display: grid; place-items: center;
+    cursor: pointer;
+  }
+  .cb:hover, .cb.is-hover { border-color: var(--accent); background: var(--accent-tint); }
+  .cb:checked, .cb:indeterminate { background: var(--accent); border-color: var(--accent); }
+  .cb:checked::after {
+    content: ""; inline-size: 9px; block-size: 5px;
+    border-inline-start: 1.6px solid var(--accent-contrast);
+    border-block-end: 1.6px solid var(--accent-contrast);
+    rotate: -45deg; translate: 0 -1px;
+  }
+  .cb:indeterminate::after {
+    content: ""; inline-size: 8px; block-size: 0;
+    border-block-start: 1.6px solid var(--accent-contrast);
+  }
+  .cb:disabled { background: var(--bg-sunken); border-color: var(--hairline-strong); cursor: not-allowed; }
+  .cb:disabled:checked { background: var(--ink-3); border-color: var(--ink-3); }
+  .cb.is-focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .cb-demo { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-sm); color: var(--ink-2); }
+
+  /* ---- 分段控件 ---- */
+  .segx {
+    display: inline-flex; gap: 2px; padding: 2px;
+    background: var(--bg-subtle);
+    border: 1px solid var(--hairline-soft);
+    border-radius: var(--radius-md);
+    max-inline-size: 100%;
+  }
+  .segx__item {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    block-size: var(--control-h-sm); padding: 0 var(--sp-3);
+    border-radius: var(--radius-sm);
+    color: var(--ink-2); font: inherit; font-size: var(--text-sm);
+    display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+  .segx__item:hover { color: var(--ink-1); }
+  .segx__item[aria-checked="true"] {
+    background: var(--bg-surface); color: var(--ink-1); font-weight: 500;
+    box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--hairline);
+  }
+  .segx__item[aria-checked="true"] svg { color: var(--accent-ink); }
+  .segx__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .kbd {
+    font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-2);
+    border: 1px solid var(--hairline-strong); border-block-end-width: 2px;
+    border-radius: var(--radius-xs); padding: 0 4px; background: var(--bg-surface);
+  }
+
+  /* ---- 时间阶梯 ---- */
+  .ladder-sort {
+    display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap;
+    padding: var(--sp-3);
+    background: var(--bg-surface); border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+  }
+  .ladder-sort__label { font-size: var(--text-xs); color: var(--ink-quiet); margin-inline-end: var(--sp-2); }
+  .ladder-sort__arr { color: var(--ink-4); flex: none; }
+  .ladder-sort .when {
+    padding: 3px var(--sp-2);
+    background: var(--bg-subtle);
+    border: 1px solid var(--hairline-soft);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-sm);
+  }
+  .rung-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
+  .rung-card {
+    display: grid; gap: var(--sp-2); align-content: start;
+    padding: var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+  }
+  .rung-card--late { border-inline-start: 3px solid var(--danger-ink); }
+  .rung-card--soft { border-inline-start: 3px solid var(--warning-ink); }
+  .rung-card__top { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+  .rung-card__name { font-size: var(--text-body); font-weight: 600; color: var(--ink-1); }
+  .rung-card__code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+  .rung-card__tag {
+    margin-inline-start: auto; font-size: var(--text-xs);
+    color: var(--ink-2); background: var(--bg-subtle);
+    border-radius: var(--radius-xs); padding: 1px 6px;
+  }
+  .rung-card--late .rung-card__tag { color: var(--danger-ink); background: var(--danger-tint); }
+  .rung-card--soft .rung-card__tag { color: var(--warning-ink); background: transparent; }
+  .rung-card__big {
+    font-size: var(--text-xl); font-weight: 500; letter-spacing: -.01em;
+    color: var(--ink-2); line-height: 1.25;
+  }
+  .rung-card--none .rung-card__big { color: var(--ink-quiet); }
+  .rung-card--late .rung-card__big { color: var(--danger-ink); }
+  .rung-card--soft .rung-card__big { color: var(--warning-ink); }
+  .rung-card__row {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-1) var(--sp-2);
+    border: 1px solid var(--hairline-soft); border-radius: var(--radius-sm);
+    background: var(--bg-subtle);
+  }
+  .rung-card__box {
+    inline-size: 16px; block-size: 16px; flex: none;
+    border: 1.5px solid var(--hairline-strong); border-radius: var(--radius-xs);
+    background: var(--bg-surface);
+  }
+  .rung-card__title {
+    flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-size: var(--text-body); color: var(--ink-1);
+  }
+  .rung-card__row .when { font-size: var(--text-sm); }
+  .rung-card__fact { margin: 0; font-size: var(--text-xs); line-height: 1.55; color: var(--ink-quiet); }
+  .rung-card__fact b { color: var(--ink-2); font-weight: 600; }
+  .rung-card__pred {
+    font-family: var(--mono); font-size: var(--text-xs);
+    color: var(--ink-2); background: var(--bg-subtle);
+    border-radius: var(--radius-xs); padding: 2px 6px; justify-self: start;
+  }
+  .rung-card--late .rung-card__pred { color: var(--danger-ink); }
+  .rung-card--soft .rung-card__pred { color: var(--warning-ink); }
+  .rung-card--none .rung-card__row .when { color: var(--ink-quiet); }
+  .rung-card__alias { font-size: var(--text-xs); color: var(--ink-quiet); }
+  .rung-card__alias b { color: var(--ink-2); }
+
+  /* ---- 象限 ---- */
+  .q-1 { --qc: var(--q1); --qt: var(--q1-t); --qi: var(--q1-i); }
+  .q-2 { --qc: var(--q2); --qt: var(--q2-t); --qi: var(--q2-i); }
+  .q-3 { --qc: var(--q3); --qt: var(--q3-t); --qi: var(--q3-i); }
+  .q-4 { --qc: var(--q4); --qt: var(--q4-t); --qi: var(--q4-i); }
+  .qdot { border-radius: 50%; flex: none; background: var(--qc); }
+  .qdot--6 { inline-size: 6px; block-size: 6px; }
+  .qdot--10 { inline-size: 10px; block-size: 10px; }
+  .qdot--14 { inline-size: 14px; block-size: 14px; }
+  .qbadge {
+    inline-size: 20px; block-size: 20px; flex: none;
+    display: grid; place-items: center;
+    border-radius: var(--radius-sm);
+    background: var(--qt); color: var(--qi);
+    box-shadow: inset 0 0 0 1px var(--qi);
+    font-size: var(--text-xs); font-weight: 600;
+  }
+  .qpill {
+    display: inline-flex; align-items: center; gap: var(--sp-2);
+    padding: 2px var(--sp-2) 2px var(--sp-1);
+    border-radius: var(--radius-full);
+    background: var(--qt); color: var(--qi);
+    font-size: var(--text-sm); font-weight: 500; white-space: nowrap;
+  }
+  .qtable { display: grid; gap: 1px; background: var(--hairline); border: 1px solid var(--hairline); border-radius: var(--radius-lg); overflow: hidden; }
+  .qtable__row {
+    display: grid; grid-template-columns: 160px 96px 96px 140px minmax(0, 1fr);
+    gap: var(--sp-3); align-items: center;
+    background: var(--bg-surface); padding: var(--sp-3) var(--sp-4);
+    font-size: var(--text-sm); color: var(--ink-2);
+  }
+  .qtable__row--head { background: var(--bg-subtle); font-size: var(--text-xs); color: var(--ink-2); font-weight: 600; }
+  .qtable__name { display: flex; align-items: center; gap: var(--sp-2); color: var(--ink-1); font-weight: 500; }
+  .qtable__cell { display: flex; align-items: center; gap: var(--sp-2); }
+  .qlabel { color: var(--qi); font-weight: 600; }
+
+  /* ---- 清单色点 ---- */
+  .list-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--sp-3); }
+  .list-card {
+    display: grid; gap: var(--sp-2);
+    padding: var(--sp-3);
+    background: var(--bg-surface); border: 1px solid var(--hairline); border-radius: var(--radius-md);
+  }
+  .list-card__head { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--text-body); font-weight: 500; }
+  .ldot { inline-size: 8px; block-size: 8px; border-radius: 50%; flex: none; background: var(--ink-4); }
+  .ldot--lg { inline-size: 14px; block-size: 14px; }
+  .list-card__sizes { display: flex; align-items: center; gap: var(--sp-3); color: var(--ink-quiet); }
+  .list-card__code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+
+  /* ---- 行对象 ---- */
+  .trow-list { display: grid; gap: 2px; padding: var(--sp-2); background: var(--bg-surface); border: 1px solid var(--hairline); border-radius: var(--radius-lg); }
+  .trow-demo { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: var(--sp-3); align-items: center; }
+  .trow-demo__label { display: grid; gap: 2px; justify-items: start; }
+  .trow-demo__label b { font-size: var(--text-sm); font-weight: 500; color: var(--ink-1); }
+  .trow-demo__label code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+  .trow {
+    display: grid;
+    grid-template-columns: 14px 16px minmax(0, 1fr) auto 8px 16px;
+    align-items: center; gap: var(--sp-2);
+    block-size: var(--row-h); padding: 0 var(--sp-2);
+    border-radius: var(--radius-sm);
+    transition: background var(--dur-fast) var(--ease);
+  }
+  .trow__grip { display: grid; place-items: center; color: var(--ink-3); opacity: 0; cursor: grab; }
+  .trow:hover .trow__grip,
+  .trow:focus-within .trow__grip,
+  .trow--hover .trow__grip,
+  .trow--drag .trow__grip { opacity: 1; }
+  .trow__open {
+    appearance: none; border: 0; background: transparent; padding: 0;
+    font: inherit; font-size: var(--text-md); color: var(--ink-1);
+    text-align: start; cursor: pointer; block-size: 100%;
+    min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .trow__open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: var(--radius-xs); }
+  .trow__chev { color: var(--ink-4); flex: none; }
+  .trow:hover, .trow--hover { background: var(--bg-hover); }
+  .trow--selected { background: var(--accent-tint); box-shadow: inset 2px 0 0 var(--accent-ink); }
+  .trow--selected .trow__open { color: var(--accent-ink); }
+  .trow--done .trow__open { color: var(--ink-quiet); text-decoration: line-through; }
+  .trow--done .trow__chev { color: var(--ink-4); }
+  .trow--drag {
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-lg);
+    transform: rotate(-.5deg);
+    cursor: grabbing;
+  }
+  .trow--drag .trow__open { cursor: grabbing; }
+  .trow--live { outline: 1px dashed var(--hairline-strong); outline-offset: 2px; }
+  .row-out { font-size: var(--text-sm); color: var(--ink-2); }
+
+  /* ---- toast ---- */
+  .toast-stage {
+    display: grid; gap: var(--sp-3); justify-items: end;
+    padding: var(--sp-5);
+    background: var(--bg-app);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+  }
+  .toast {
+    position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto;
+    align-items: start; gap: var(--sp-2);
+    inline-size: min(360px, 100%);
+    padding: var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--text-body); color: var(--ink-1);
+  }
+  .toast__icon { margin-block-start: 1px; color: var(--ink-2); }
+  .toast--success .toast__icon { color: var(--success-ink); }
+  .toast--danger .toast__icon { color: var(--danger-ink); }
+  .toast__body { display: grid; gap: 1px; }
+  .toast__title { font-weight: 500; }
+  .toast__sub { font-size: var(--text-xs); color: var(--ink-quiet); }
+  .toast__action {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    font: inherit; font-size: var(--text-sm); font-weight: 600;
+    color: var(--accent-ink); padding: 0 var(--sp-1); border-radius: var(--radius-xs);
+    align-self: center;
+  }
+  .toast__action:hover { background: var(--accent-tint); }
+  .toast__action:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .toast__close {
+    appearance: none; border: 0; background: transparent; cursor: pointer;
+    color: var(--ink-3); display: grid; place-items: center;
+    inline-size: 20px; block-size: 20px; border-radius: var(--radius-xs);
+    align-self: start;
+  }
+  .toast__close:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .toast__bar {
+    position: absolute; inset-block-end: 0; inset-inline: 0;
+    block-size: 2px; background: var(--accent-ink);
+    transform-origin: left center;
+    animation: k-toast-bar 4s linear forwards;
+  }
+  @keyframes k-toast-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+  .toast-live {
+    position: fixed; inset-block-end: var(--sp-6); inset-inline-end: var(--sp-6);
+    z-index: var(--z-toast);
+    display: grid; gap: var(--sp-2); justify-items: end;
+    pointer-events: none;
+  }
+  .toast-live .toast { pointer-events: auto; animation: k-toast-in var(--dur-base) var(--ease); }
+  @keyframes k-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* ---- 尺寸表 ---- */
+  .tbl-wrap { border: 1px solid var(--hairline); border-radius: var(--radius-lg); overflow: hidden; background: var(--bg-surface); }
+  .tbl { inline-size: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .tbl th, .tbl td { text-align: start; padding: var(--sp-2) var(--sp-4); border-block-end: 1px solid var(--hairline-soft); vertical-align: middle; }
+  .tbl tr:last-child td { border-block-end: 0; }
+  .tbl thead th { background: var(--bg-subtle); font-size: var(--text-xs); color: var(--ink-2); font-weight: 600; }
+  .tbl tbody tr:nth-child(n+2) { background: var(--bg-surface); }
+  .tbl code { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-1); }
+  .tbl td.num { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+  .tbl td.us { color: var(--ink-quiet); }
+  .tbl tbody tr.tbl__group td {
+    background: var(--bg-subtle); font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+    padding-block: var(--sp-1);
+  }
+  .size-ladder { display: flex; align-items: flex-end; gap: var(--sp-4); padding: var(--sp-4); background: var(--bg-subtle); border-radius: var(--radius-md); }
+  .size-ladder__item { display: grid; gap: 2px; justify-items: center; }
+  .size-ladder__sample { color: var(--ink-1); line-height: 1; }
+  .size-ladder__meta { font-family: var(--mono); font-size: var(--text-xs); color: var(--ink-quiet); }
+
+  /* ---- 墨色对照 ---- */
+  .ink-sample { margin: 0; font-size: var(--text-body); line-height: 1.55; }
+  .ratio {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-family: var(--mono); font-size: var(--text-xs); font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+  }
+  .ratio[data-fail] { color: var(--danger-ink); font-weight: 600; }
+  .ratio[data-fail]::after { content: "低于 4.5"; }
+  .cap--pass { color: var(--success-ink); }
+
+  @media (max-width: 1100px) {
+    .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .rung-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .list-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+<style>
+  :root {
+    /* 等宽字体不是颜色，不进令牌表 */
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
+    /* shared.css 未导出 --row-h；值按 DESIGN-LANGUAGE §4.1 的行高 36px 在本地声明，
+       等生产令牌搬进 shared.css 后换成 var 同名即可。 */
+    --row-h: 2.25rem;
+  }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<div class="app app--wide">
+  <nav class="rail" aria-label="主导航">
+    <div class="rail__avatar" aria-hidden="true">K</div>
+    <div class="rail__group">
+      <button class="rail__item" type="button" aria-label="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
+          <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+        </svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="清单">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>
+        </svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>
+        </svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button class="rail__item" type="button" aria-label="设置" aria-current="page">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">组件总表</h1>
+      <span class="topbar__sub">16 · 每个组件的完整状态矩阵，同一套令牌</span>
+    </header>
+
+    <div class="content">
+      <div class="sheet">
+
+        <!-- ================= 引言 ================= -->
+        <section class="intro" aria-labelledby="intro-title">
+          <h2 class="intro__title" id="intro-title">一格一格地看，不靠印象</h2>
+          <p class="intro__lede">
+            这张表是实现的对照物：每个组件都把状态摆全，颜色、边界、间距全部来自
+            <code class="mono">shared.css</code> 的令牌。四条规则贯穿全表，任何一格违反都算 bug。
+            示范里带 <code class="mono">.is-hover</code> / <code class="mono">.is-focus</code> 的格子是强制状态。
+          </p>
+          <ul class="rules">
+            <li><b>禁用是颜色，不是淡出</b>底 <code>--bg-sunken</code>、字 <code>--ink-2</code>，<code>opacity: 1</code> 不许动。</li>
+            <li><b>字段安静，焦点才强</b>静止是 <code>--bg-subtle</code> 加一条发丝线；focus 才把边界换成强调色。</li>
+            <li><b>逾期分两种墨</b><code>day</code> 及以下用 <code>--danger-ink</code>，<code>week</code>/<code>month</code> 用 <code>--warning-ink</code>。</li>
+            <li><b>图标只有一种颜色</b><code>currentColor</code>，描边随尺寸：14→1.9 · 16→1.8 · 18→1.7 · ≥24→1.6。</li>
+          </ul>
+        </section>
+
+        <!-- ================= 01 按钮 ================= -->
+        <section class="sec" aria-labelledby="s01">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">01</span><span class="sec__kicker">按钮 · .btn</span></div>
+            <h2 class="sec__title" id="s01">按钮：四种角色，五个状态</h2>
+            <p class="sec__desc">
+              每个界面只有一个主按钮。次级动作用 ghost，不抢实心蓝；危险动作静止时只是淡底墨字，悬停才转实心。
+              高度走 <code class="mono">--control-h</code>。
+            </p>
+          </div>
+
+          <div class="mx" style="--cols:4">
+            <div class="mx__h">状态</div>
+            <div class="mx__h">主按钮 · primary</div>
+            <div class="mx__h">次按钮 · secondary</div>
+            <div class="mx__h">幽灵 · ghost</div>
+            <div class="mx__h">危险 · danger</div>
+
+            <div class="mx__rh"><b>静止</b><code>default</code></div>
+            <div class="mx__c"><button class="btn btn--primary" type="button">保存</button></div>
+            <div class="mx__c"><button class="btn btn--secondary" type="button">取消</button></div>
+            <div class="mx__c"><button class="btn btn--ghost" type="button">更多</button></div>
+            <div class="mx__c"><button class="btn btn--danger" type="button">删除</button></div>
+
+            <div class="mx__rh"><b>悬停</b><code>:hover</code></div>
+            <div class="mx__c"><button class="btn btn--primary is-hover" type="button">保存</button></div>
+            <div class="mx__c"><button class="btn btn--secondary is-hover" type="button">取消</button></div>
+            <div class="mx__c"><button class="btn btn--ghost is-hover" type="button">更多</button></div>
+            <div class="mx__c"><button class="btn btn--danger is-hover" type="button">删除</button></div>
+
+            <div class="mx__rh"><b>焦点</b><code>:focus-visible</code></div>
+            <div class="mx__c"><button class="btn btn--primary is-focus" type="button">保存</button></div>
+            <div class="mx__c"><button class="btn btn--secondary is-focus" type="button">取消</button></div>
+            <div class="mx__c"><button class="btn btn--ghost is-focus" type="button">更多</button></div>
+            <div class="mx__c"><button class="btn btn--danger is-focus" type="button">删除</button></div>
+
+            <div class="mx__rh"><b>禁用</b><code>:disabled</code></div>
+            <div class="mx__c"><button class="btn btn--primary" type="button" disabled>保存</button></div>
+            <div class="mx__c"><button class="btn btn--secondary" type="button" disabled>取消</button></div>
+            <div class="mx__c"><button class="btn btn--ghost" type="button" disabled>更多</button></div>
+            <div class="mx__c"><button class="btn btn--danger" type="button" disabled>删除</button></div>
+
+            <div class="mx__rh"><b>加载中</b><code>aria-busy</code></div>
+            <div class="mx__c">
+              <button class="btn btn--primary is-loading" type="button" aria-busy="true">
+                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>
+                保存中
+              </button>
+            </div>
+            <div class="mx__c">
+              <button class="btn btn--secondary is-loading" type="button" aria-busy="true">
+                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>
+                取消中
+              </button>
+            </div>
+            <div class="mx__c">
+              <button class="btn btn--ghost is-loading" type="button" aria-busy="true">
+                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>
+                读取中
+              </button>
+            </div>
+            <div class="mx__c">
+              <button class="btn btn--danger is-loading" type="button" aria-busy="true">
+                <svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>
+                删除中
+              </button>
+            </div>
+          </div>
+
+          <div class="callout callout--danger">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </span>
+            <div>
+              <b>禁用是颜色，不是淡出。</b>
+              禁用态把底压到 <code>--bg-sunken</code>、字压到 <code>--ink-2</code>，<b>保留 <code>opacity: 1</code></b>。
+              拿 opacity 淡出会把标签压到 2:1 上下，按钮看起来像一个空槽——这是设计语言 §5.1 明令禁止的写法。
+            </div>
+          </div>
+
+          <div class="mx mx--pair">
+            <div class="mx__h">正确 · 颜色变化</div>
+            <div class="mx__h">错误 · 整颗淡出（opacity: .45）</div>
+            <div class="mx__c mx__c--start">
+              <button class="btn btn--primary" type="button" disabled>保存</button>
+              <span class="cap">底 <code class="mono">--bg-sunken</code> · 字 <code class="mono">--ink-2</code> · opacity 1</span>
+            </div>
+            <div class="mx__c mx__c--start">
+              <button class="btn btn--primary is-wrong" type="button" disabled>保存</button>
+              <span class="cap">字被压到约 2.1:1，按钮消失成空槽</span>
+            </div>
+          </div>
+
+          <div class="try-row">
+            <button class="btn btn--primary" type="button" id="btn-live">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              <span>保存</span>
+            </button>
+            <span class="try-row__out" id="btn-live-out" role="status" aria-live="polite">点一下：按钮进入加载，再变成「已保存」。</span>
+            <span class="spacer"></span>
+            <span class="cap">按下时整颗沉 <code class="mono">scale(.995)</code>，与全应用一致</span>
+          </div>
+        </section>
+
+        <!-- ================= 02 输入 ================= -->
+        <section class="sec" aria-labelledby="s02">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">02</span><span class="sec__kicker">输入 · .field</span></div>
+            <h2 class="sec__title" id="s02">输入：安静的静止，加强的焦点</h2>
+            <p class="sec__desc">
+              静止是一个安静的地面加一条发丝线，绝不重边框。悬停只把线加深一档；焦点才换成强调色边界并加一圈焦点环。
+              下拉自带 chevron-down，用伪元素之外的 inline SVG 画。
+            </p>
+          </div>
+
+          <div class="mx" style="--cols:3">
+            <div class="mx__h">状态</div>
+            <div class="mx__h">文本框 · input</div>
+            <div class="mx__h">多行文本 · textarea</div>
+            <div class="mx__h">下拉 · select</div>
+
+            <div class="mx__rh"><b>静止</b><code>default</code></div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><input class="field" type="text" value="回客户邮件" aria-label="标题示例"></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><textarea class="field field--area" rows="2" aria-label="备注示例">先回复报价，再约下周的会。</textarea></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="sel-wrap">
+                <select class="field" aria-label="清单示例">
+                  <option>工作</option><option>学习</option><option>生活</option><option>收集箱</option>
+                </select>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="mx__rh"><b>悬停</b><code>:hover</code></div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><input class="field is-hover" type="text" value="回客户邮件" aria-label="标题示例，悬停"></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><textarea class="field field--area is-hover" rows="2" aria-label="备注示例，悬停">先回复报价，再约下周的会。</textarea></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="sel-wrap">
+                <select class="field is-hover" aria-label="清单示例，悬停">
+                  <option>工作</option><option>学习</option><option>生活</option><option>收集箱</option>
+                </select>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="mx__rh"><b>焦点</b><code>:focus</code></div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><input class="field is-focus" type="text" value="回客户邮件" aria-label="标题示例，焦点"></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><textarea class="field field--area is-focus" rows="2" aria-label="备注示例，焦点">先回复报价，再约下周的会。</textarea></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="sel-wrap">
+                <select class="field is-focus" aria-label="清单示例，焦点">
+                  <option>工作</option><option>学习</option><option>生活</option><option>收集箱</option>
+                </select>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="mx__rh"><b>禁用</b><code>:disabled</code></div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><input class="field" type="text" value="跟着「重复」走" disabled aria-label="标题示例，禁用"></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap"><textarea class="field field--area" rows="2" disabled aria-label="备注示例，禁用">读完后写下三条要改的动作。</textarea></div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="sel-wrap is-disabled">
+                <select class="field" disabled aria-label="清单示例，禁用">
+                  <option>工作</option><option>学习</option>
+                </select>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="mx__rh"><b>错误</b><code>aria-invalid</code></div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap">
+                <input class="field is-error" type="text" value="" placeholder="不能为空" aria-invalid="true" aria-describedby="e1" aria-label="标题示例，错误">
+                <span class="field-msg" id="e1">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                  给这件事一个名字
+                </span>
+              </div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap">
+                <textarea class="field field--area is-error" rows="2" aria-invalid="true" aria-describedby="e2" aria-label="备注示例，错误">超过 2000 字</textarea>
+                <span class="field-msg" id="e2">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                  最多 2000 字，现在 2140
+                </span>
+              </div>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="field-wrap">
+                <div class="sel-wrap is-error">
+                  <select class="field is-error" aria-invalid="true" aria-describedby="e3" aria-label="清单示例，错误">
+                    <option>选择清单</option><option>工作</option>
+                  </select>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+                <span class="field-msg" id="e3">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+                  选一个清单，或先放进收集箱
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="callout callout--info">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </span>
+            <div>
+              错误态只换边界与说明文字，<b>不换底色、不抖动</b>。说明句跟着字段走，读屏通过
+              <code>aria-describedby</code> 拿到同一句话。禁用字段用 <code>--ink-2</code> 而不是
+              <code>--ink-3</code>：后者压在 <code>--bg-sunken</code> 上只有 4.1–5.3:1（light 皮肤贴着线），
+              而 <code>--ink-4</code> 只有 1.5–2.7:1，字段会看不出有值。
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 03 复选框 ================= -->
+        <section class="sec" aria-labelledby="s03">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">03</span><span class="sec__kicker">复选框 · .cb</span></div>
+            <h2 class="sec__title" id="s03">复选框：完成事情唯一的手势</h2>
+            <p class="sec__desc">
+              只有复选框能完成一件事——完成是唯一会派生「下一件」的破坏性手势，不能由落在标题上的点击触发。
+              三态：未勾、已勾、不确定（批量选择里出现）。
+            </p>
+          </div>
+
+          <div class="mx" style="--cols:6">
+            <div class="mx__h">状态</div>
+            <div class="mx__h">未勾</div>
+            <div class="mx__h">悬停</div>
+            <div class="mx__h">已勾</div>
+            <div class="mx__h">不确定</div>
+            <div class="mx__h">禁用</div>
+            <div class="mx__h">焦点</div>
+
+            <div class="mx__rh"><b>示范</b><code>input[type=checkbox]</code></div>
+            <div class="mx__c"><input class="cb" type="checkbox" aria-label="未勾选的复选框"></div>
+            <div class="mx__c"><input class="cb is-hover" type="checkbox" aria-label="悬停的复选框"></div>
+            <div class="mx__c"><input class="cb" type="checkbox" checked aria-label="已勾选的复选框"></div>
+            <div class="mx__c"><input class="cb" type="checkbox" data-indet aria-label="不确定状态的复选框"></div>
+            <div class="mx__c"><input class="cb" type="checkbox" disabled aria-label="禁用的复选框"></div>
+            <div class="mx__c"><input class="cb is-focus" type="checkbox" aria-label="聚焦的复选框"></div>
+
+            <div class="mx__rh"><b>说明</b><code>状态语义</code></div>
+            <div class="mx__c"><span class="cap">发丝边界</span></div>
+            <div class="mx__c"><span class="cap">边界转 accent</span></div>
+            <div class="mx__c"><span class="cap">accent 实心</span></div>
+            <div class="mx__c"><span class="cap">accent 实心 + 横杠</span></div>
+            <div class="mx__c"><span class="cap">sunken 底 · 灰字框</span></div>
+            <div class="mx__c"><span class="cap">外环 2px</span></div>
+          </div>
+
+          <div class="try-row">
+            <label class="cb-demo">
+              <input class="cb" type="checkbox" id="cb-live" checked>
+              勾一下试试
+            </label>
+            <button class="btn btn--secondary" type="button" id="indet-live">切换「不确定」</button>
+            <span class="row-out" id="cb-out" role="status" aria-live="polite">三个状态都是真控件，Tab 能到、空格能切。</span>
+            <span class="spacer"></span>
+            <label class="cb-demo">
+              <input class="cb" type="checkbox" checked disabled>
+              <span class="cap">禁用 · 已勾：实心用 <code class="mono">--ink-3</code>，勾仍是 <code class="mono">--accent-contrast</code></span>
+            </label>
+          </div>
+        </section>
+
+        <!-- ================= 04 分段控件 ================= -->
+        <section class="sec" aria-labelledby="s04">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">04</span><span class="sec__kicker">分段控件 · radiogroup</span></div>
+            <h2 class="sec__title" id="s04">分段控件：一组互斥的选择</h2>
+            <p class="sec__desc">
+              用 radiogroup 语义，整组只占一个 Tab 位（roving tabindex）。<b>方向键直接换选中项</b>，
+              Home / End 跳到两端。轨道用 <code class="mono">--bg-subtle</code> 而不是 <code>--bg-sunken</code>：
+              后者会把 12px 的未选中标签压到 4.4:1。
+            </p>
+          </div>
+
+          <div class="mx mx--pair">
+            <div class="mx__h">两项 · 清单 / 日历</div>
+            <div class="mx__h">四项 · 主视图切换</div>
+            <div class="mx__c mx__c--start">
+              <div class="segx" role="radiogroup" aria-label="视图：两项" data-seg>
+                <button class="segx__item" type="button" role="radio" aria-checked="true" tabindex="0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg>
+                  清单
+                </button>
+                <button class="segx__item" type="button" role="radio" aria-checked="false" tabindex="-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                  日历
+                </button>
+              </div>
+              <span class="cap">Tab 进入一次，<span class="kbd">←</span> <span class="kbd">→</span> 换选中</span>
+            </div>
+            <div class="mx__c mx__c--start">
+              <div class="segx" role="radiogroup" aria-label="主视图：四项" data-seg>
+                <button class="segx__item" type="button" role="radio" aria-checked="true" tabindex="0">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                  四象限
+                </button>
+                <button class="segx__item" type="button" role="radio" aria-checked="false" tabindex="-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/></svg>
+                  清单
+                </button>
+                <button class="segx__item" type="button" role="radio" aria-checked="false" tabindex="-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                  日历
+                </button>
+                <button class="segx__item" type="button" role="radio" aria-checked="false" tabindex="-1">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                  日程
+                </button>
+              </div>
+              <span class="cap">选中项：surface 底 + 一圈 hairline + shadow-sm</span>
+            </div>
+          </div>
+
+          <div class="callout">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-9-9"/><path d="M12 7v5l3 2"/></svg>
+            </span>
+            <div>
+              生产里的分段控件量出来只有 <b>26px</b>，比密集控件 <code>--control-h-sm</code>（28px）还矮两像素。
+              这张表统一用 <code>--control-h-sm</code>——实现时以令牌为准，不要照抄旧的 26。
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 05 时间阶梯 ================= -->
+        <section class="sec" aria-labelledby="s05">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">05</span><span class="sec__kicker">时间阶梯 · .when</span></div>
+            <h2 class="sec__title" id="s05">时间阶梯：整个系统最重要的一处视觉</h2>
+            <p class="sec__desc">
+              六档，行内永远同一句话、同一个位置。粗窗口排在细窗口之前，无日期的排最后。
+              下面每一个标签都由 <code class="mono">Kairos.rungLabel()</code> 现场算出，和其余 15 张片段里的字是同一份来源。
+            </p>
+          </div>
+
+          <div class="ladder-sort" aria-label="行内排序">
+            <span class="ladder-sort__label">行内顺序</span>
+            <span class="when when--month" data-txt="month">下个月</span>
+            <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="when when--week" data-txt="week">这周</span>
+            <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="when when--day" data-txt="day">明天</span>
+            <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="when when--period" data-txt="period">今天下午</span>
+            <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="when when--time" data-txt="time">今天 18:00</span>
+            <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <span class="when when--none" data-txt="none">不限</span>
+            <span class="spacer"></span>
+            <span class="cap">粗 → 细 → 无</span>
+          </div>
+
+          <div class="rung-grid">
+
+            <article class="rung-card">
+              <div class="rung-card__top">
+                <span class="rung-card__name">月</span>
+                <code class="rung-card__code">month</code>
+                <span class="rung-card__tag">粗窗口</span>
+              </div>
+              <div class="rung-card__big" data-txt="month">下个月</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">更新简历</span>
+                <span class="when when--month" data-txt="month">下个月</span>
+              </div>
+              <p class="rung-card__fact">计划窗口，<b>永不过期</b>。月视图里该月每一天的格子都出现。</p>
+              <code class="rung-card__pred" data-pred="month">isLate → false</code>
+            </article>
+
+            <article class="rung-card">
+              <div class="rung-card__top">
+                <span class="rung-card__name">周</span>
+                <code class="rung-card__code">week</code>
+                <span class="rung-card__tag">粗窗口</span>
+              </div>
+              <div class="rung-card__big" data-txt="week">这周</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">写季度总结</span>
+                <span class="when when--week" data-txt="week">这周</span>
+              </div>
+              <p class="rung-card__fact">计划窗口，<b>永不过期</b>。周一不自动跳进本周——宁可让人看见拖延。</p>
+              <code class="rung-card__pred" data-pred="week">isLate → false</code>
+            </article>
+
+            <article class="rung-card">
+              <div class="rung-card__top">
+                <span class="rung-card__name">天</span>
+                <code class="rung-card__code">day</code>
+                <span class="rung-card__tag">会过期</span>
+              </div>
+              <div class="rung-card__big" data-txt="day">明天</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">跟进合同签署</span>
+                <span class="when when--day" data-txt="day">明天</span>
+              </div>
+              <p class="rung-card__fact">次日 0 点过期。当天一格，全天条。</p>
+              <code class="rung-card__pred" data-pred="day">isLate → false</code>
+            </article>
+
+            <article class="rung-card">
+              <div class="rung-card__top">
+                <span class="rung-card__name">半天</span>
+                <code class="rung-card__code">period</code>
+                <span class="rung-card__tag">会过期</span>
+              </div>
+              <div class="rung-card__big" data-txt="period">今天下午</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">回客户邮件</span>
+                <span class="when when--period" data-txt="period">今天下午</span>
+              </div>
+              <p class="rung-card__fact">半天末端过期。当天一格 + 时段标。</p>
+              <code class="rung-card__pred" data-pred="period">isLate → false</code>
+            </article>
+
+            <article class="rung-card">
+              <div class="rung-card__top">
+                <span class="rung-card__name">时刻</span>
+                <code class="rung-card__code">time</code>
+                <span class="rung-card__tag">会过期</span>
+              </div>
+              <div class="rung-card__big" data-txt="time">今天 18:00</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">交报销单</span>
+                <span class="when when--time" data-txt="time">今天 18:00</span>
+              </div>
+              <p class="rung-card__fact">时刻过即过期。唯一长在时间轴块上的一档。</p>
+              <code class="rung-card__pred" data-pred="time">isLate → false</code>
+            </article>
+
+            <article class="rung-card rung-card--none">
+              <div class="rung-card__top">
+                <span class="rung-card__name">不限</span>
+                <code class="rung-card__code">none</code>
+                <span class="rung-card__tag">无窗口</span>
+              </div>
+              <div class="rung-card__big" data-txt="none">不限</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">未排期：随手记</span>
+                <span class="when when--none">收集箱</span>
+              </div>
+              <p class="rung-card__fact">不占日历、不逾期。<b>上行的位置显示清单名</b>，不是「不限」——见下方说明。</p>
+              <code class="rung-card__pred" data-pred="none">isLate → false</code>
+            </article>
+
+            <article class="rung-card rung-card--late">
+              <div class="rung-card__top">
+                <span class="rung-card__name">逾期 · 天</span>
+                <code class="rung-card__code">day + late</code>
+                <span class="rung-card__tag">danger</span>
+              </div>
+              <div class="rung-card__big" data-txt="day-late">昨天</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">交水费</span>
+                <span class="when when--day when--late" data-txt="day-late">昨天</span>
+                <span class="when__flag">已过期</span>
+              </div>
+              <p class="rung-card__fact">承诺已经破了，用 <b>--danger-ink</b>，并加一个「已过期」小旗。20 条示例里没有过期的 <code class="mono">day</code>，所以这一格的标签由 <code class="mono">rungLabel()</code> 对「昨天」现算。</p>
+              <code class="rung-card__pred" data-pred="day-late">isLate → true</code>
+            </article>
+
+            <article class="rung-card rung-card--soft">
+              <div class="rung-card__top">
+                <span class="rung-card__name">未完成 · 周</span>
+                <code class="rung-card__code">week + passed</code>
+                <span class="rung-card__tag">warning</span>
+              </div>
+              <div class="rung-card__big" data-txt="week-late">上周</div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">读完《深度工作》</span>
+                <span class="when when--week when--late-soft" data-txt="week-late">上周</span>
+                <span class="when__flag when__flag--soft">未完成</span>
+              </div>
+              <p class="rung-card__fact">计划窗口过了，<b>不是承诺破了</b>。用 <b>--warning-ink</b>，不碰红色。</p>
+              <code class="rung-card__pred" data-pred="week-late">isWindowPassed → true</code>
+            </article>
+
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/></svg>
+            </span>
+            <div>
+              <b>一条线把两种逾期分开。</b>
+              <code>day</code> / <code>period</code> / <code>time</code> 过了就是过期，用 <code>--danger-ink</code> + 「已过期」；
+              <code>week</code> / <code>month</code> 过的是计划窗口，用 <code>--warning-ink</code> + 「未完成」——红色留给承诺，不留给打算。
+              <code>none</code> 两头都不占。上个月同理：显示「上个月」+ 未完成，用 warning。
+            </div>
+          </div>
+
+          <div class="callout">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </span>
+            <div>
+              <b>「不限」这一档在行上写什么，有两句话。</b>
+              阶梯标签本身是 <code>Kairos.rungLabel()</code> 给的「不限」（上面第六张卡）；
+              而 ADR 0004 规定，<b>行对象</b>在这一格显示的是<b>清单名</b>（如「收集箱」+ 清单色点），
+              因为这个位置问的是「这件事归哪儿」。两者不冲突：一个是标签的值，一个是行上的代替显示。
+              本表在下方的行对象里按 ADR 走清单名。
+            </div>
+          </div>
+
+          <div class="rung-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+            <div class="rung-card">
+              <div class="rung-card__top"><span class="rung-card__name">补充 · 时刻已过</span><code class="rung-card__code">time + late</code></div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true"></span>
+                <span class="rung-card__title">设计评审</span>
+                <span class="when when--time when--late" data-txt="time-late">11月25日 10:00</span>
+                <span class="when__flag">已过期</span>
+              </div>
+              <p class="rung-card__fact">过去的事不会自动完成，但必须一眼看出它过去了。</p>
+            </div>
+            <div class="rung-card">
+              <div class="rung-card__top"><span class="rung-card__name">补充 · 已完成的时刻</span><code class="rung-card__code">time + done</code></div>
+              <div class="rung-card__row">
+                <span class="rung-card__box" aria-hidden="true" style="background:var(--accent);border-color:var(--accent)"></span>
+                <span class="rung-card__title" style="color:var(--ink-quiet);text-decoration:line-through">家长会</span>
+                <span class="when when--time">11月24日 10:30</span>
+              </div>
+              <p class="rung-card__fact">已完成不算逾期。<code>isLate()</code> 第一句就返回 false。</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 06 象限 ================= -->
+        <section class="sec" aria-labelledby="s06">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">06</span><span class="sec__kicker">象限徽标 · q1..q4</span></div>
+            <h2 class="sec__title" id="s06">象限身份：四个色，三个尺寸</h2>
+            <p class="sec__desc">
+              象限色只表示「重要 × 紧急」，不拿来给清单或事件上色。色点用原始色相（≥3:1 即可），
+              <b>文字与徽标轮廓必须用 -ink 兄弟</b>——原始色相当字只有 2.2–3.7:1。
+            </p>
+          </div>
+
+          <div class="qtable" role="table" aria-label="四象限的三种尺寸">
+            <div class="qtable__row qtable__row--head" role="row">
+              <span role="columnheader">象限</span>
+              <span role="columnheader">6px · 行内点</span>
+              <span role="columnheader">10px · 分组点</span>
+              <span role="columnheader">20px · 徽标</span>
+              <span role="columnheader">名字 · pill</span>
+            </div>
+            <div class="qtable__row q-1" role="row">
+              <span class="qtable__name" role="cell"><span class="qdot qdot--14" aria-hidden="true"></span>Q1 · 重要且紧急</span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--6" aria-hidden="true"></span><span class="qlabel">--q1</span></span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--10" aria-hidden="true"></span><span class="qlabel">--q1</span></span>
+              <span class="qtable__cell" role="cell"><span class="qbadge" aria-hidden="true">1</span><span class="qlabel">--q1-i</span></span>
+              <span class="qtable__cell" role="cell"><span class="qpill"><span class="qdot qdot--6" aria-hidden="true"></span>重要且紧急</span></span>
+            </div>
+            <div class="qtable__row q-2" role="row">
+              <span class="qtable__name" role="cell"><span class="qdot qdot--14" aria-hidden="true"></span>Q2 · 重要不紧急</span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--6" aria-hidden="true"></span><span class="qlabel">--q2</span></span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--10" aria-hidden="true"></span><span class="qlabel">--q2</span></span>
+              <span class="qtable__cell" role="cell"><span class="qbadge" aria-hidden="true">2</span><span class="qlabel">--q2-i</span></span>
+              <span class="qtable__cell" role="cell"><span class="qpill"><span class="qdot qdot--6" aria-hidden="true"></span>重要不紧急</span></span>
+            </div>
+            <div class="qtable__row q-3" role="row">
+              <span class="qtable__name" role="cell"><span class="qdot qdot--14" aria-hidden="true"></span>Q3 · 不重要但紧急</span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--6" aria-hidden="true"></span><span class="qlabel">--q3</span></span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--10" aria-hidden="true"></span><span class="qlabel">--q3</span></span>
+              <span class="qtable__cell" role="cell"><span class="qbadge" aria-hidden="true">3</span><span class="qlabel">--q3-i</span></span>
+              <span class="qtable__cell" role="cell"><span class="qpill"><span class="qdot qdot--6" aria-hidden="true"></span>不重要但紧急</span></span>
+            </div>
+            <div class="qtable__row q-4" role="row">
+              <span class="qtable__name" role="cell"><span class="qdot qdot--14" aria-hidden="true"></span>Q4 · 不重要不紧急</span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--6" aria-hidden="true"></span><span class="qlabel">--q4</span></span>
+              <span class="qtable__cell" role="cell"><span class="qdot qdot--10" aria-hidden="true"></span><span class="qlabel">--q4</span></span>
+              <span class="qtable__cell" role="cell"><span class="qbadge" aria-hidden="true">4</span><span class="qlabel">--q4-i</span></span>
+              <span class="qtable__cell" role="cell"><span class="qpill"><span class="qdot qdot--6" aria-hidden="true"></span>不重要不紧急</span></span>
+            </div>
+          </div>
+
+          <div class="callout callout--info">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </span>
+            <div>
+              20px 徽标 = <code>--qN-t</code> 底 + <code>--qN-i</code> 字 + 一圈 <code>--qN-i</code> 内描边（inset shadow）。
+              三者成对出现，换皮肤时一起换，不要在组件里写颜色分支。
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 07 清单色点 ================= -->
+        <section class="sec" aria-labelledby="s07">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">07</span><span class="sec__kicker">清单色点 · Kairos.LISTS</span></div>
+            <h2 class="sec__title" id="s07">清单色点：四个清单，四个色相</h2>
+            <p class="sec__desc">
+              清单色只做身份识别，不承担「重要/紧急」的语义。色点从共享数据读，四个片段同一份，不手抄。
+            </p>
+          </div>
+
+          <div class="list-grid" id="list-grid">
+            <article class="list-card" data-list-card>
+              <div class="list-card__head"><span class="ldot" data-list-dot aria-hidden="true"></span><span data-list-name>收集箱</span></div>
+              <div class="list-card__sizes"><span class="ldot" data-list-dot aria-hidden="true"></span><span class="ldot ldot--lg" data-list-dot aria-hidden="true"></span><span class="cap">8 / 14</span></div>
+              <code class="list-card__code">hue · inbox</code>
+            </article>
+            <article class="list-card" data-list-card>
+              <div class="list-card__head"><span class="ldot" data-list-dot aria-hidden="true"></span><span data-list-name>工作</span></div>
+              <div class="list-card__sizes"><span class="ldot" data-list-dot aria-hidden="true"></span><span class="ldot ldot--lg" data-list-dot aria-hidden="true"></span><span class="cap">8 / 14</span></div>
+              <code class="list-card__code">hue · work</code>
+            </article>
+            <article class="list-card" data-list-card>
+              <div class="list-card__head"><span class="ldot" data-list-dot aria-hidden="true"></span><span data-list-name>学习</span></div>
+              <div class="list-card__sizes"><span class="ldot" data-list-dot aria-hidden="true"></span><span class="ldot ldot--lg" data-list-dot aria-hidden="true"></span><span class="cap">8 / 14</span></div>
+              <code class="list-card__code">hue · study</code>
+            </article>
+            <article class="list-card" data-list-card>
+              <div class="list-card__head"><span class="ldot" data-list-dot aria-hidden="true"></span><span data-list-name>生活</span></div>
+              <div class="list-card__sizes"><span class="ldot" data-list-dot aria-hidden="true"></span><span class="ldot ldot--lg" data-list-dot aria-hidden="true"></span><span class="cap">8 / 14</span></div>
+              <code class="list-card__code">hue · life</code>
+            </article>
+          </div>
+
+          <div class="callout">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+            </span>
+            <div>
+              色点本身是装饰（<code>aria-hidden</code>），名字永远以文字出现。清单名同时也是 <code>none</code> 档在行上的显示位置：
+              「未排期：随手记」那一行右侧写的就是 <b>收集箱</b>。
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 08 行对象 ================= -->
+        <section class="sec" aria-labelledby="s08">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">08</span><span class="sec__kicker">行对象 · .trow</span></div>
+            <h2 class="sec__title" id="s08">行是一个对象：六种状态</h2>
+            <p class="sec__desc">
+              行体即打开详情，复选框只管完成。抓取把手只在 hover 与 focus-within 出现，grab 光标只属于把手。
+              整行 36px，行距 2px。
+            </p>
+          </div>
+
+          <div class="trow-list">
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>默认</b><code>default</code></div>
+              <div class="trow">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" aria-label="完成「交报销单」">
+                <button class="trow__open" type="button">交报销单</button>
+                <span class="when when--time">今天 18:00</span>
+                <span class="qdot qdot--6 q-1" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>悬停</b><code>:hover</code></div>
+              <div class="trow trow--hover">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" aria-label="完成「产品评审会」">
+                <button class="trow__open" type="button">产品评审会</button>
+                <span class="when when--time">今天 15:00</span>
+                <span class="qdot qdot--6 q-1" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>选中</b><code>aria-selected</code></div>
+              <div class="trow trow--selected">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" aria-label="完成「更新简历」">
+                <button class="trow__open" type="button">更新简历</button>
+                <span class="when when--month">下个月</span>
+                <span class="qdot qdot--6 q-2" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>已完成</b><code>done</code></div>
+              <div class="trow trow--done">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" checked aria-label="完成「家长会」">
+                <button class="trow__open" type="button">家长会</button>
+                <span class="when when--time">11月24日 10:30</span>
+                <span class="qdot qdot--6 q-2" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>拖拽中</b><code>dragging</code></div>
+              <div class="trow trow--drag">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" aria-label="完成「整理相册」">
+                <button class="trow__open" type="button">整理相册</button>
+                <span class="when when--day">11月30日</span>
+                <span class="qdot qdot--6 q-4" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>已过期</b><code>late</code></div>
+              <div class="trow">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" aria-label="完成「设计评审」">
+                <button class="trow__open" type="button">设计评审</button>
+                <span class="when when--time when--late">11月25日 10:00</span>
+                <span class="qdot qdot--6 q-2" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+
+            <div class="trow-demo">
+              <div class="trow-demo__label"><b>试试看</b><code>live</code></div>
+              <div class="trow trow--live" id="row-live">
+                <span class="trow__grip" aria-hidden="true">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="5" r="1" fill="currentColor"/><circle cx="9" cy="19" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="5" r="1" fill="currentColor"/><circle cx="15" cy="19" r="1" fill="currentColor"/></svg>
+                </span>
+                <input class="cb" type="checkbox" id="row-live-cb" aria-label="完成「给爸妈打电话」">
+                <button class="trow__open" type="button" id="row-live-open">给爸妈打电话</button>
+                <span class="when when--period">今晚</span>
+                <span class="qdot qdot--6 q-2" aria-hidden="true"></span>
+                <svg class="trow__chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+              </div>
+            </div>
+          </div>
+
+          <div class="try-row">
+            <span class="row-out" id="row-out" role="status" aria-live="polite">点「给爸妈打电话」的标题：整行被选中；勾复选框：只有它标记完成。</span>
+            <span class="spacer"></span>
+            <span class="cap">整行点击 ≠ 完成，这条由 <code class="mono">shouldActivateRow()</code> 判定</span>
+          </div>
+        </section>
+
+        <!-- ================= 09 toast ================= -->
+        <section class="sec" aria-labelledby="s09">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">09</span><span class="sec__kicker">提示条 · .toast</span></div>
+            <h2 class="sec__title" id="s09">提示条：成功、失败、可撤销</h2>
+            <p class="sec__desc">
+              右下角，最多三条。成功两秒自己走；失败留到用户关掉；能撤销的操作一律给「撤销」，别用确认框拦。
+              图标随语义换墨，文字永远是 <code class="mono">--ink-1</code>。
+            </p>
+          </div>
+
+          <div class="toast-stage" aria-label="提示条静态示范">
+            <div class="toast toast--success">
+              <span class="toast__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+              </span>
+              <div class="toast__body">
+                <span class="toast__title">已导出 20 件事</span>
+                <span class="toast__sub">包含未排期的 3 件</span>
+              </div>
+              <button class="toast__close" type="button" aria-label="关闭提示">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+              <span class="toast__bar" aria-hidden="true"></span>
+            </div>
+
+            <div class="toast toast--danger">
+              <span class="toast__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+              </span>
+              <div class="toast__body">
+                <span class="toast__title">导出失败</span>
+                <span class="toast__sub">目标文件夹不可写，换一个位置再试</span>
+              </div>
+              <button class="toast__action" type="button">重试</button>
+            </div>
+
+            <div class="toast">
+              <span class="toast__icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+              </span>
+              <div class="toast__body">
+                <span class="toast__title">已删除「整理相册」</span>
+                <span class="toast__sub">6 秒内可以恢复</span>
+              </div>
+              <button class="toast__action" type="button" id="toast-undo-static">撤销</button>
+              <span class="toast__bar" aria-hidden="true" style="background: var(--ink-4); animation-duration: 6s"></span>
+            </div>
+          </div>
+
+          <div class="try-row">
+            <button class="btn btn--secondary" type="button" id="toast-ok">触发成功</button>
+            <button class="btn btn--secondary" type="button" id="toast-err">触发失败</button>
+            <button class="btn btn--secondary" type="button" id="toast-undo">触发撤销</button>
+            <span class="try-row__out">提示条出现在右下角，悬停暂停计时。</span>
+          </div>
+        </section>
+
+        <!-- ================= 10 墨色 ================= -->
+        <section class="sec" aria-labelledby="s10">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">10</span><span class="sec__kicker">墨色 · ink</span></div>
+            <h2 class="sec__title" id="s10">安静的文字用 --ink-quiet，不用 --ink-3</h2>
+            <p class="sec__desc">
+              <code class="mono">--ink-3</code> 在浅色皮肤的应用底色上读不满 4.5:1（refined 4.27、editorial 4.33、
+              protool 4.51 勉强）。因此所有「必须读得清」的次要文字——分区说明、字段占位、表格注释、行内时间——
+              一律用 <code class="mono">--ink-quiet</code>。<code class="mono">--ink-3</code> 留给纯装饰。
+            </p>
+          </div>
+
+          <div class="mx" style="--cols:2">
+            <div class="mx__h">用途</div>
+            <div class="mx__h">--ink-3（装饰）</div>
+            <div class="mx__h">--ink-quiet（可读次要文字）</div>
+
+            <div class="mx__rh"><b>压在 surface</b><code>--bg-surface</code></div>
+            <div class="mx__c mx__c--start">
+              <p class="ink-sample" style="color:var(--ink-3)">行内时间、分组标题、说明句。</p>
+              <span class="ratio" data-ink="ink-3" data-ground="bg-surface"></span>
+            </div>
+            <div class="mx__c mx__c--start">
+              <p class="ink-sample" style="color:var(--ink-quiet)">行内时间、分组标题、说明句。</p>
+              <span class="ratio" data-ink="ink-quiet" data-ground="bg-surface"></span>
+            </div>
+
+            <div class="mx__rh"><b>压在 app</b><code>--bg-app</code></div>
+            <div class="mx__c mx__c--start">
+              <p class="ink-sample" style="color:var(--ink-3)">这里就是 4.27 的那一处。</p>
+              <span class="ratio" data-ink="ink-3" data-ground="bg-app"></span>
+            </div>
+            <div class="mx__c mx__c--start">
+              <p class="ink-sample" style="color:var(--ink-quiet)">这里才是安全的安静。</p>
+              <span class="ratio" data-ink="ink-quiet" data-ground="bg-app"></span>
+            </div>
+
+            <div class="mx__rh"><b>压在 sunken</b><code>--bg-sunken</code></div>
+            <div class="mx__c mx__c--start">
+              <p class="ink-sample" style="color:var(--ink-3)">禁用地面上的说明。</p>
+              <span class="ratio" data-ink="ink-3" data-ground="bg-sunken"></span>
+            </div>
+            <div class="mx__c mx__c--start">
+              <p class="ink-sample" style="color:var(--ink-quiet)">禁用地面上的说明。</p>
+              <span class="ratio" data-ink="ink-quiet" data-ground="bg-sunken"></span>
+            </div>
+          </div>
+
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <caption class="visually-hidden">ink-3 与 ink-quiet 在六个组合、三种地面上的实测对比</caption>
+              <thead>
+                <tr>
+                  <th scope="col">组合</th>
+                  <th scope="col">ink-3 · surface</th>
+                  <th scope="col">ink-3 · app</th>
+                  <th scope="col">ink-3 · sunken</th>
+                  <th scope="col">ink-quiet · surface</th>
+                  <th scope="col">ink-quiet · app</th>
+                  <th scope="col">ink-quiet · sunken</th>
+                </tr>
+              </thead>
+              <tbody id="ink-table">
+                <tr><td colspan="7" class="cap">正在现场量取…</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--warn">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </span>
+            <div>
+              <b>这张表是 <code>getComputedStyle</code> 现场算的，不是抄的。</b>
+              切换皮肤或主题时数值会变，因为令牌本身变了。任何一格跌破 <b>4.5</b> 就是那一套皮肤的 bug，
+              不是这张表的排版问题——表格会把跌破的格子标红。
+            </div>
+          </div>
+        </section>
+
+        <!-- ================= 11 尺寸 ================= -->
+        <section class="sec" aria-labelledby="s11">
+          <div class="sec__head">
+            <div class="sec__eyebrow"><span class="sec__num">11</span><span class="sec__kicker">令牌 · tokens</span></div>
+            <h2 class="sec__title" id="s11">尺寸对照：实现时照这张表，不要猜</h2>
+            <p class="sec__desc">
+              全部取自 <code class="mono">shared.css</code>。protool 皮肤整体下调一档——同一张表，实现时读令牌而不是读 px。
+            </p>
+          </div>
+
+          <div class="size-ladder" aria-label="字号阶梯实物">
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-xs)">Aa 事情</span><span class="size-ladder__meta">xs 11</span></span>
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-sm)">Aa 事情</span><span class="size-ladder__meta">sm 12</span></span>
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-body)">Aa 事情</span><span class="size-ladder__meta">body 13</span></span>
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-md)">Aa 事情</span><span class="size-ladder__meta">md 14</span></span>
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-lg)">Aa 事情</span><span class="size-ladder__meta">lg 17</span></span>
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-xl)">Aa 事情</span><span class="size-ladder__meta">xl 20</span></span>
+            <span class="size-ladder__item"><span class="size-ladder__sample" style="font-size:var(--text-2xl)">Aa 事情</span><span class="size-ladder__meta">2xl 28</span></span>
+          </div>
+
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <caption class="visually-hidden">Kairos v2 的尺寸令牌</caption>
+              <thead>
+                <tr><th scope="col">令牌</th><th scope="col">值</th><th scope="col">refined · editorial</th><th scope="col">protool</th><th scope="col">用在哪</th></tr>
+              </thead>
+              <tbody>
+                <tr class="tbl__group"><td colspan="5">控件高度</td></tr>
+                <tr><td><code>--control-h</code></td><td class="num">2rem</td><td class="num">32px</td><td class="num">28px</td><td class="us">按钮、输入、下拉、侧栏行</td></tr>
+                <tr><td><code>--control-h-sm</code></td><td class="num">1.75rem</td><td class="num">28px</td><td class="num">26px</td><td class="us">密集控件、分段控件、时间阶梯</td></tr>
+                <tr><td><code>--row-h</code> <span class="cap">生产令牌</span></td><td class="num">36px</td><td class="num">36px</td><td class="num">36px</td><td class="us">行对象；shared.css 未定义，本稿按 36 写</td></tr>
+
+                <tr class="tbl__group"><td colspan="5">圆角</td></tr>
+                <tr><td><code>--radius-xs</code></td><td class="num">4px</td><td class="num">4</td><td class="num">4</td><td class="us">复选框、小色块、行内高亮</td></tr>
+                <tr><td><code>--radius-sm</code></td><td class="num">6px</td><td class="num">6</td><td class="num">4</td><td class="us">chip、block、行、输入框</td></tr>
+                <tr><td><code>--radius-md</code></td><td class="num">8px</td><td class="num">8</td><td class="num">6</td><td class="us">按钮、分段控件、浮层内部项</td></tr>
+                <tr><td><code>--radius-lg</code></td><td class="num">10px</td><td class="num">10</td><td class="num">8</td><td class="us">popover、toast、年视图月份卡</td></tr>
+                <tr><td><code>--radius-xl</code></td><td class="num">12px</td><td class="num">12</td><td class="num">10</td><td class="us">卡片、面板、弹窗、整块视图</td></tr>
+                <tr><td><code>--radius-full</code></td><td class="num">999px</td><td class="num">999</td><td class="num">999</td><td class="us">胶囊、圆点、头像</td></tr>
+
+                <tr class="tbl__group"><td colspan="5">字号</td></tr>
+                <tr><td><code>--text-xs</code></td><td class="num">.6875rem</td><td class="num">11px</td><td class="num">11px</td><td class="us">分区标签、徽标计数、脚注</td></tr>
+                <tr><td><code>--text-sm</code></td><td class="num">.75rem</td><td class="num">12px</td><td class="num">12px</td><td class="us">行内时间、次要说明</td></tr>
+                <tr><td><code>--text-body</code></td><td class="num">.8125rem</td><td class="num">13px</td><td class="num">13px</td><td class="us">按钮、字段、侧栏行</td></tr>
+                <tr><td><code>--text-md</code></td><td class="num">.875rem</td><td class="num">14px</td><td class="num">14px</td><td class="us">正文、行标题、浮层正文</td></tr>
+                <tr><td><code>--text-lg</code></td><td class="num">1.0625rem</td><td class="num">17px</td><td class="num">17px</td><td class="us">界面标题、顶栏标题</td></tr>
+                <tr><td><code>--text-xl</code></td><td class="num">1.25rem</td><td class="num">20px</td><td class="num">20px</td><td class="us">象限卡头、区块标题</td></tr>
+                <tr><td><code>--text-2xl</code></td><td class="num">1.75rem</td><td class="num">28px</td><td class="num">28px</td><td class="us">捕获条、页面大标题</td></tr>
+
+                <tr class="tbl__group"><td colspan="5">间距</td></tr>
+                <tr><td><code>--sp-1</code></td><td class="num">.25rem</td><td class="num">4</td><td class="num">4</td><td class="us">图标与标签之间</td></tr>
+                <tr><td><code>--sp-2</code></td><td class="num">.5rem</td><td class="num">8</td><td class="num">8</td><td class="us">行内、字段内</td></tr>
+                <tr><td><code>--sp-3</code></td><td class="num">.75rem</td><td class="num">12</td><td class="num">12</td><td class="us">控件横向内边距、卡片内</td></tr>
+                <tr><td><code>--sp-4</code></td><td class="num">1rem</td><td class="num">16</td><td class="num">16</td><td class="us">页面内边距、面板内边距</td></tr>
+                <tr><td><code>--sp-5</code></td><td class="num">1.25rem</td><td class="num">20</td><td class="num">20</td><td class="us">区块之间</td></tr>
+                <tr><td><code>--sp-6</code></td><td class="num">1.5rem</td><td class="num">24</td><td class="num">24</td><td class="us">大区块之间</td></tr>
+                <tr><td><code>--sp-8</code></td><td class="num">2rem</td><td class="num">32</td><td class="num">32</td><td class="us">视图级留白</td></tr>
+                <tr><td><code>--sp-10</code></td><td class="num">2.5rem</td><td class="num">40</td><td class="num">40</td><td class="us">页面底部留白</td></tr>
+
+                <tr class="tbl__group"><td colspan="5">动效与层级</td></tr>
+                <tr><td><code>--dur-fast</code></td><td class="num">120ms</td><td class="num">120ms</td><td class="num">120ms</td><td class="us">hover、按下、颜色</td></tr>
+                <tr><td><code>--dur-base</code></td><td class="num">180ms</td><td class="num">180ms</td><td class="num">180ms</td><td class="us">进出场、位移</td></tr>
+                <tr><td><code>--dur-slow</code></td><td class="num">260ms</td><td class="num">260ms</td><td class="num">260ms</td><td class="us">大块过渡</td></tr>
+                <tr><td><code>--z-popover</code></td><td class="num">300</td><td class="num">300</td><td class="num">300</td><td class="us">下拉、气泡</td></tr>
+                <tr><td><code>--z-modal</code></td><td class="num">400</td><td class="num">400</td><td class="num">400</td><td class="us">原生 dialog 的 scrim</td></tr>
+                <tr><td><code>--z-toast</code></td><td class="num">500</td><td class="num">500</td><td class="num">500</td><td class="us">提示条</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="callout callout--info">
+            <span class="callout__icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </span>
+            <div>
+              这张表是<b>实现下限</b>，不是建议。任何一个组件里出现 <code>26px</code>、<code>10px</code>、<code>100ms</code>
+              这类字面量，都说明它绕过了令牌。protool 是唯一整体下调的皮肤，它靠重定义令牌完成，不靠组件分支。
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-live" id="toast-live" aria-live="polite" aria-atomic="false"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* data.js / base.js 都是 defer，会在这段内联脚本之后才执行。
+     所有依赖 window.Kairos 的填充统一等 DOMContentLoaded（defer 全部跑完之后）。 */
+  function boot() {
+  var K = window.Kairos;
+
+  /* ------------------------------------------------------------------
+     时间阶梯：所有标签由共享数据算出，不手写
+     ------------------------------------------------------------------ */
+  if (K) {
+    var byId = function (id) {
+      for (var i = 0; i < K.ITEMS.length; i++) if (K.ITEMS[i].id === id) return K.ITEMS[i];
+      return null;
+    };
+    var fill = function (key, text) {
+      document.querySelectorAll('[data-txt="' + key + '"]').forEach(function (el) {
+        el.textContent = text;
+      });
+    };
+
+    var month = byId(14), week = byId(11), day = byId(6), period = byId(4), time = byId(1), none = byId(16);
+    fill('month', K.rungLabel(month));
+    fill('week', K.rungLabel(week));
+    fill('day', K.rungLabel(day));
+    fill('period', K.rungLabel(period));
+    fill('time', K.rungLabel(time));
+    fill('none', K.rungLabel(none));
+
+    /* 逾期两支：day 用昨天（danger），week 用 id 13（window passed → warning） */
+    var lateDay = { rung: 'day', date: K.addDays(K.TODAY, -1), done: false };
+    fill('day-late', K.rungLabel(lateDay));
+    fill('week-late', K.rungLabel(byId(13)));
+    fill('time-late', K.rungLabel(byId(19)));
+
+    var pred = function (key, text) {
+      var el = document.querySelector('[data-pred="' + key + '"]');
+      if (el) el.textContent = text;
+    };
+    pred('month', 'isLate → ' + K.isLate(month));
+    pred('week', 'isLate → ' + K.isLate(week));
+    pred('day', 'isLate → ' + K.isLate(day));
+    pred('period', 'isLate → ' + K.isLate(period));
+    pred('time', 'isLate → ' + K.isLate(time));
+    pred('none', 'isLate → ' + K.isLate(none));
+    pred('day-late', 'isLate → ' + K.isLate(lateDay));
+    pred('week-late', 'isWindowPassed → ' + K.isWindowPassed(byId(13)));
+
+    /* 清单色点：颜色从共享数据读，四个片段同一份 */
+    var cards = document.querySelectorAll('[data-list-card]');
+    K.LISTS.forEach(function (list, i) {
+      var card = cards[i];
+      if (!card) return;
+      card.querySelectorAll('[data-list-dot]').forEach(function (dot) {
+        dot.style.background = list.color;
+      });
+      var nameEl = card.querySelector('[data-list-name]');
+      if (nameEl) nameEl.textContent = list.name;
+      var code = card.querySelector('.list-card__code');
+      if (code) code.textContent = 'hue · ' + list.id;
+    });
+  }
+
+  /* 以上就是 boot 的正文（依赖 window.Kairos）。 */
+  }
+
+  /* ------------------------------------------------------------------
+     10 墨色：现场量对比，切换皮肤/主题后重算
+     ------------------------------------------------------------------ */
+  function parseColor(value) {
+    var probe = document.createElement('span');
+    probe.style.color = value;
+    probe.style.display = 'none';
+    document.body.appendChild(probe);
+    var resolved = getComputedStyle(probe).color;
+    probe.remove();
+
+    var match = resolved.match(/rgba?\(([^)]+)\)/);
+    if (!match) return null;
+    var parts = match[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+    return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+  }
+
+  function channel(v) {
+    var s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  }
+
+  function luminance(color) {
+    return 0.2126 * channel(color.r) + 0.7152 * channel(color.g) + 0.0722 * channel(color.b);
+  }
+
+  function over(foreground, background) {
+    var a = foreground.a == null ? 1 : foreground.a;
+    return {
+      r: foreground.r * a + background.r * (1 - a),
+      g: foreground.g * a + background.g * (1 - a),
+      b: foreground.b * a + background.b * (1 - a),
+      a: 1
+    };
+  }
+
+  function contrast(inkVar, groundVar) {
+    var ink = parseColor('var(--' + inkVar + ')');
+    var ground = parseColor('var(--' + groundVar + ')');
+    if (!ink || !ground) return null;
+    var fg = ink.a < 1 ? over(ink, ground) : ink;
+    var l1 = luminance(fg);
+    var l2 = luminance(ground);
+    var hi = Math.max(l1, l2);
+    var lo = Math.min(l1, l2);
+    return (hi + 0.05) / (lo + 0.05);
+  }
+
+  var GROUND_LABEL = { 'bg-surface': 'surface', 'bg-app': 'app', 'bg-sunken': 'sunken' };
+  var COMBO_NAMES = {
+    'refined': 'A · refined', 'protool': 'B · protool', 'editorial': 'C · editorial'
+  };
+
+  function ratioText(value) {
+    return value == null ? '—' : value.toFixed(2) + ':1';
+  }
+
+  function paintRatios() {
+    document.querySelectorAll('.ratio[data-ink]').forEach(function (el) {
+      var value = contrast(el.dataset.ink, el.dataset.ground);
+      el.textContent = '--' + el.dataset.ink + ' · ' + GROUND_LABEL[el.dataset.ground] + ' · ' + ratioText(value);
+      if (value != null && value < 4.5) el.setAttribute('data-fail', '');
+      else el.removeAttribute('data-fail');
+    });
+
+    /* 六组合总表：不能靠切皮肤去补格，要一次算全 */
+    var tbody = document.getElementById('ink-table');
+    if (!tbody) return;
+
+    /* 把六个组合的令牌值读出来：临时把 data-skin / data-theme 换到探针上，
+       量完立刻还原，不影响当前页面。 */
+    var host = document.createElement('div');
+    host.style.cssText = 'position:absolute;inset-block-start:-9999px;inline-size:1px;block-size:1px;overflow:hidden';
+    document.body.appendChild(host);
+    var inkMap = {};
+    var combos = [
+      ['refined', 'light'], ['refined', 'dark'],
+      ['protool', 'light'], ['protool', 'dark'],
+      ['editorial', 'light'], ['editorial', 'dark']
+    ];
+    combos.forEach(function (pair) {
+      var skin = pair[0], theme = pair[1];
+      host.setAttribute('data-skin', skin);
+      host.setAttribute('data-theme', theme);
+      var probe = document.createElement('span');
+      probe.style.cssText = 'display:block;inline-size:1px;block-size:1px';
+      host.appendChild(probe);
+      function resolve(variable) {
+        probe.style.color = 'var(' + variable + ')';
+        var computed = getComputedStyle(probe).color;
+        var match = computed.match(/rgba?\(([^)]+)\)/);
+        if (!match) return null;
+        var parts = match[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+        return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+      }
+      function ground(variable) {
+        probe.style.color = '';
+        probe.style.backgroundColor = 'var(' + variable + ')';
+        var computed = getComputedStyle(probe).backgroundColor;
+        probe.style.backgroundColor = '';
+        var match = computed.match(/rgba?\(([^)]+)\)/);
+        if (!match) return null;
+        var parts = match[1].split(/[,\s/]+/).filter(Boolean).map(Number);
+        return { r: parts[0], g: parts[1], b: parts[2], a: parts.length > 3 ? parts[3] : 1 };
+      }
+      var surfaces = {
+        'bg-surface': ground('--bg-surface'),
+        'bg-app': ground('--bg-app'),
+        'bg-sunken': ground('--bg-sunken')
+      };
+      inkMap[skin + '/' + theme] = {};
+      ['ink-3', 'ink-quiet'].forEach(function (inkName) {
+        var color = resolve('--' + inkName);
+        inkMap[skin + '/' + theme][inkName] = {};
+        Object.keys(surfaces).forEach(function (groundName) {
+          var bgColor = surfaces[groundName];
+          if (!color || !bgColor) { inkMap[skin + '/' + theme][inkName][groundName] = null; return; }
+          var fg = color.a < 1 ? over(color, bgColor) : color;
+          var l1 = luminance(fg), l2 = luminance(bgColor);
+          inkMap[skin + '/' + theme][inkName][groundName] =
+            (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+        });
+      });
+      probe.remove();
+    });
+    host.remove();
+
+    tbody.textContent = '';
+    combos.forEach(function (pair) {
+      var key = pair[0] + '/' + pair[1];
+      var values = inkMap[key];
+      var tr = document.createElement('tr');
+      var cells = [COMBO_NAMES[pair[0]] + ' · ' + (pair[1] === 'light' ? '明' : '暗')];
+      ['ink-3', 'ink-quiet'].forEach(function (inkName) {
+        ['bg-surface', 'bg-app', 'bg-sunken'].forEach(function (groundName) {
+          cells.push({ text: ratioText(values[inkName][groundName]), fail: (values[inkName][groundName] || 0) < 4.5 });
+        });
+      });
+      cells.forEach(function (cell, index) {
+        var td = document.createElement('td');
+        if (index === 0) {
+          td.textContent = cell;
+        } else {
+          td.className = 'num';
+          td.textContent = cell.text;
+          if (cell.fail) td.style.color = 'var(--danger-ink)';
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+  }
+
+  function observeThemeChanges() {
+    /* 切换皮肤/主题时重算。base.js 改的是 body 的两个 data 属性，这里用 MutationObserver
+       跟着走，不侵入共享脚本。 */
+    var lastSkin = document.body.getAttribute('data-skin');
+    var lastTheme = document.body.getAttribute('data-theme');
+    new MutationObserver(function () {
+      var skin = document.body.getAttribute('data-skin');
+      var theme = document.body.getAttribute('data-theme');
+      if (skin === lastSkin && theme === lastTheme) return;
+      lastSkin = skin;
+      lastTheme = theme;
+      paintRatios();
+    }).observe(document.body, { attributes: true, attributeFilter: ['data-skin', 'data-theme'] });
+  }
+
+  /* ------------------------------------------------------------------
+     01 按钮：点一下走完 静止 → 加载 → 已保存
+     ------------------------------------------------------------------ */
+  var liveBtn = document.getElementById('btn-live');
+  var liveOut = document.getElementById('btn-live-out');
+  var liveLabel = liveBtn ? liveBtn.querySelector('span') : null;
+  var liveIco = liveBtn ? liveBtn.querySelector('svg') : null;
+  var resetTimer = null;
+
+  if (liveBtn) {
+    liveBtn.addEventListener('click', function () {
+      if (liveBtn.getAttribute('aria-busy') === 'true') return;
+      liveBtn.setAttribute('aria-busy', 'true');
+      liveBtn.disabled = true;
+      liveBtn.classList.add('is-loading');
+      liveLabel.textContent = '保存中';
+      liveIco.outerHTML = '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-dasharray="42 15"/></svg>';
+      liveIco = liveBtn.querySelector('svg');
+      liveOut.textContent = '正在写入…';
+
+      setTimeout(function () {
+        liveBtn.classList.remove('is-loading');
+        liveBtn.removeAttribute('aria-busy');
+        liveBtn.disabled = false;
+        liveLabel.textContent = '已保存';
+        liveIco.outerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M20 6 9 17l-5-5"/></svg>';
+        liveIco = liveBtn.querySelector('svg');
+        liveOut.textContent = '写入完成。再点一次可以重来。';
+        clearTimeout(resetTimer);
+        resetTimer = setTimeout(function () {
+          liveLabel.textContent = '保存';
+          liveIco.outerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px"><path d="M20 6 9 17l-5-5"/></svg>';
+          liveIco = liveBtn.querySelector('svg');
+        }, 2600);
+      }, 1400);
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     03 复选框
+     ------------------------------------------------------------------ */
+  document.querySelectorAll('[data-indet]').forEach(function (el) { el.indeterminate = true; });
+
+  var cbLive = document.getElementById('cb-live');
+  var cbOut = document.getElementById('cb-out');
+  var indetBtn = document.getElementById('indet-live');
+  if (cbLive) {
+    cbLive.addEventListener('change', function () {
+      cbOut.textContent = cbLive.checked ? '已勾：勾住的是「完成」，会派生下一条重复事项。' : '未勾：它回到未完成，仍在原来的位置。';
+    });
+  }
+  if (indetBtn) {
+    indetBtn.addEventListener('click', function () {
+      cbLive.indeterminate = !cbLive.indeterminate;
+      cbOut.textContent = cbLive.indeterminate
+        ? '不确定：批量选择里「选了一部分」。'
+        : '回到二态：' + (cbLive.checked ? '已勾' : '未勾') + '。';
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     04 分段控件：roving tabindex + 方向键换选中
+     ------------------------------------------------------------------ */
+  document.querySelectorAll('[data-seg]').forEach(function (group) {
+    var items = Array.prototype.slice.call(group.querySelectorAll('[role="radio"]'));
+
+    function select(index, focus) {
+      items.forEach(function (item, i) {
+        item.setAttribute('aria-checked', String(i === index));
+        item.tabIndex = i === index ? 0 : -1;
+      });
+      if (focus) items[index].focus();
+    }
+
+    var initial = 0;
+    items.forEach(function (item, i) { if (item.getAttribute('aria-checked') === 'true') initial = i; });
+    select(initial, false);
+
+    group.addEventListener('click', function (event) {
+      var button = event.target.closest('[role="radio"]');
+      if (!button) return;
+      select(items.indexOf(button), false);
+    });
+
+    group.addEventListener('keydown', function (event) {
+      var current = items.indexOf(document.activeElement);
+      if (current < 0) return;
+      var next = current;
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') next = (current + 1) % items.length;
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') next = (current - 1 + items.length) % items.length;
+      else if (event.key === 'Home') next = 0;
+      else if (event.key === 'End') next = items.length - 1;
+      else return;
+      event.preventDefault();
+      /* base.js 在 document 上监听 ←/→ 做片段跳转；分段控件里的方向键是「换选中」，
+         必须就地截住，否则会翻页。 */
+      event.stopPropagation();
+      select(next, true);
+    });
+  });
+
+  /* ------------------------------------------------------------------
+     08 行对象：整行选中，只有复选框完成
+     ------------------------------------------------------------------ */
+  var liveRow = document.getElementById('row-live');
+  var liveRowOpen = document.getElementById('row-live-open');
+  var liveRowCb = document.getElementById('row-live-cb');
+  var rowOut = document.getElementById('row-out');
+
+  if (liveRowOpen) {
+    liveRowOpen.addEventListener('click', function () {
+      var selected = liveRow.classList.toggle('trow--selected');
+      rowOut.textContent = selected
+        ? '已选中「给爸妈打电话」—— 真实应用里这一步会打开详情面板。'
+        : '取消选中。';
+    });
+  }
+  if (liveRowCb) {
+    liveRowCb.addEventListener('change', function () {
+      liveRow.classList.toggle('trow--done', liveRowCb.checked);
+      rowOut.textContent = liveRowCb.checked
+        ? '已完成：勾住的是「完成」，整行留在原地，标题加删除线。'
+        : '回到未完成。';
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     09 提示条
+     ------------------------------------------------------------------ */
+  var toastHost = document.getElementById('toast-live');
+  var TOASTS = {
+    ok: {
+      tone: 'success',
+      icon: '<circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/>',
+      title: '已导出 20 件事',
+      sub: '包含未排期的 3 件',
+      auto: 4000
+    },
+    err: {
+      tone: 'danger',
+      icon: '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+      title: '导出失败',
+      sub: '目标文件夹不可写，换一个位置再试',
+      action: '重试',
+      auto: 0
+    },
+    undo: {
+      tone: '',
+      icon: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+      title: '已删除「整理相册」',
+      sub: '6 秒内可以恢复',
+      action: '撤销',
+      auto: 6000
+    }
+  };
+
+  function showToast(kind) {
+    if (!toastHost) return;
+    var config = TOASTS[kind];
+    if (!config) return;
+
+    while (toastHost.children.length >= 3) toastHost.removeChild(toastHost.firstElementChild);
+
+    var el = document.createElement('div');
+    el.className = 'toast' + (config.tone ? ' toast--' + config.tone : '');
+    el.setAttribute('role', 'status');
+    el.innerHTML =
+      '<span class="toast__icon" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + config.icon + '</svg></span>' +
+      '<div class="toast__body"><span class="toast__title"></span><span class="toast__sub"></span></div>' +
+      (config.action ? '<button class="toast__action" type="button"></button>' : '') +
+      (config.auto ? '<span class="toast__bar" aria-hidden="true" style="animation-duration:' + config.auto + 'ms"></span>' : '');
+    el.querySelector('.toast__title').textContent = config.title;
+    el.querySelector('.toast__sub').textContent = config.sub;
+
+    var action = el.querySelector('.toast__action');
+    if (action) {
+      action.textContent = config.action;
+      action.addEventListener('click', function () {
+        close();
+        if (kind === 'undo') showToast('ok');
+      });
+    }
+
+    var timer = config.auto ? setTimeout(close, config.auto) : null;
+
+    function close() {
+      clearTimeout(timer);
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }
+
+    el.addEventListener('mouseenter', function () { if (timer) clearTimeout(timer); });
+    el.addEventListener('mouseleave', function () {
+      if (config.auto) timer = setTimeout(close, 1200);
+    });
+
+    toastHost.appendChild(el);
+  }
+
+  [['toast-ok', 'ok'], ['toast-err', 'err'], ['toast-undo', 'undo']].forEach(function (pair) {
+    var button = document.getElementById(pair[0]);
+    if (button) button.addEventListener('click', function () { showToast(pair[1]); });
+  });
+
+  var undoStatic = document.getElementById('toast-undo-static');
+  if (undoStatic) {
+    undoStatic.addEventListener('click', function () {
+      var toast = undoStatic.closest('.toast');
+      toast.querySelector('.toast__title').textContent = '已恢复「整理相册」';
+      toast.querySelector('.toast__sub').textContent = '回到「生活」清单，日期不变';
+      undoStatic.remove();
+      var bar = toast.querySelector('.toast__bar');
+      if (bar) bar.remove();
+    });
+  }
+
+  /* paintRatios 不依赖 Kairos，可以立刻跑；其余等 defer 脚本到位。 */
+  paintRatios();
+  observeThemeChanges();
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

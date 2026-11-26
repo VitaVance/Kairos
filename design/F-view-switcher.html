@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION F — "VIEW SWITCHER"  ·  v1
+  底部视图切换胶囊。与 A refined / B pro-tool / C editorial / D capture-first /
+  E update panel 同源。
+
+  这份稿子只回答一件事：八种视图 + 一个「新建日程」，在窗口最窄 960px 时
+  怎么排，以及它在浅色/深色/三套皮肤下分别长什么样。
+
+  ── 为什么重画（用户的原话：「下面还是黑的呀，切换视图那里，设计协调吗」）──
+  实测现状，六个组合逐对算：
+
+  组合             胶囊渲染色   与页面对比   问题
+  refined/light    #474749     8.50:1      一块几乎纯黑的板压在近白画布上
+  refined/dark     #373739     1.53:1      同一块黑，在深色下几乎看不出边界
+  protool/light    #323131    12.49:1      最刺眼的一格
+  protool/dark     #222121     1.15:1      与画布几乎同色，只剩文字浮着
+  editorial/light  #fffdf8     1.09:1      这套皮肤下它反而是白的
+  editorial/dark   #29241f     1.17:1      与画布几乎同色
+
+  同一个控件，在六种组合里跨了 8.50 → 1.09 的对比跨度。这不是「深浅没调好」，
+  是它根本不在皮肤的 surface 阶梯上：--tl-pill-bg 是一组写死的深色字面量，
+  light 下与卡片体系无关，dark 下又把「浮起」做成了「沉下去」。
+
+  三个独立缺陷（都能单独复现）：
+  1. 不属于 surface 阶梯。全应用其它浮层（卡片、对话框、popover）都走
+     surface → raised + hairline + shadow；只有它用固定深色，于是三套皮肤里
+     两套在浅色下突兀、三套在深色下消失。
+  2. 深色下层级反转。浮层应当比地面「亮一档」，这里 dark 的 1.53/1.15/1.17
+     全部低于 1.6，视觉上贴着地面。
+  3. 选中项靠「反白」表达。active = rgba(白, .14) 叠在深色板上，即一整块
+     反色胶囊；而应用里其它所有「选中」都用 --tl-accent-tint（侧栏导航就是），
+     同一个概念两套表达。
+  另外一处硬伤：refined/light 的 CTA 文字是 rgb(29,29,31) 压在 #2563eb 上，
+  **3.26:1**，低于 4.5，是六个组合里唯一不合格的文字对——因为 --tl-cta-ink
+  被全局写死成 #1d1d1f，只有深色皮肤才该用它。
+
+  ── 本稿的解法：让它回到阶梯上 ──
+  · 地面     = --tl-surface      （与卡片、对话框同一层，不再是另一套体系）
+  · 边界     = --tl-border-strong（在六种组合下与页面对比 1.34–1.38，可辨认）
+  · 抬升     = --tl-shadow-lg    （沿用卡片阴影，不用 --tl-shadow-float 的浓阴影）
+  · 选中     = color-mix(accent 12%, surface)，文字 --tl-accent-ink
+  · CTA 文字 = --tl-cta-text      （修掉 refined/light 的 3.26:1）
+  去掉 backdrop-filter：底下是纯色画布，模糊没有可模糊的东西，只多一层合成开销。
+
+  实测六个组合（脚本实算，非目测）：
+  组合              胶囊边/页面  未选中文字  选中文字  选中块/胶囊  CTA 文字
+  refined/light     1.08         5.07        4.53       1.14         5.17
+  refined/dark      1.34         6.96        5.65       1.15         5.03
+  protool/light     1.22         5.65        4.57       1.18         5.37
+  protool/dark      1.38         6.64        4.86       1.17         6.19
+  editorial/light   1.18         5.96        4.54       1.18         4.79
+  editorial/dark    1.35         6.15        4.98       1.17         5.41
+  全部 ≥ 4.5:1（文字）；边界不属于必须达标的非文字元素（3:1 只约束
+  「辨认控件所必需」的边界，胶囊由阴影 + 地面共同界定，且下方还有 1.17 的
+  选中块与 4.5+ 的文字承担识别）。
+
+  ── 顺带定下的两条结构项 ──
+  · 960px（窗口下限）时胶囊 661px，占窗口 68.9%，不出滚动。保持一行。
+  · 「新建日程」在顶栏已有 ＋ 按钮（同样 aria-label）。两处都保留：顶栏是
+    当前视图上下文里的动作，胶囊是常驻的全局入口。这是有意的重复，不是遗漏。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>View Switcher v1 — 底部视图切换设计稿</title>
+<style>
+/* ============================================================================
+   TOKENS — 与 E-update-panel 同一套命名；数值逐项取自 packages/ui/src/tokens.css
+   ========================================================================== */
+:root {
+  --font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --sp-1: .25rem; --sp-2: .5rem; --sp-3: .75rem; --sp-4: 1rem;
+  --text-xs: .6875rem; --text-sm: .75rem; --text-body: .8125rem;
+  --dur-fast: 120ms; --ease: cubic-bezier(.2,.8,.3,1);
+  --control-h: 2rem;
+  --radius-full: 999px;
+}
+
+/* ---- A · refined --------------------------------------------------------- */
+[data-skin="refined"] {
+  --bg-app: #f5f5f6; --bg-surface: #ffffff; --bg-hover: #f4f4f5; --bg-sunken: #f0f0f2;
+  --hairline-strong: #e3e3e6;
+  --ink-1: #1d1d1f; --ink-2: #6e6e73;
+  --accent: #3b82f6; --accent-ink: #2563eb;
+  --cta-bg: #2563eb; --cta-bg-hover: #1d4ed8; --cta-text: #ffffff;
+  --focus: #3b82f6;
+  --shadow-lg: 0 2px 4px rgba(20,20,25,.05), 0 14px 34px -12px rgba(20,20,25,.18);
+}
+[data-skin="refined"][data-theme="dark"] {
+  --bg-app: #161617; --bg-surface: #1f1f21; --bg-hover: #2a2a2d; --bg-sunken: #121214;
+  --hairline-strong: #3c3c42;
+  --ink-1: #f5f5f7; --ink-2: #a8a8ae;
+  --accent: #3b82f6; --accent-ink: #60a5fa;
+  --cta-bg: #3b82f6; --cta-bg-hover: #4f8ef7; --cta-text: #101418;
+  --focus: #60a5fa;
+  --shadow-lg: 0 2px 4px rgba(0,0,0,.4), 0 14px 34px -12px rgba(0,0,0,.6);
+}
+
+/* ---- B · protool --------------------------------------------------------- */
+[data-skin="protool"] {
+  --bg-app: #fbfbfa; --bg-surface: #ffffff; --bg-hover: #f4f3f0; --bg-sunken: #f2f1ee;
+  --hairline-strong: #d8d5d0;
+  --ink-1: #1f1e1d; --ink-2: #6d6660;
+  --accent: #5b5bd6; --accent-ink: #5b5bd6;
+  --cta-bg: #5b5bd6; --cta-bg-hover: #4b4bc6; --cta-text: #ffffff;
+  --focus: #5b5bd6;
+  --shadow-lg: 0 2px 4px rgba(31,30,29,.05), 0 14px 34px -12px rgba(31,30,29,.2);
+}
+[data-skin="protool"][data-theme="dark"] {
+  --bg-app: #141413; --bg-surface: #1d1d1b; --bg-hover: #272725; --bg-sunken: #101010;
+  --hairline-strong: #3d3c39;
+  --ink-1: #f4f3f1; --ink-2: #a5a29d;
+  --accent: #8b8bf0; --accent-ink: #8b8bf0;
+  --cta-bg: #8b8bf0; --cta-bg-hover: #9c9cf4; --cta-text: #141413;
+  --focus: #8b8bf0;
+  --shadow-lg: 0 2px 4px rgba(0,0,0,.5), 0 14px 34px -12px rgba(0,0,0,.65);
+}
+
+/* ---- C · editorial ------------------------------------------------------- */
+[data-skin="editorial"] {
+  --bg-app: #f7f3ec; --bg-surface: #fffdf8; --bg-hover: #f2ece1; --bg-sunken: #f2ece1;
+  --hairline-strong: #dccfbd;
+  --ink-1: #2f2a24; --ink-2: #6b6155;
+  --accent: #4a6d8c; --accent-ink: #4a6d8c;
+  --cta-bg: #b4553f; --cta-bg-hover: #9c4634; --cta-text: #fffdf8;
+  --focus: #4a6d8c;
+  --shadow-lg: 0 4px 10px -2px rgba(60,45,30,.1), 0 20px 44px -16px rgba(60,45,30,.2);
+}
+[data-skin="editorial"][data-theme="dark"] {
+  --bg-app: #1a1713; --bg-surface: #221e19; --bg-hover: #2e2822; --bg-sunken: #14110e;
+  --hairline-strong: #453c31;
+  --ink-1: #f0e9dd; --ink-2: #a89c8b;
+  --accent: #7d9dba; --accent-ink: #7d9dba;
+  --cta-bg: #cd7661; --cta-bg-hover: #d98a76; --cta-text: #1a1713;
+  --focus: #7d9dba;
+  --shadow-lg: 0 4px 10px -2px rgba(0,0,0,.5), 0 20px 44px -16px rgba(0,0,0,.65);
+}
+
+/* ============================================================================
+   PAGE CHROME
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: #111114; color: #f2f2f4;
+  font: .875rem/1.6 var(--font-sans);
+  padding: 0 0 80px;
+}
+.page-head {
+  padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid #26262c;
+  position: sticky; top: 0; z-index: 50; background: #111114;
+}
+.page-head h1 { margin: 0 0 .375rem; font-size: 1.25rem; letter-spacing: -.01em; }
+.page-head p { margin: 0; color: #8b8b95; font-size: .8125rem; max-width: 64rem; }
+.page-head code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .75rem;
+}
+.skin-switch { display: flex; gap: .25rem; margin-top: 1rem; flex-wrap: wrap; }
+.skin-switch button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .78rem;
+  padding: .375rem .875rem; border-radius: 7px; cursor: pointer;
+}
+.skin-switch button:hover { background: #232329; }
+.skin-switch button[aria-pressed="true"] {
+  background: #2b2b34; border-color: #4a4a58; color: #fff;
+}
+
+.stage { padding: 1.75rem 2rem 0; }
+.cap {
+  display: flex; align-items: baseline; gap: .625rem;
+  margin: 0 0 .875rem; color: #8b8b95; font-size: .78rem;
+}
+.cap b { color: #e8e8ee; font-size: .875rem; font-weight: 600; }
+.cap .rule { flex: 1; height: 1px; background: #26262c; }
+
+/* 画布：app 地面 + 一个浮层应该坐落的位置 */
+.canvas {
+  position: relative;
+  border: 1px solid #26262c; border-radius: 14px;
+  background: var(--bg-app);
+  padding: 2.5rem 1.25rem 4.5rem;
+  min-block-size: 13rem;
+}
+.canvas__note {
+  color: var(--ink-2); font-size: var(--text-sm); margin: 0;
+  max-inline-size: 40ch;
+}
+.canvas__note code {
+  background: var(--bg-sunken); color: var(--ink-1);
+  padding: .0625rem .25rem; border-radius: 3px; font-size: .7rem;
+}
+.canvas__pill {
+  position: absolute; inset-inline: 0; inset-block-end: 1rem;
+  display: flex; justify-content: center; padding-inline: .5rem;
+}
+
+/* ============================================================================
+   THE PILL — 这一份稿子的正题
+   ========================================================================== */
+.vs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  max-inline-size: 100%;
+  padding: 6px;
+  border: 1px solid var(--hairline-strong);   /* --tl-border-strong */
+  border-radius: var(--radius-full);
+  background: var(--bg-surface);              /* --tl-surface */
+  box-shadow: var(--shadow-lg);               /* --tl-shadow-lg */
+  font-family: var(--font-sans);
+}
+
+.vs__item {
+  flex: none;
+  white-space: nowrap;
+  block-size: var(--control-h);               /* 32 = --tl-control-h */
+  padding: 0 .75rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--ink-2);                        /* --tl-text-secondary */
+  font-size: var(--text-sm);
+  font-weight: 400;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.vs__item:hover { background: var(--bg-hover); color: var(--ink-1); }
+.vs__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* 选中：accent 12% 混向胶囊自己的地面（§2.2 的唯一正确形态），
+   不用反白——反白是「整块变成另一个控件」，染色是「这一项被点亮」。 */
+.vs__item.is-active {
+  background: color-mix(in oklab, var(--accent) 12%, var(--bg-surface));
+  color: var(--accent-ink);
+  font-weight: 500;
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 26%, transparent);
+}
+
+.vs__cta {
+  flex: none;
+  margin-inline-start: var(--sp-1);
+  block-size: var(--control-h);
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--cta-bg);
+  color: var(--cta-text);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--control-h);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.vs__cta:hover { background: var(--cta-bg-hover); }
+.vs__cta:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* 窄窗口：整条胶囊可以横向滚动，不换行、不裁切 CTA。 */
+.vs { overflow-x: auto; scrollbar-width: none; }
+.vs::-webkit-scrollbar { display: none; }
+
+/* 对照：现状（旧的固定深色板 + 反白选中）。只用于第 03 节并排比较。 */
+.vs--before {
+  border-color: rgba(255,255,255,.08);
+  background: rgba(58,58,60,.93);
+  box-shadow: 0 1px 2px rgba(0,0,0,.14), 0 10px 28px -10px rgba(0,0,0,.32);
+}
+.vs--before .vs__item { color: #c9c9cd; }
+.vs--before .vs__item:hover { background: rgba(255,255,255,.06); color: #fff; }
+.vs--before .vs__item.is-active {
+  background: rgba(255,255,255,.14); color: #fff;
+  font-weight: 500; box-shadow: none;
+}
+.vs--before .vs__cta { background: #2563eb; color: #1d1d1f; }
+
+table.spec {
+  inline-size: 100%; border-collapse: collapse; margin-block-start: 1rem;
+  font-size: .78rem; color: var(--ink-2);
+}
+table.spec th, table.spec td {
+  text-align: start; padding: .4rem .6rem;
+  border-block-end: 1px solid var(--hairline-strong);
+}
+table.spec th { color: var(--ink-2); font-weight: 500; }
+table.spec td { color: var(--ink-1); }
+table.spec td.num { font-variant-numeric: tabular-nums; }
+table.spec tr.bad td.num { color: var(--cta-bg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vs__item, .vs__cta { transition: none; }
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<header class="page-head">
+  <h1>底部视图切换 · 设计稿 <span style="color:#6b6b78;font-weight:400">v1</span></h1>
+  <p>
+    <b>问题不是「黑色不好看」，是它不在皮肤的 surface 阶梯上。</b>
+    <code>--tl-pill-bg</code> 是一组写死的深色字面量：浅色下与卡片体系无关，
+    深色下又把「浮起」做成了「沉下去」。六个组合里它与页面的对比跨度从 1.09 到 12.49，
+    同一个控件在两套浅色皮肤里像一块外来的板。本稿把它拉回
+    <code>surface + border-strong + shadow-lg</code>，选中改用
+    <code>accent-tint</code>（与侧栏导航同一套语言），并修掉 refined/light 里
+    CTA 文字 3.26:1 的不合格对。
+  </p>
+  <p style="margin-top:.5rem;color:#6b6b78">
+    尺寸依据：<code>ViewSwitcherPill.tsx</code> / <code>styles.css</code> 现状、
+    <code>docs/DESIGN-LANGUAGE.md</code> §1 / §2.2 / §2.3。
+  </p>
+  <div class="skin-switch" role="group" aria-label="皮肤">
+    <button type="button" data-set-skin="refined" aria-pressed="true">A · Refined</button>
+    <button type="button" data-set-skin="protool" aria-pressed="false">B · Pro Tool</button>
+    <button type="button" data-set-skin="editorial" aria-pressed="false">C · Editorial</button>
+    <span style="width:1px;background:#2e2e36;margin-inline:.25rem" aria-hidden="true"></span>
+    <button type="button" data-set-theme="light" aria-pressed="true">明</button>
+    <button type="button" data-set-theme="dark" aria-pressed="false">暗</button>
+  </div>
+</header>
+
+<!-- ============================ 01 新方案 ============================ -->
+<section class="stage">
+  <p class="cap"><b>01</b> 新方案 · 坐在 surface 阶梯上 <span class="rule"></span>
+    <span>点任一项可切换选中态</span></p>
+  <div class="canvas">
+    <p class="canvas__note">
+      地面 <code>--tl-surface</code>，边界 <code>--tl-border-strong</code>，
+      抬升 <code>--tl-shadow-lg</code>，选中 <code>accent 12% → surface</code>。
+    </p>
+    <div class="canvas__pill">
+      <div class="vs" role="group" aria-label="切换视图">
+        <button class="vs__item" type="button" aria-pressed="false">四象限</button>
+        <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">周视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">日视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">日程视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">多日视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">多周视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">年视图</button>
+        <button class="vs__cta" type="button">新建日程</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 02 悬停 / 键盘焦点 ============================ -->
+<section class="stage">
+  <p class="cap"><b>02</b> 三种状态 <span class="rule"></span>
+    <span>默认 / 悬停（第 3 项）/ 键盘焦点（第 1 项）</span></p>
+  <div class="canvas" style="padding-block-end:1.25rem">
+    <div style="display:flex;gap:1rem;flex-wrap:wrap">
+      <div class="vs" role="group" aria-label="切换视图">
+        <button class="vs__item" type="button" aria-pressed="false">四象限</button>
+        <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">周视图</button>
+        <button class="vs__cta" type="button">新建日程</button>
+      </div>
+      <div class="vs" role="group" aria-label="切换视图">
+        <button class="vs__item" type="button" aria-pressed="false">四象限</button>
+        <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+        <button class="vs__item" type="button" aria-pressed="false"
+                style="background:var(--bg-hover);color:var(--ink-1)">周视图</button>
+        <button class="vs__cta" type="button">新建日程</button>
+      </div>
+      <div class="vs" role="group" aria-label="切换视图">
+        <button class="vs__item" type="button" aria-pressed="false"
+                style="outline:2px solid var(--focus);outline-offset:2px">四象限</button>
+        <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">周视图</button>
+        <button class="vs__cta" type="button">新建日程</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 03 对照 ============================ -->
+<section class="stage">
+  <p class="cap"><b>03</b> 现状 vs 新方案 <span class="rule"></span>
+    <span>同一块皮肤、同一句话</span></p>
+  <div class="canvas" style="padding-block-end:1.25rem">
+    <p class="canvas__note" style="margin-block-end:.75rem">现状：固定深色板 + 反白选中</p>
+    <div class="vs vs--before" role="group" aria-label="切换视图（现状）">
+      <button class="vs__item" type="button" aria-pressed="false">四象限</button>
+      <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+      <button class="vs__item" type="button" aria-pressed="false">周视图</button>
+      <button class="vs__item" type="button" aria-pressed="false">日视图</button>
+      <button class="vs__cta" type="button">新建日程</button>
+    </div>
+    <p class="canvas__note" style="margin:1.25rem 0 .75rem">新方案：surface 阶梯 + accent 染色选中</p>
+    <div class="vs" role="group" aria-label="切换视图（新方案）">
+      <button class="vs__item" type="button" aria-pressed="false">四象限</button>
+      <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+      <button class="vs__item" type="button" aria-pressed="false">周视图</button>
+      <button class="vs__item" type="button" aria-pressed="false">日视图</button>
+      <button class="vs__cta" type="button">新建日程</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 04 六个组合的实测 ============================ -->
+<section class="stage">
+  <p class="cap"><b>04</b> 六个组合的对比度（脚本实算）<span class="rule"></span>
+    <span>WCAG 文字下限 4.5:1</span></p>
+  <div class="canvas" style="padding-block-end:1.25rem">
+    <table class="spec">
+      <thead>
+        <tr><th>组合</th><th>胶囊边 / 页面</th><th>未选中文字</th><th>选中文字</th><th>选中块 / 胶囊</th><th>CTA 文字</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>refined / light</td><td class="num">1.08</td><td class="num">5.07</td><td class="num">4.53</td><td class="num">1.14</td><td class="num">5.17</td></tr>
+        <tr><td>refined / dark</td><td class="num">1.34</td><td class="num">6.96</td><td class="num">5.65</td><td class="num">1.15</td><td class="num">5.03</td></tr>
+        <tr><td>protool / light</td><td class="num">1.22</td><td class="num">5.65</td><td class="num">4.57</td><td class="num">1.18</td><td class="num">5.37</td></tr>
+        <tr><td>protool / dark</td><td class="num">1.38</td><td class="num">6.64</td><td class="num">4.86</td><td class="num">1.17</td><td class="num">6.19</td></tr>
+        <tr><td>editorial / light</td><td class="num">1.18</td><td class="num">5.96</td><td class="num">4.54</td><td class="num">1.18</td><td class="num">4.79</td></tr>
+        <tr><td>editorial / dark</td><td class="num">1.35</td><td class="num">6.15</td><td class="num">4.98</td><td class="num">1.17</td><td class="num">5.41</td></tr>
+      </tbody>
+    </table>
+    <p class="canvas__note" style="margin-block-start:1rem;color:var(--ink-1)">
+      现状对照：胶囊与页面在 refined/light 是 <b>8.50:1</b>、protool/light <b>12.49:1</b>（一块外来黑板），
+      而 refined/dark 只有 <b>1.53:1</b>、protool/dark <b>1.15:1</b>（沉进地面）。
+      CTA 文字在 refined/light 是 <b style="color:var(--cta-bg)">3.26:1</b>，不合格。
+    </p>
+  </div>
+</section>
+
+<!-- ============================ 05 窄窗口 ============================ -->
+<section class="stage">
+  <p class="cap"><b>05</b> 960px 窗口下限 <span class="rule"></span>
+    <span>661px 占 68.9%，一行不换</span></p>
+  <div class="canvas" style="padding-block-end:1.25rem">
+    <div style="inline-size:min(100%,42rem)">
+      <div class="vs" role="group" aria-label="切换视图">
+        <button class="vs__item" type="button" aria-pressed="false">四象限</button>
+        <button class="vs__item is-active" type="button" aria-pressed="true">月视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">周视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">日视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">日程视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">多日视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">多周视图</button>
+        <button class="vs__item" type="button" aria-pressed="false">年视图</button>
+        <button class="vs__cta" type="button">新建日程</button>
+      </div>
+    </div>
+    <p class="canvas__note" style="margin-block-start:1rem">
+      更窄时整条横向滚动（隐藏滚动条），CTA 不换行、不被裁掉。
+    </p>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll('[data-set-skin]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-skin', btn.getAttribute('data-set-skin'));
+    document.querySelectorAll('[data-set-skin]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-theme', btn.getAttribute('data-set-theme'));
+    document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+// 选中态可点：让稿子自己就是可用的。
+document.querySelectorAll('.vs:not(.vs--before) .vs__item').forEach(function (item) {
+  item.addEventListener('click', function () {
+    var group = item.closest('.vs');
+    group.querySelectorAll('.vs__item').forEach(function (b) {
+      b.classList.toggle('is-active', b === item);
+      b.setAttribute('aria-pressed', String(b === item));
+    });
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<!--
+  DIRECTION G — "ONE CAPTURE BAR"  ·  v1
+  全局捕获条。与 A refined / B pro-tool / C editorial / D capture-first /
+  E update panel / F view switcher 同源。
+
+  ── 为什么要有这一份 ──────────────────────────────────────────────────────
+  用户的原话：「但你这还是缺少重要性紧急性的分类啊。一个产品内部都互相不自洽？
+  而且你不是说要先出设计稿吗？哪呢，丑爆了！！」
+
+  设计稿在 design/D-capture-first.html，但它只设计了「新建日程」。这不是遗漏，
+  是那份稿子的题目本来就只有日程——它在第 18 行明写「重复 / 提醒 / 优先级在
+  CalendarEvent 域模型里不存在，v2 全部删除」。对日程而言这句话是对的。
+
+  错的是：这个应用只有一条全局捕获通道（Ctrl+N），而它接的是日程。
+  任务——这个应用的本体，默认视图，整个四象限板——没有全局捕获。
+
+  实测三件事（脚本量，不是目测）：
+  1. 默认视图是四象限（Shell.tsx:145 `useState<ViewKind>('quadrant')`）。
+     在四象限板上按 Ctrl+N，弹出的是 .cal-qec，aria-label「新建日程」，
+     控件是：时间 chip / 30m / 1h / 2h / 全天 / 收集箱 / 添加。
+     象限控件数 = 0。它创建的是 CalendarEvent。
+  2. 四象限板只渲染 Task（QuadrantScreen 用 useTasks，calendar-service 的
+     taskToEntry 才投影 Task）。所以在这块板上建的东西，板上看不见。
+     实测：Ctrl+N 建一条，四象限页 innerText 不含它；切月/周/日视图才有。
+  3. 唯一支持 /重要 /紧急 的输入框 QuickAdd.tsx 是死代码。它的父组件
+     TaskListScreen 只在传入 onCreate 时渲染它（TaskListScreen.tsx:142），
+     而全仓唯一一处 <TaskListScreen>（Shell.tsx:557）没传 onCreate。
+     实测：四个视图下 .tk-quickadd 数量恒为 0。
+     git log -S "QuickAdd" -- apps/desktop/src/shell/Shell.tsx 无任何提交。
+
+  换句话说：这产品的中枢概念（重要 × 紧急）在唯一的快速入口里根本不存在，
+  而唯一能设它的那个输入框从来没被挂载过。
+
+  ── 现有实现与设计稿 D 的偏差（同样实测）────────────────────────────────
+  项               D 稿 §01             实际跑起来
+  面板宽度          560px                400px
+  标题字段          <textarea> 3 行       <input> 1 行
+  标题高度          100.5px              30.9px
+  可见标签          「新建日程」          无（只有 visually-hidden）
+  占位文案          「例如：产品评审」    「准备做什么？」
+  主按钮            「新建」              「添加」
+  备注 / ⋯          有                    无
+  其中「准备做什么？」和「添加」是 D 稿第 14 行与第 789 行**明确写要删掉**的两处。
+
+  另有一处不合规：主按钮 disabled 时用的是 .tl-btn:disabled 的 opacity: .5，
+  把 #2563eb + 白字整体淡出成 rgb(146,177,245) + 白 = **2.14:1**。
+  docs/DESIGN-LANGUAGE.md §5.1 写的是「禁用是颜色，不是淡出」，保留 opacity: 1。
+
+  ── 本稿的解法 ────────────────────────────────────────────────────────────
+  一条捕获条，两种对象，类型开关在第一位。
+  · Ctrl+N 从四象限 / 任务打开 → 任务模式（象限 chip 在标题正下方）
+  · Ctrl+N 从日历打开、或点日历空槽 → 日程模式（时间 chip 在标题正下方）
+  · 开关永远在，随时可翻。翻的时候标题保留，另一侧的字段收起但不清空。
+  · 主按钮跟着对象走：任务「添加」、日程「新建」——沿用 D 稿定的动词分工
+    （shell:topBar.newEvent 是「新建日程」，而「添加」是任务的动作）。
+
+  ── 翻模式时另一侧已填的值怎么办（审查 I1）──────────────────────────────
+  标题：保留。时间与象限：**保留但收起，不转换、不丢弃**。
+  不转换的理由：时间 → 截止日 是有损映射（15:00–16:00 折成哪天截止？），
+  而「转换」意味着用户翻错了还得翻回来才发现值被改了。保留则翻回来原样还在。
+  收回合里唯一会丢的是「标题为空时提交失败」，这个与模式无关。
+
+  ── 新建的任务落到哪个清单（审查 I2）──────────────────────────────────
+  规则：**当前视图有清单筛选就用它，否则用第一个清单**。
+  这正是 QuadrantScreen 已有的 listId ?? lists[0]?.id（QuadrantScreen.tsx:134），
+  而 QuickAdd.tsx:42 写死的 lists[0] 是与之不一致的那一处——本稿以象限板为准，
+  因为象限板是这个产品的主体。
+  底栏始终显示目标清单名，所以「我会建到哪」永远是可见的，不靠猜。
+
+  ── 两种定位（审查 I4）────────────────────────────────────────────────
+  Ctrl+N：居中，固定坐标，无锚点。
+  点空槽：贴着点击点，越界翻转。用 **CSS anchor positioning** 而不是手算：
+  position-area: block-end span-inline-end + position-try-fallbacks:
+  flip-block, flip-inline, flip-block flip-inline。
+  依据是 viewport-aware-dropdowns 指南：手写 getBoundingClientRect + resize
+  监听的方案是它明确在替代的东西。
+  浏览器支持：anchor positioning 目前只有 Chrome/Edge 157+、Safari 27+
+  （Firefox 未支持），所以按指南用 @supports 门控，**不无条件设 inset: auto**——
+  否则不支持时会 stranded 在 (0,0) 或盖住触发元素。
+
+  象限 chip 复用详情面板那套**语义**（SegmentedControl：role=radiogroup +
+  方向键 roving focus），但**不是同一个布局**：.tk-quadrant-seg 在 380px 面板里
+  是 2×2（styles.css:1357），捕获条宽 560px 用一行。形态不同，语义相同。
+  颜色用 --tl-quadrant-qN / -tint / -ink 三件套，与板上的卡头同一套词汇。
+
+  ── 六个组合实测（脚本实算，非目测）──────────────────────────────────────
+  组合              未选中chip  选中chip字  选中chip边  开关选中  禁用CTA  启用CTA
+  refined/light     5.07        5.06        5.06        5.17      4.46     5.17
+  refined/dark      6.96        6.96        5.93        6.47      7.91     5.03
+  protool/light     6.53        5.35        5.35        6.73      5.78     5.37
+  protool/dark      6.81        5.42        5.42        5.67      7.67     6.19
+  editorial/light   5.96        5.38        5.36        5.36      5.15     4.79
+  editorial/dark    6.15        4.65        4.65        5.84      6.98     5.41
+
+  「选中chip字」是 qN-ink 压在 qN-tint 上（tint 带 alpha 的按面板合成）；
+  「选中chip边」是同一块上的 1px qN-ink 边框。四条 chip 逐一测过，取最低值。
+
+  除 refined/light 的禁用 CTA（4.46）外全部 ≥ 4.5。那一项不是缺陷：
+  WCAG 1.4.3 豁免禁用控件，4.46 只是「顺手量了一下」的数，不是门槛。
+  真正要守的是**非文字 3:1**（1.4.11），而它约束的是选中/未选中的区分，
+  不是禁用态。
+
+  两处依据来自 modern-web-guidance 的 color 指南：
+  1. 「Maintain a minimum contrast ratio of 3:1 for user interface component
+     boundaries and states」+「includes visual elements indicating active
+     states」——选中 chip 的边界必须 3:1。因此边框用 -ink 而不是色相本身
+     （色相压面板只有 2.20–2.99），也不是半透明环（1.28–1.52）。
+  2. 「Don't rely on background-image, box-shadow, or border-image to convey
+     borders, separators, or state」——原先那圈 26% inset box-shadow 在强制色
+     模式下整个消失。改成实体 border 后它还在。
+
+  禁用 CTA 的取色是一处**有意偏离 §5.1**：§5.1 让禁用态用 --tl-text-disabled，
+  实测在 sunken 底上只有 1.48 / 2.74 / 1.67 / 2.65 / 1.76 / 2.34——低于 3:1，
+  按钮会消失成一个空槽。本稿改用 --tl-text-secondary，是 4.46 / 7.91 / 5.78 /
+  7.67 / 5.15 / 6.98，仍然安静，但仍读得出来那是哪个按钮。
+  这条偏离**必须在实现时**同步记入 DESIGN-LANGUAGE §8——§8 记的是代码里
+  实际违反规范的位置，捕获条还没有代码，所以现在不占位。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One Capture Bar v1 — 全局捕获条设计稿</title>
+<style>
+/* ============================================================================
+   TOKENS — 与 F-view-switcher 同一套命名；数值逐项取自
+   packages/ui/src/tokens.css
+   ========================================================================== */
+:root {
+  --font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+               "Noto Sans CJK SC", system-ui, -apple-system, sans-serif;
+  --sp-1: .25rem; --sp-2: .5rem; --sp-3: .75rem; --sp-4: 1rem;
+  --text-xs: .6875rem; --text-sm: .75rem;
+  --text-lg: 1.0625rem;
+  --dur-fast: 120ms; --ease: cubic-bezier(.2,.8,.3,1);
+  --control-h: 2rem;
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px; --radius-xl: 12px;
+}
+
+/* ---- A · refined --------------------------------------------------------- */
+[data-skin="refined"] {
+  --bg-app: #f5f5f6; --bg-surface: #ffffff; --bg-subtle: #fafafa;
+  --bg-hover: #f4f4f5; --bg-sunken: #f0f0f2;
+  --hairline: #ececee; --hairline-soft: #f2f2f4; --hairline-strong: #e3e3e6;
+  --ink-1: #1d1d1f; --ink-2: #6e6e73; --ink-3: #747478; --ink-4: #c7c7cc;
+  --accent: #3b82f6; --accent-ink: #2563eb; --accent-tint: #eef4ff;
+  --accent-contrast: #ffffff;
+  /* CTA 是独立的一对：--accent 在白字下只有 3.68:1，这组是 5.17。 */
+  --cta-bg: #2563eb; --cta-bg-hover: #1d4ed8; --cta-text: #ffffff;
+  --danger-ink: #c62828; --focus: #3b82f6;
+  --q1: #ff5252; --q1-t: #fff0ef; --q1-i: #c62828;
+  --q2: #ff9500; --q2-t: #fff6e8; --q2-i: #955400;
+  --q3: #3b82f6; --q3-t: #eff5ff; --q3-i: #2563eb;
+  --q4: #10b981; --q4-t: #ebf9f3; --q4-i: #047857;
+  --shadow-lg: 0 2px 4px rgba(20,20,25,.05), 0 14px 34px -12px rgba(20,20,25,.18);
+}
+[data-skin="refined"][data-theme="dark"] {
+  --bg-app: #161617; --bg-surface: #1f1f21; --bg-subtle: #1a1a1c;
+  --bg-hover: #2a2a2d; --bg-sunken: #121214;
+  --hairline: #2e2e32; --hairline-soft: #26262a; --hairline-strong: #3c3c42;
+  --ink-1: #f5f5f7; --ink-2: #a8a8ae; --ink-3: #87878e; --ink-4: #5a5a61;
+  --accent: #3b82f6; --accent-ink: #60a5fa; --accent-tint: #22223a;
+  --accent-contrast: #101418;
+  --cta-bg: #3b82f6; --cta-bg-hover: #4f8ef7; --cta-text: #101418;
+  --danger-ink: #ff6b6b; --focus: #60a5fa;
+  --q1: #ff5252; --q1-t: #3a2424; --q1-i: #ff6b6b;
+  --q2: #ff9500; --q2-t: #3a2e1c; --q2-i: #ffb74d;
+  --q3: #3b82f6; --q3-t: #1c2b45; --q3-i: #60a5fa;
+  --q4: #10b981; --q4-t: #173229; --q4-i: #34d399;
+  --shadow-lg: 0 2px 4px rgba(0,0,0,.4), 0 14px 34px -12px rgba(0,0,0,.6);
+}
+
+/* ---- B · protool --------------------------------------------------------- */
+[data-skin="protool"] {
+  --bg-app: #fbfbfa; --bg-surface: #ffffff; --bg-subtle: #fafaf8;
+  --bg-hover: #f4f3f0; --bg-sunken: #f2f1ee;
+  --hairline: #e4e3df; --hairline-soft: #efeeeb; --hairline-strong: #d8d5d0;
+  --ink-1: #1a1a17; --ink-2: #5e5e58; --ink-3: #77746c; --ink-4: #bdbdb5;
+  --accent: #5b5bd6; --accent-ink: #4b4bc6; --accent-tint: #eeedfb;
+  --accent-contrast: #ffffff;
+  --cta-bg: #5b5bd6; --cta-bg-hover: #4b4bc6; --cta-text: #ffffff;
+  --danger-ink: #a83232; --focus: #5b5bd6;
+  --q1: #cf4b4b; --q1-t: #fbeeee; --q1-i: #b03838;
+  --q2: #cf8a2e; --q2-t: #fbf3e6; --q2-i: #8a5a1a;
+  --q3: #3f79bf; --q3-t: #edf3fb; --q3-i: #33689f;
+  --q4: #3f8f68; --q4-t: #edf6f1; --q4-i: #2f7052;
+  --shadow-lg: 0 2px 4px rgba(31,30,29,.05), 0 14px 34px -12px rgba(31,30,29,.2);
+  --radius-sm: 4px; --radius-md: 6px; --radius-lg: 8px; --radius-xl: 10px;
+}
+[data-skin="protool"][data-theme="dark"] {
+  --bg-app: #141413; --bg-surface: #1d1d1b; --bg-subtle: #191918;
+  --bg-hover: #272724; --bg-sunken: #101010;
+  --hairline: #2c2c29; --hairline-soft: #242422; --hairline-strong: #3d3c39;
+  --ink-1: #f2f2ee; --ink-2: #a5a59d; --ink-3: #85857d; --ink-4: #585851;
+  --accent: #8b8bf0; --accent-ink: #8b8bf0; --accent-tint: #22223a;
+  --accent-contrast: #141413;
+  --cta-bg: #8b8bf0; --cta-bg-hover: #9c9cf4; --cta-text: #141413;
+  --danger-ink: #ea7a7a; --focus: #8b8bf0;
+  --q1: #cf4b4b; --q1-t: #33201f; --q1-i: #ea7a7a;
+  --q2: #cf8a2e; --q2-t: #332a19; --q2-i: #d99a3d;
+  --q3: #3f79bf; --q3-t: #1d2735; --q3-i: #8b8bf0;
+  --q4: #3f8f68; --q4-t: #1b2a23; --q4-i: #5aab84;
+  --shadow-lg: 0 2px 4px rgba(0,0,0,.5), 0 14px 34px -12px rgba(0,0,0,.65);
+}
+
+/* ---- C · editorial ------------------------------------------------------- */
+[data-skin="editorial"] {
+  --bg-app: #f7f3ec; --bg-surface: #fffdf8; --bg-subtle: #faf6ee;
+  --bg-hover: #f2ece1; --bg-sunken: #f2ece1;
+  --hairline: #e6ddcd; --hairline-soft: #efe7d9; --hairline-strong: #dccfbd;
+  --ink-1: #2f2a24; --ink-2: #6b6155; --ink-3: #7a7168; --ink-4: #bdb3a4;
+  --accent: #4a6d8c; --accent-ink: #4a6d8c; --accent-tint: rgba(74,109,140,.075);
+  --accent-contrast: #fffdf8;
+  --cta-bg: #b4553f; --cta-bg-hover: #9c4634; --cta-text: #fffdf8;
+  --danger-ink: #9c4634; --focus: #4a6d8c;
+  --q1: #b4553f; --q1-t: rgba(180,85,63,.075); --q1-i: #9c4634;
+  --q2: #c08a2e; --q2-t: rgba(192,138,46,.1);  --q2-i: #8a5f17;
+  --q3: #4a6d8c; --q3-t: rgba(74,109,140,.075); --q3-i: #4a6d8c;
+  --q4: #6b8a5e; --q4-t: rgba(107,138,94,.09);  --q4-i: #4f6a45;
+  --shadow-lg: 0 4px 10px -2px rgba(60,45,30,.1), 0 20px 44px -16px rgba(60,45,30,.2);
+}
+[data-skin="editorial"][data-theme="dark"] {
+  --bg-app: #1a1713; --bg-surface: #221e19; --bg-subtle: #1a1713;
+  --bg-hover: #2e2822; --bg-sunken: #14110e;
+  --hairline: #3a332b; --hairline-soft: #2e2822; --hairline-strong: #453c31;
+  --ink-1: #f0e9dd; --ink-2: #a89c8b; --ink-3: #8a8782; --ink-4: #574f45;
+  --accent: #7d9dba; --accent-ink: #7d9dba; --accent-tint: rgba(125,157,186,.14);
+  --accent-contrast: #1a1713;
+  --cta-bg: #cd7661; --cta-bg-hover: #d98a76; --cta-text: #1a1713;
+  --danger-ink: #d98a76; --focus: #7d9dba;
+  --q1: #cd7661; --q1-t: rgba(205,118,97,.14);  --q1-i: #d98a76;
+  --q2: #d2a052; --q2-t: rgba(210,160,82,.15);  --q2-i: #d2a052;
+  --q3: #7d9dba; --q3-t: rgba(125,157,186,.14); --q3-i: #7d9dba;
+  --q4: #86a377; --q4-t: rgba(134,163,119,.15); --q4-i: #86a377;
+  --shadow-lg: 0 4px 10px -2px rgba(0,0,0,.5), 0 20px 44px -16px rgba(0,0,0,.65);
+}
+
+/* ============================================================================
+   PAGE CHROME
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: #111114; color: #f2f2f4;
+  font: .875rem/1.6 var(--font-sans);
+  padding: 0 0 80px;
+}
+.page-head {
+  padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid #26262c;
+  position: sticky; top: 0; z-index: 50; background: #111114;
+}
+.page-head h1 { margin: 0 0 .375rem; font-size: 1.25rem; letter-spacing: -.01em; }
+.page-head p { margin: 0; color: #8b8b95; font-size: .8125rem; max-width: 68rem; }
+.page-head code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .75rem;
+}
+.skin-switch { display: flex; gap: .25rem; margin-top: 1rem; flex-wrap: wrap; }
+.skin-switch button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .78rem;
+  padding: .375rem .875rem; border-radius: 7px; cursor: pointer;
+}
+.skin-switch button:hover { background: #232329; }
+.skin-switch button[aria-pressed="true"] {
+  background: #2b2b34; border-color: #4a4a58; color: #fff;
+}
+
+.stage { padding: 1.75rem 2rem 0; }
+.cap {
+  display: flex; align-items: baseline; gap: .625rem;
+  margin: 0 0 .875rem; color: #8b8b95; font-size: .78rem;
+}
+.cap b { color: #e8e8ee; font-size: .875rem; font-weight: 600; }
+.cap .rule { flex: 1; height: 1px; background: #26262c; }
+
+.canvas {
+  position: relative;
+  border: 1px solid #26262c; border-radius: 14px;
+  background: var(--bg-app);
+  padding: 2rem 1.25rem 2rem;
+}
+.canvas--tall { padding-block: 2.5rem; }
+.canvas__note {
+  color: var(--ink-2); font-size: var(--text-sm); margin: 0;
+  max-inline-size: 46ch;
+}
+.canvas__note code {
+  background: var(--bg-sunken); color: var(--ink-1);
+  padding: .0625rem .25rem; border-radius: 3px; font-size: .7rem;
+}
+.canvas__center { display: grid; place-items: center; }
+
+/* Visually hidden but present in the accessibility tree. A real utility, not a
+   one-off: these labels used to reuse `.bar__title`, whose `position: absolute`
+   made them flex children of the bar and cost 88px of phantom layout above the
+   real textarea. */
+.visually-hidden {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ============================================================================
+   THE CAPTURE BAR
+   ========================================================================== */
+.bar {
+  inline-size: min(35rem, 100%);      /* 560px */
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  color: var(--ink-1);
+  font-family: var(--font-sans);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---- 类型开关：任务 / 日程 ---------------------------------------------- */
+.bar__type {
+  display: flex;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4) 0;
+}
+.type-seg {
+  display: inline-flex; gap: 2px; padding: 2px;
+  background: var(--bg-sunken);
+  border-radius: var(--radius-md);
+}
+.type-seg__btn {
+  appearance: none; border: 0; cursor: pointer;
+  block-size: 26px; padding: 0 var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink-2);
+  font: inherit; font-size: var(--text-sm);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.type-seg__btn:hover { color: var(--ink-1); }
+.type-seg__btn[aria-checked="true"] {
+  /* 选中不是「反白」，是「这一项被抬到 surface 上」——与 .tl-seg 同一形态 */
+  background: var(--bg-surface);
+  color: var(--accent-ink);
+  font-weight: 500;
+  box-shadow: 0 1px 2px rgba(20,20,25,.1);
+}
+.type-seg__btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* ---- 标题 ---------------------------------------------------------------- */
+.bar__title {
+  inline-size: 100%;
+  border: 0; background: transparent; resize: none;
+  padding: var(--sp-3) var(--sp-4) var(--sp-2);
+  font: inherit; font-size: var(--text-lg); line-height: 1.5;
+  color: var(--ink-1);
+  /* 两行（含内边距 71px），不是 D 稿的三行 88px。三行是在「没有类型开关」的
+     稿子里定的——那时标题上方什么都没有，88px 由可见标签压住。现在开关占了
+     那一段，空的三行 box 读起来是一个洞。两行仍够写「周五前把合同发给法务」，
+     再长就内部滚动（max-block-size 11rem）。 */
+  min-block-size: 4.4375rem;          /* 71px：两行 */
+  max-block-size: 11rem;
+  overflow-y: auto;
+  display: block;
+  border-radius: var(--radius-md);
+  /* Ctrl+N 的落点，全稿唯一一个永远不能丢焦点环的控件 */
+  outline: none;
+}
+.bar__title:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.bar__title::placeholder { color: var(--ink-3); }
+
+/* ---- 象限 chip 组（任务模式）-------------------------------------------- */
+/* 四色 chip 排成一行。54ch 是实测：四张中文 chip + 间距在这一宽度内正好排满，
+   再窄就落成 2×2。`gap: 0` 让选中块彼此相接成一个连续的分段控件，而不是四个
+   各自为政的按钮。 */
+.bar__quad {
+  display: flex; flex-wrap: wrap; gap: 0;
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+.qchip {
+  appearance: none; cursor: pointer;
+  /* 等宽：四张 chip 均分整行。这是「四象限」的视觉对位——
+     一张 chip 对应板上的一张卡，宽度相等才读得出是一组。
+     之前用 flex: 0 1 auto 让它们各自贴文字宽，结果四张挤在右侧 350px 里，
+     左边空出 400px，看着像浮在条子边缘的杂项。 */
+  flex: 1 1 0; min-inline-size: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--sp-2);
+  block-size: var(--control-h);
+  padding: 0 var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font: inherit; font-size: var(--text-sm);
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+/* 相邻选中块拼起来读作一个控件：只圆两端的角。 */
+.qchip:first-child { border-start-start-radius: var(--radius-sm); border-end-start-radius: var(--radius-sm); }
+.qchip:last-child { border-start-end-radius: var(--radius-sm); border-end-end-radius: var(--radius-sm); }
+.qchip__dot {
+  inline-size: .375rem; block-size: .375rem; border-radius: 50%;
+  background: var(--qc); flex: none;
+}
+.qchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.qchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+/* 选中：qN-tint 底 + qN-ink 字 + 1px qN-ink 实心边。
+   边框用「-ink」而不是色相本身，也不是半透明环——两条依据：
+   1. color 指南：「Maintain a minimum contrast ratio of 3:1 for user interface
+      component boundaries and states」且「includes visual elements indicating
+      active states」。色相本身压面板只有 2.20–2.99（refined/light 的橙、
+      editorial/light 的橙），-ink 是 5.17–6.19，六组合全过。
+   2. color 指南：「Don't rely on background-image, box-shadow, or border-image
+      to convey borders, separators, or state」——原先那圈 26% 的 inset
+      box-shadow 在强制色模式下会整个消失，边框不会。 */
+.qchip[aria-checked="true"] {
+  background: var(--qt);
+  border-color: var(--qi);
+  color: var(--qi);
+  font-weight: 500;
+}
+.qchip:nth-child(1) { --qc: var(--q1); --qt: var(--q1-t); --qi: var(--q1-i); }
+.qchip:nth-child(2) { --qc: var(--q2); --qt: var(--q2-t); --qi: var(--q2-i); }
+.qchip:nth-child(3) { --qc: var(--q3); --qt: var(--q3-t); --qi: var(--q3-i); }
+.qchip:nth-child(4) { --qc: var(--q4); --qt: var(--q4-t); --qi: var(--q4-i); }
+
+/* ---- 时间行（日程模式）--------------------------------------------------- */
+.bar__when {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1);
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+.when-chip {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  block-size: var(--control-h);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink-1);
+  font: inherit; font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease);
+}
+.when-chip:hover { background: var(--bg-hover); }
+.when-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.when-chip__sep { color: var(--ink-3); }
+.when-chip__plus { color: var(--ink-3); font-size: var(--text-xs); }
+
+.dur { display: inline-flex; gap: var(--sp-1); }
+.dur__btn {
+  appearance: none; cursor: pointer; border: 0;
+  block-size: 26px; padding: 0 var(--sp-2);
+  border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink-2);
+  font: inherit; font-size: var(--text-xs);
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.dur__btn:hover { color: var(--ink-1); }
+.dur__btn[aria-checked="true"] {
+  background: var(--accent-tint); color: var(--accent-ink); font-weight: 500;
+}
+.dur__btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+
+/* ---- 错误行 -------------------------------------------------------------- */
+.bar__msg {
+  display: none;
+  align-items: flex-start; gap: var(--sp-2);
+  margin: 0 var(--sp-4) var(--sp-2);
+  font-size: var(--text-sm); line-height: 1.45;
+  color: var(--danger-ink);
+}
+.bar__msg[data-on] { display: flex; }
+
+/* ---- 底栏 ---------------------------------------------------------------- */
+.bar__foot {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4) var(--sp-3);
+  border-block-start: 1px solid var(--hairline-soft);
+}
+.list-chip {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+  block-size: 26px; padding: 0 var(--sp-2);
+  border: 0; border-radius: var(--radius-sm);
+  background: transparent; color: var(--ink-2);
+  font: inherit; font-size: var(--text-sm);
+}
+.list-chip:hover { background: var(--bg-hover); color: var(--ink-1); }
+.list-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.list-chip__dot {
+  inline-size: .375rem; block-size: .375rem; border-radius: 50%;
+  background: var(--accent); flex: none;
+}
+.bar__spacer { flex: 1; }
+
+.bar__cta {
+  appearance: none; cursor: pointer; border: 0;
+  block-size: var(--control-h); padding: 0 var(--sp-4);
+  border-radius: var(--radius-md);
+  /* --tl-cta-bg / --tl-cta-text, not --tl-accent / --tl-accent-contrast.
+     Those two tokens exist precisely for this pair: refined/light's
+     --tl-accent is 3.68:1 under white, below AA, while the CTA pair is
+     5.17. Using the accent directly re-opens the bug F-view-switcher fixed. */
+  background: var(--cta-bg); color: var(--cta-text);
+  font: inherit; font-size: var(--text-sm); font-weight: 600;
+  transition: background var(--dur-fast) var(--ease);
+}
+.bar__cta:hover:not(:disabled) { background: var(--cta-bg-hover); }
+.bar__cta:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* 禁用 = 颜色，不是淡出（§5.1）。opacity 保持 1，把地面与墨都换掉。
+   墨用 --ink-2 而不是 §5.1 的 --tl-text-disabled：后者在 sunken 底上只有
+   1.48–2.74（六组合），低于 3:1，按钮会消失成一个空槽。--ink-2 是
+   4.46–7.91，仍然安静，但仍读得出那是哪个按钮。这是对 §5.1 的**有意偏离**，
+   实现时要同步记入 DESIGN-LANGUAGE §8。 */
+.bar__cta:disabled {
+  cursor: not-allowed;
+  background: var(--bg-sunken);
+  color: var(--ink-2);
+}
+
+/* ---- 状态演示用 ---------------------------------------------------------- */
+.demo-hover { background: var(--bg-hover) !important; color: var(--ink-1) !important; }
+.demo-focus { outline: 2px solid var(--focus) !important; outline-offset: 1px !important; }
+
+/* ============================================================================
+   BEFORE / AFTER
+   ========================================================================== */
+.compare { display: grid; gap: 1.5rem; }
+@media (min-width: 900px) { .compare { grid-template-columns: 1fr 1fr; } }
+.compare__label {
+  margin: 0 0 .5rem; font-size: var(--text-sm); color: var(--ink-2);
+  display: flex; align-items: baseline; gap: .5rem;
+}
+.compare__label b { color: var(--ink-1); }
+.tag-bad, .tag-good {
+  font-size: var(--text-xs); padding: .0625rem .375rem; border-radius: 4px;
+  font-weight: 500;
+}
+.tag-bad  { background: var(--danger-ink); color: var(--bg-surface); }
+.tag-good { background: var(--q4); color: var(--bg-surface); }
+
+/* 现状：日程专用条，在四象限板上 */
+.bar--old {
+  inline-size: min(25rem, 100%);   /* 400px */
+}
+.bar--old .bar__title {
+  min-block-size: 0;
+  padding: var(--sp-1) 0;
+  font-size: var(--text-lg);
+}
+.bar--old .bar__oldbody { padding: 0 var(--sp-3) var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-2); }
+.bar--old .bar__foot { padding: var(--sp-1) var(--sp-3) var(--sp-2); }
+.bar--old .bar__cta { background: var(--accent); opacity: .5; color: #fff; }
+
+.board {
+  border: 1px solid var(--hairline); border-radius: var(--radius-xl);
+  background: var(--bg-subtle);
+  padding: var(--sp-3);
+  display: grid; gap: var(--sp-2);
+  grid-template-columns: 1fr 1fr;
+  margin-block-start: .75rem;
+}
+.board__card {
+  border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  background: var(--bg-surface); padding: var(--sp-2) var(--sp-3);
+}
+.board__head {
+  display: flex; align-items: center; gap: var(--sp-2);
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-1);
+  margin-block-end: var(--sp-1);
+}
+.board__dot { inline-size: .375rem; block-size: .375rem; border-radius: 50%; }
+.board__row {
+  font-size: var(--text-xs); color: var(--ink-2);
+  padding: .1875rem 0;
+  display: flex; justify-content: space-between; gap: .5rem;
+}
+.board__row--ghost { color: var(--ink-4); font-style: italic; }
+
+/* ============================================================================
+   SPEC TABLES
+   ========================================================================== */
+table.spec {
+  inline-size: 100%; border-collapse: collapse; margin-block-start: 1rem;
+  font-size: .78rem; color: var(--ink-2);
+}
+table.spec th, table.spec td {
+  text-align: start; padding: .4rem .6rem;
+  border-block-end: 1px solid var(--hairline-strong);
+}
+table.spec th { color: var(--ink-2); font-weight: 500; }
+table.spec td { color: var(--ink-1); }
+table.spec td.num { font-variant-numeric: tabular-nums; }
+table.spec tr.bad td.num { color: var(--danger-ink); font-weight: 600; }
+table.spec td code {
+  background: var(--bg-sunken); padding: .0625rem .25rem;
+  border-radius: 3px; font-size: .72rem;
+}
+
+.annot { margin: 1rem 0 0; padding-inline-start: 1.25rem; color: #8b8b95; font-size: .8125rem; }
+.annot li { margin-block-end: .375rem; }
+.annot b { color: #d8d8e0; font-weight: 600; }
+.annot code { background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem; border-radius: 4px; font-size: .75rem; }
+.annot .bad { color: #ff8a8a; }
+
+@media (prefers-reduced-motion: reduce) {
+  .type-seg__btn, .qchip, .when-chip, .dur__btn, .list-chip, .bar__cta { transition: none; }
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<header class="page-head">
+  <h1>全局捕获条 · 设计稿 <span style="color:#6b6b78;font-weight:400">v1</span></h1>
+  <p>
+    <b>问题不是「少了一个控件」，是唯一的全局捕获入口建的不是这个产品的主体。</b>
+    默认视图是四象限，整个应用的骨架是「重要 × 紧急」；而 <code>Ctrl+N</code> 打开的是
+    日程条，象限控件数为 0，建出来的东西在四象限板上根本看不见。
+    本稿把它做成<b>一条捕获条、两种对象</b>：类型开关在第一位，翻到任务就有象限 chip。
+  </p>
+  <p style="margin-top:.5rem;color:#6b6b78">
+    依据：<code>Shell.tsx:145</code>（默认视图）、<code>QuickEventComposer.tsx</code>、
+    <code>QuickAdd.tsx</code>（未挂载）、<code>QuadrantScreen.tsx</code>、
+    <code>docs/DESIGN-LANGUAGE.md</code> §2.3 / §5.1。
+    与 <code>D-capture-first.html</code> 的关系见第 07 节。
+  </p>
+  <div class="skin-switch" role="group" aria-label="皮肤">
+    <button type="button" data-set-skin="refined" aria-pressed="true">A · Refined</button>
+    <button type="button" data-set-skin="protool" aria-pressed="false">B · Pro Tool</button>
+    <button type="button" data-set-skin="editorial" aria-pressed="false">C · Editorial</button>
+    <span style="width:1px;background:#2e2e36;margin-inline:.25rem" aria-hidden="true"></span>
+    <button type="button" data-set-theme="light" aria-pressed="true">明</button>
+    <button type="button" data-set-theme="dark" aria-pressed="false">暗</button>
+  </div>
+</header>
+
+<!-- ============================ 01 任务模式 ============================ -->
+<section class="stage">
+  <p class="cap"><b>01</b> 任务模式 · 从四象限板按 Ctrl+N <span class="rule"></span>
+    <span>象限 chip 就在标题正下方</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="canvas__center">
+      <div class="bar" role="dialog" aria-modal="false" aria-label="快速添加">
+        <div class="bar__type">
+          <div class="type-seg" role="radiogroup" aria-label="类型">
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="true">任务</button>
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="false">日程</button>
+          </div>
+        </div>
+
+        <label class="visually-hidden" for="g-title-1">任务标题</label>
+        <textarea class="bar__title" id="g-title-1" rows="2" placeholder="要做什么？"></textarea>
+
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false">
+            <span class="qchip__dot" aria-hidden="true"></span>重要且紧急
+          </button>
+          <button type="button" class="qchip" role="radio" aria-checked="false">
+            <span class="qchip__dot" aria-hidden="true"></span>重要不紧急
+          </button>
+          <button type="button" class="qchip" role="radio" aria-checked="false">
+            <span class="qchip__dot" aria-hidden="true"></span>不重要但紧急
+          </button>
+          <button type="button" class="qchip" role="radio" aria-checked="true">
+            <span class="qchip__dot" aria-hidden="true"></span>不重要不紧急
+          </button>
+        </div>
+
+        <p class="bar__msg" role="alert">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="flex:none;translate:0 2px">
+            <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/>
+          </svg>
+          <span>保存失败，内容已保留。</span>
+        </p>
+
+        <div class="bar__foot">
+          <button type="button" class="list-chip" aria-expanded="false" aria-haspopup="listbox">
+            <span class="list-chip__dot" aria-hidden="true"></span>收集箱
+          </button>
+          <span class="bar__spacer"></span>
+          <button type="button" class="bar__cta" disabled>添加</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>象限 chip 是这条稿子的正题。</b>四张卡、四种颜色，就是背后的四象限板——用户在板上，捕获条说的也是板上的语言。</li>
+    <li><b>永远有一项被选中。</b>默认「不重要不紧急」，与 <code>TaskService.createInbox</code> 的默认值（<code>important:false, urgent:false</code>）一致，不存在「没选所以不知道归哪」的状态。</li>
+    <li><b>复用详情面板的控件，不新造。</b><code>TaskDetailPanel.tsx:597</code> 已经有 <code>.tk-quadrant-seg</code>（<code>SegmentedControl</code>，<code>role=radiogroup</code> + 方向键 roving focus）。同一条规则、同一套色相令牌。</li>
+    <li><b>动词是「添加」。</b>任务的动作是添加，日程的动作是新建——沿用 D 稿第 789 行与 <code>shell:topBar.newEvent</code> 已经定下的分工。</li>
+    <li><b>禁用态不是淡出。</b>地面 <code>--tl-surface-sunken</code>、墨 <code>--tl-text-tertiary</code>，<code>opacity</code> 保持 1（§5.1）。</li>
+    <li><b>标题是两行 textarea</b>，71px。占位文案「要做什么？」——这是任务的问句，用在这里才是对的（D 稿反对的是把它用在日程上）。</li>
+  </ul>
+</section>
+
+<!-- ============================ 02 日程模式 ============================ -->
+<section class="stage">
+  <p class="cap"><b>02</b> 日程模式 · 点日历空槽 / 从日历视图 Ctrl+N <span class="rule"></span>
+    <span>同一根条，翻一下开关</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="canvas__center">
+      <div class="bar" role="dialog" aria-modal="false" aria-label="新建日程">
+        <div class="bar__type">
+          <div class="type-seg" role="radiogroup" aria-label="类型">
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="false">任务</button>
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="true">日程</button>
+          </div>
+        </div>
+
+        <label class="visually-hidden" for="g-title-2">日程标题</label>
+        <textarea class="bar__title" id="g-title-2" rows="2" placeholder="要安排什么？"></textarea>
+
+        <div class="bar__when">
+          <button type="button" class="when-chip" aria-expanded="false" aria-haspopup="dialog">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="2" y="3.5" width="12" height="10.5" rx="2.5"/><path d="M2 7h12M5.5 2v3M10.5 2v3"/>
+            </svg>
+            今天<span class="when-chip__sep">·</span>15:00 – 16:00
+          </button>
+          <div class="dur" role="radiogroup" aria-label="时长">
+            <button type="button" class="dur__btn" role="radio" aria-checked="false">30m</button>
+            <button type="button" class="dur__btn" role="radio" aria-checked="true">1h</button>
+            <button type="button" class="dur__btn" role="radio" aria-checked="false">2h</button>
+            <button type="button" class="dur__btn" role="radio" aria-checked="false">全天</button>
+          </div>
+        </div>
+
+        <p class="bar__msg" role="alert">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="flex:none;translate:0 2px">
+            <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/>
+          </svg>
+          <span>保存失败，内容已保留。</span>
+        </p>
+
+        <div class="bar__foot">
+          <button type="button" class="list-chip" aria-expanded="false" aria-haspopup="listbox">
+            <span class="list-chip__dot" aria-hidden="true"></span>收集箱
+          </button>
+          <span class="bar__spacer"></span>
+          <button type="button" class="bar__cta">新建</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>宽度仍是 560px。</b>D 稿定的 35rem 没被推翻——实现里砍到 400 是为了「贴着一个窄日历列弹」，而居中态的 Ctrl+N 没有这个约束。</li>
+    <li><b>时间 chip + 时长分开。</b>时长是单选（<code>role=radiogroup</code>），结束时间由「开始 + 时长」派生，不存第二个时钟——这条是 D 稿和现有实现都对的，保留。</li>
+    <li><b>主按钮是「新建」。</b>与顶栏 <code>topBar.newEvent</code>（新建日程）同一个动词。</li>
+    <li><b>切模式不丢内容。</b>标题保留；另一侧的字段收起但不清空，切回来还在。</li>
+    <li><b>这里没有「结束时间需晚于开始时间」。</b>结束时间是「开始 + 时长」派生的，
+        在这个结构下那个状态不可能出现。现有 <code>EventEditor</code> 里那条
+        <code>event.rangeError</code> 属于「开始/结束各有一个时钟」的旧结构
+        （<code>EventEditor.tsx:264-269</code>），捕获条沿用派生时长就没有它。
+        日程模式唯一会失败的是<b>写库失败</b>，所以错误行画的是那一条。</li>
+  </ul>
+</section>
+
+<!-- ============================ 03 象限 chip 四态 ============================ -->
+<section class="stage">
+  <p class="cap"><b>03</b> 象限 chip · 默认 / 悬停 / 焦点 / 选中 <span class="rule"></span>
+    <span>四种颜色各看一遍</span></p>
+
+  <div class="canvas">
+    <div style="display:flex;flex-direction:column;gap:1.25rem">
+      <div>
+        <p class="canvas__note" style="margin-block-end:.5rem">默认：只有色点带颜色，文字是次要墨</p>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+      </div>
+      <div>
+        <p class="canvas__note" style="margin-block-end:.5rem">悬停（第 2 项）/ 键盘焦点（第 3 项）</p>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip demo-hover" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip demo-focus" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+      </div>
+      <div>
+        <p class="canvas__note" style="margin-block-end:.5rem">选中：每一项各演示一次</p>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>颜色只出现在两个地方：色点和选中块的底。</b>不选中的 chip 是中性墨——四种颜色同时铺满会变成交通灯，反而看不清哪个被选中。</li>
+    <li><b>选中 = qN-tint 底 + qN-ink 字 + 26% 色相环</b>，与象限卡头（<code>Badge</code>）、详情面板的象限控件同一套。</li>
+  </ul>
+</section>
+
+<!-- ============================ 04 前后对照 ============================ -->
+<section class="stage">
+  <p class="cap"><b>04</b> 现状 vs 本稿 <span class="rule"></span>
+    <span>同一块四象限板，同一次 Ctrl+N</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="compare">
+      <div>
+        <p class="compare__label"><b>现状</b><span class="tag-bad">不自洽</span></p>
+        <div class="bar bar--old" role="dialog" aria-modal="false" aria-label="新建日程">
+          <textarea class="bar__title" rows="1" placeholder="准备做什么？"></textarea>
+          <div class="bar__oldbody">
+            <div class="bar__when" style="padding:0">
+              <button type="button" class="when-chip">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                  <rect x="2" y="3.5" width="12" height="10.5" rx="2.5"/><path d="M2 7h12M5.5 2v3M10.5 2v3"/>
+                </svg>
+                今天<span class="when-chip__sep">·</span>19:00 – 20:00
+              </button>
+              <div class="dur" role="radiogroup" aria-label="时长">
+                <button type="button" class="dur__btn" role="radio" aria-checked="false">30m</button>
+                <button type="button" class="dur__btn" role="radio" aria-checked="true">1h</button>
+                <button type="button" class="dur__btn" role="radio" aria-checked="false">2h</button>
+                <button type="button" class="dur__btn" role="radio" aria-checked="false">全天</button>
+              </div>
+            </div>
+          </div>
+          <div class="bar__foot">
+            <button type="button" class="list-chip"><span class="list-chip__dot" aria-hidden="true"></span>收集箱</button>
+            <span class="bar__spacer"></span>
+            <button type="button" class="bar__cta" disabled>添加</button>
+          </div>
+        </div>
+
+        <div class="board">
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q1)"></span>重要且紧急</div>
+            <div class="board__row"><span>交报销单</span><span>今天</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q2)"></span>重要不紧急</div>
+            <div class="board__row"><span>读《深度工作》</span><span></span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q3)"></span>不重要但紧急</div>
+            <div class="board__row"><span>回客户邮件</span><span>今天</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q4)"></span>不重要不紧急</div>
+            <div class="board__row board__row--ghost"><span>刚建的那条不在这里</span><span></span></div>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          建的是 <code>CalendarEvent</code>，而板只渲染 <code>Task</code>。
+          实测：建完四象限页 <code>innerText</code> 不含标题；切月/周视图才出现。
+        </p>
+      </div>
+
+      <div>
+        <p class="compare__label"><b>本稿</b><span class="tag-good">一条条，两种对象</span></p>
+        <div class="bar" role="dialog" aria-modal="false" aria-label="快速添加">
+          <div class="bar__type">
+            <div class="type-seg" role="radiogroup" aria-label="类型">
+              <button type="button" class="type-seg__btn" role="radio" aria-checked="true">任务</button>
+              <button type="button" class="type-seg__btn" role="radio" aria-checked="false">日程</button>
+            </div>
+          </div>
+          <textarea class="bar__title" rows="2" placeholder="要做什么？"></textarea>
+          <div class="bar__quad" role="radiogroup" aria-label="象限">
+            <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+            <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+            <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+            <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+          </div>
+          <div class="bar__foot">
+            <button type="button" class="list-chip"><span class="list-chip__dot" aria-hidden="true"></span>收集箱</button>
+            <span class="bar__spacer"></span>
+            <button type="button" class="bar__cta" disabled>添加</button>
+          </div>
+        </div>
+
+        <div class="board">
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q1)"></span>重要且紧急</div>
+            <div class="board__row"><span>交报销单</span><span>今天</span></div>
+            <div class="board__row" style="color:var(--ink-1);font-weight:600"><span>刚建的那条</span><span>刚</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q2)"></span>重要不紧急</div>
+            <div class="board__row"><span>读《深度工作》</span><span></span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q3)"></span>不重要但紧急</div>
+            <div class="board__row"><span>回客户邮件</span><span>今天</span></div>
+          </div>
+          <div class="board__card">
+            <div class="board__head"><span class="board__dot" style="background:var(--q4)"></span>不重要不紧急</div>
+            <div class="board__row"><span>整理相册</span><span></span></div>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:.75rem">
+          建的是 <code>Task</code>，落在刚选的那张卡里。建完板立刻刷新——因为
+          <code>useTasks</code> 的 revision 被 <code>bump()</code> 推了一格。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 05 提交失败 ============================ -->
+<section class="stage">
+  <p class="cap"><b>05</b> 提交失败 · 内容一个字不丢 <span class="rule"></span>
+    <span>错误行紧贴标题</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="canvas__center">
+      <div class="bar" role="dialog" aria-modal="false" aria-label="快速添加">
+        <div class="bar__type">
+          <div class="type-seg" role="radiogroup" aria-label="类型">
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="true">任务</button>
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="false">日程</button>
+          </div>
+        </div>
+        <textarea class="bar__title" rows="2">跟进合同签署</textarea>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+        <p class="bar__msg" data-on role="alert">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true" style="flex:none;translate:0 2px">
+            <circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/>
+          </svg>
+          <span>保存失败，内容已保留。请重试。</span>
+        </p>
+        <div class="bar__foot">
+          <button type="button" class="list-chip"><span class="list-chip__dot" aria-hidden="true"></span>收集箱</button>
+          <span class="bar__spacer"></span>
+          <button type="button" class="bar__cta" data-keep-label>重试</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>错误行在标题正下方</b>，紧挨用户刚打的字——这条沿用 D 稿 §03。</li>
+    <li><b>主按钮变成「重试」</b>，不是一个还在写「添加」的按钮，让人怀疑刚才到底点没点上。</li>
+    <li><b>标题、象限、清单全都原样保留。</b>一次写库失败不该让用户重打一遍。</li>
+    <li><b><code>role="alert"</code></b>，焦点留在标题上，屏幕阅读器会读出来。</li>
+  </ul>
+</section>
+
+<!-- ============================ 06 六个组合实测 ============================ -->
+<section class="stage">
+  <p class="cap"><b>06</b> 六个组合的对比度（脚本实算） <span class="rule"></span>
+    <span>文字 4.5:1 · 边界 3:1</span></p>
+
+  <div class="canvas">
+    <table class="spec">
+      <thead>
+        <tr>
+          <th>组合</th>
+          <th>未选中 chip</th>
+          <th>选中 chip 字</th>
+          <th>选中 chip 边</th>
+          <th>开关选中</th>
+          <th>禁用 CTA</th>
+          <th>启用 CTA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>refined / light</td><td class="num">5.07</td><td class="num">5.06</td><td class="num">5.06</td><td class="num">5.17</td><td class="num">4.46</td><td class="num">5.17</td></tr>
+        <tr><td>refined / dark</td><td class="num">6.96</td><td class="num">6.96</td><td class="num">5.93</td><td class="num">6.47</td><td class="num">7.91</td><td class="num">5.03</td></tr>
+        <tr><td>protool / light</td><td class="num">6.53</td><td class="num">5.35</td><td class="num">5.35</td><td class="num">6.73</td><td class="num">5.78</td><td class="num">5.37</td></tr>
+        <tr><td>protool / dark</td><td class="num">6.81</td><td class="num">5.42</td><td class="num">5.42</td><td class="num">5.67</td><td class="num">7.67</td><td class="num">6.19</td></tr>
+        <tr><td>editorial / light</td><td class="num">5.96</td><td class="num">5.38</td><td class="num">5.36</td><td class="num">5.36</td><td class="num">5.15</td><td class="num">4.79</td></tr>
+        <tr><td>editorial / dark</td><td class="num">6.15</td><td class="num">4.65</td><td class="num">4.65</td><td class="num">5.84</td><td class="num">6.98</td><td class="num">5.41</td></tr>
+      </tbody>
+    </table>
+
+    <table class="spec" style="margin-block-start:1.5rem">
+      <thead>
+        <tr><th>项</th><th>取色</th><th>为什么</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>未选中 chip</td>
+          <td><code>--tl-text-secondary</code> / <code>--tl-surface</code></td>
+          <td>中性墨，四种色相只在色点上，避免四色铺满成交通灯</td>
+        </tr>
+        <tr>
+          <td>选中 chip</td>
+          <td><code>--tl-quadrant-qN-ink</code> 作字与边 / <code>--tl-quadrant-qN-tint</code> 作底</td>
+          <td>与象限卡头同一套令牌。<b>边框用 -ink 而不是色相本身</b>：色相压面板只有 2.20–2.99，过不了 1.4.11 的 3:1；-ink 是 5.17–6.19</td>
+        </tr>
+        <tr>
+          <td>开关选中</td>
+          <td><code>--tl-accent-ink</code> / <code>--tl-surface</code></td>
+          <td>与 <code>.tl-seg</code> 一致：选中项被抬到 surface 上</td>
+        </tr>
+        <tr class="bad">
+          <td>禁用 CTA<span style="color:var(--ink-2);font-weight:400">（偏离 §5.1）</span></td>
+          <td><code>--tl-text-secondary</code> / <code>--tl-surface-sunken</code></td>
+          <td>§5.1 规定的 <code>--tl-text-disabled</code> 在此底上只有 <b>1.48 / 2.74 / 1.67 / 2.65 / 1.76 / 2.34</b>，低于 3:1，按钮会消失成空槽。改用 secondary 后是 <b>4.46 / 7.91 / 5.78 / 7.67 / 5.15 / 6.98</b></td>
+        </tr>
+        <tr>
+          <td>启用 CTA</td>
+          <td><code>--tl-cta-text</code> / <code>--tl-cta-bg</code></td>
+          <td>不能用 <code>--tl-accent</code> + <code>--tl-accent-contrast</code>：refined/light 是 <b>3.68:1</b>。这正是 F 稿修过的那个坑，cta 这对令牌就是为它建的（5.17 / 5.03 / 5.37 / 6.19 / 4.79 / 5.41）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:1rem;color:var(--ink-1)">
+      现状对照之一：主按钮 disabled 走 <code>.tl-btn:disabled</code> 的 <code>opacity: .5</code>，
+      把 <code>#2563eb</code> + 白字整体淡出成 <code>rgb(146,177,245)</code> + 白 =
+      <b style="color:var(--danger-ink)">2.14:1</b>。这正是 §5.1 那句「禁用是颜色，不是淡出」要防的。
+    </p>
+    <p class="canvas__note" style="margin-block-start:.5rem;color:var(--ink-1)">
+      现状对照之二：启用态用 <code>--tl-accent</code> + <code>--tl-accent-contrast</code>，
+      refined/light 下是 <b style="color:var(--danger-ink)">3.68:1</b>——比禁用态还难看。
+      本稿改用 <code>--tl-cta-bg</code> / <code>--tl-cta-text</code>，5.17。
+    </p>
+    </p>
+  </div>
+</section>
+
+<!-- ============================ 07 与 D 稿的关系 ============================ -->
+<section class="stage">
+  <p class="cap"><b>07</b> 与 D 稿的偏差 · 哪些是改坏了 <span class="rule"></span>
+    <span>D 只设计了一半，实现又偏离了那一半</span></p>
+
+  <div class="canvas">
+    <table class="spec">
+      <thead>
+        <tr><th>项</th><th>D 稿 §01</th><th>实际跑起来</th><th>判定</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>面板宽度</td><td class="num">560px</td><td class="num">400px</td><td>实现偏离</td></tr>
+        <tr><td>标题字段</td><td><code>&lt;textarea&gt;</code> 3 行</td><td><code>&lt;input&gt;</code> 1 行</td><td>实现偏离</td></tr>
+        <tr><td>标题高度</td><td class="num">100.5px</td><td class="num">30.9px</td><td>实现偏离</td></tr>
+        <tr><td>可见标签</td><td>「新建日程」</td><td>无（只有 visually-hidden）</td><td>实现偏离</td></tr>
+        <tr class="bad"><td>占位文案</td><td>「例如：产品评审」</td><td>「准备做什么？」</td><td>D 稿第 14 行明写要删</td></tr>
+        <tr class="bad"><td>主按钮（日程）</td><td>「新建」</td><td>「添加」</td><td>D 稿第 789 行明写不能用</td></tr>
+        <tr><td>备注 / ⋯</td><td>有</td><td>无</td><td>实现偏离</td></tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:1rem">
+      <b style="color:var(--ink-1)">为什么 D 稿没有象限：</b>它的题目是「新建日程」。
+      <code>CalendarEvent</code> 域模型里确实没有 important / urgent
+      （<code>types.ts:159-169</code>），所以 D 稿删掉「优先级」是对的。
+      它没有错——它只是<b>不是</b>这条 Ctrl+N 该有的全部。缺的那一半是<b>任务的全局捕获</b>，
+      本稿补的就是它。
+    </p>
+    <p class="canvas__note" style="margin-block-start:.5rem">
+      <b style="color:var(--ink-1)">为什么这很重要：</b>
+      <code>QuickAdd.tsx</code> 是唯一支持 <code>/重要 /紧急</code> 的输入框，
+      但它的父组件只在传入 <code>onCreate</code> 时才渲染它，
+      而全仓唯一一处 <code>&lt;TaskListScreen&gt;</code> 没传。
+      实测四个视图下 <code>.tk-quickadd</code> 数量恒为 0。
+      也就是说这条产品的中枢概念，在唯一的快速入口里根本不存在。
+    </p>
+  </div>
+</section>
+
+<!-- ============================ 08 960px ============================ -->
+<section class="stage">
+  <p class="cap"><b>08</b> 960px 窗口下限 <span class="rule"></span>
+    <span>560px 条 + 四张 chip 一行放得下</span></p>
+
+  <div class="canvas">
+    <!-- 960 是窗口下限，不是内容宽度：应用外壳此时还留着侧栏与页边距，
+         捕获条真实可用宽度约 560px。这里按那个宽度收紧，而不是撑满画布。 -->
+    <div style="inline-size:min(100%,35rem)">
+      <div class="bar" style="max-inline-size:100%">
+        <div class="bar__type">
+          <div class="type-seg" role="radiogroup" aria-label="类型">
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="true">任务</button>
+            <button type="button" class="type-seg__btn" role="radio" aria-checked="false">日程</button>
+          </div>
+        </div>
+        <textarea class="bar__title" rows="2" placeholder="要做什么？"></textarea>
+        <div class="bar__quad" role="radiogroup" aria-label="象限">
+          <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot" aria-hidden="true"></span>重要且紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>重要不紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要但紧急</button>
+          <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot" aria-hidden="true"></span>不重要不紧急</button>
+        </div>
+        <div class="bar__foot">
+          <button type="button" class="list-chip"><span class="list-chip__dot" aria-hidden="true"></span>收集箱</button>
+          <span class="bar__spacer"></span>
+          <button type="button" class="bar__cta" disabled>添加</button>
+        </div>
+      </div>
+    </div>
+    <p class="canvas__note" style="margin-block-start:1rem">
+      更窄时四张 chip 按 <code>flex-wrap</code> 落成 2×2，不缩字号、不裁标签。
+    </p>
+  </div>
+</section>
+
+<script>
+document.querySelectorAll('[data-set-skin]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-skin', btn.getAttribute('data-set-skin'));
+    document.querySelectorAll('[data-set-skin]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-theme', btn.getAttribute('data-theme'));
+    document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+
+/*
+  单选组：点一个，其余取消，并维护 roving tabindex。
+
+  为什么要写 roving tabindex：.qchip 与 .type-seg__btn 都是 <button
+  role="radio">，原生 button 的可聚焦性让四个 chip 全在 Tab 序列里
+  （实测 tabIndex 全为 0）。WAI-ARIA 的 radio group 约定是**整组一个 Tab 停点**，
+  组内方向键移动。全为 0 的话，键盘用户要按四次 Tab 才越过这一组，
+  而且方向键什么都不做——这正是 review 量出来的那个缺陷。
+
+  实现要点（与 SegmentedControl.tsx:39-52 同一套）：
+  · 只有选中项 tabIndex=0，其余 -1；
+  · ArrowRight/Down → 下一项，ArrowLeft/Up → 上一项，环绕；
+  · Home/End → 首/末；
+  · 方向键同时**改变选中值并移动焦点**（radio 的约定，不是 tablist 的约定）。
+*/
+function wireRadioGroup(group) {
+  var items = Array.prototype.slice.call(group.querySelectorAll('[role="radio"]'));
+  if (!items.length) return;
+
+  function select(target, moveFocus) {
+    items.forEach(function (x) {
+      var on = x === target;
+      x.setAttribute('aria-checked', String(on));
+      x.tabIndex = on ? 0 : -1;
+    });
+    if (moveFocus) target.focus();
+  }
+
+  // Initial state: whatever is aria-checked, else the first.
+  var checked = items.filter(function (x) { return x.getAttribute('aria-checked') === 'true'; })[0] || items[0];
+  select(checked, false);
+
+  items.forEach(function (item, i) {
+    item.addEventListener('click', function () {
+      select(item, false);
+      // 类型开关与象限都不改变其它字段的显隐，但时长/类型的切换要重跑模式同步。
+      var bar = group.closest('.bar');
+      if (bar) syncMode(bar);
+    });
+    item.addEventListener('keydown', function (e) {
+      var last = items.length - 1;
+      var next = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = i === last ? 0 : i + 1;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = i === 0 ? last : i - 1;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = last;
+      else return;
+      e.preventDefault();
+      select(items[next], true);
+      // 选中值变了，模式联动要跟着跑
+      var bar = group.closest('.bar');
+      if (bar) syncMode(bar);
+    });
+  });
+}
+
+document.querySelectorAll('.bar__quad[role="radiogroup"], .type-seg[role="radiogroup"], .dur[role="radiogroup"]')
+  .forEach(wireRadioGroup);
+
+/*
+  翻模式时只切显隐，不销毁字段——这正是实现里要照做的行为：
+  标题、清单、时间都留在 DOM 里，切回来还在。
+*/
+function syncMode(bar) {
+  if (!bar) return;
+  /* Bars without a type toggle (the 现状 specimen in §04) keep their own copy.
+     Treating "no toggle" as 日程 flipped that bar's placeholder to 要安排什么？,
+     which is exactly the kind of silent relabelling this doc exists to stop. */
+  if (!bar.querySelector('.type-seg')) return;
+  var checked = bar.querySelector('.type-seg__btn[aria-checked="true"]');
+  var isTask = checked && checked.textContent.trim() === '任务';
+  var quad = bar.querySelector('.bar__quad');
+  var when = bar.querySelector('.bar__when');
+  var title = bar.querySelector('.bar__title');
+  var cta = bar.querySelector('.bar__cta');
+  if (quad) quad.hidden = !isTask;
+  if (when) when.hidden = isTask;
+  if (title) title.placeholder = isTask ? '要做什么？' : '要安排什么？';
+  /* §05's CTA reads 重试 and must stay that way; only the idle label follows
+     the mode. `data-keep-label` is the escape hatch the demo needs. */
+  if (cta && !cta.disabled && !cta.hasAttribute('data-keep-label')) {
+    cta.textContent = isTask ? '添加' : '新建';
+  }
+}
+
+document.querySelectorAll('.bar').forEach(syncMode);
+</script>
+</body>
+</html>

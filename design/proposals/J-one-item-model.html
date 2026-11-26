@@ -1,0 +1,2025 @@
+<!DOCTYPE html>
+<!--
+  方向 J — "一个事项模型"  ·  v1  ·  2026-11-26
+  与 A refined / B pro-tool / C editorial / D capture-first /
+  E update panel / F view switcher / G one capture bar 同源。
+
+  ── 为什么要有这一份 ──────────────────────────────────────────────────────
+  用户的原话：
+
+    「任务 / 日程，你引入了这两个概念，但是在四象限和各个日历视图里完全
+      区分不出来啊。别硬造概念，都是要干的事。只是有的是有明确时间，有的
+      只是有个大概时间甚至没有时间限制。」
+
+  以及同一轮里的定位：
+
+    「产品设计一定要逻辑全局一致，这本质上是管理学的问题。」
+
+  这不是一个配色问题，也不是一个控件位置问题。它问的是：这个应用里到底有
+  几种东西？现在的答案是两种，而用户在界面上根本分不出来——用户说得对。
+
+  ── 结论（本稿的立场）──────────────────────────────────────────────────
+  一个概念，一张表，一个生命周期。
+
+  这不是「新增一个统一的概念」，而是**删掉一个概念**。数据库里 tasks 与
+  events 合成 items；捕获条上的「任务 | 日程」开关删除；点开任何一块日历
+  都打开同一个详情面板。「任务 / 日程 的区别」对用户完全不可见：没有开关、
+  没有徽标、没有第二个编辑器可以打开。
+
+  ── 现状实测（读代码，不是目测）──────────────────────────────────────────
+  1. 两张表形状几乎一样，但各有一半字段（packages/adapters/src/sqlite/
+     schema.ts:36 tasks / :51 events）：
+       tasks  → list_id NOT NULL, status, important, urgent, due_at,
+                due_date, all_day, due_period, recurrence, completed_at
+       events → list_id NULL, start_at, end_at, all_day
+     没有一列是「日程」独有的语义；差别只是两张表各存了一半。
+  2. 视图层其实早就统一了。CalendarEntry（types.ts:176）已经是两者共同投影
+     的形状，注释原话：「so the calendar never needs to know which source an
+     entry came from」。整个 UI 只有一个类型；分叉只在存储和
+     TaskService / EventService。
+  3. 全仓只有 4 处按 source 分叉：EventEditor.tsx:149 / 301 / 330 / 538（任务
+     条目在日程编辑器里只读）和 Shell.tsx:430（任务条目打开任务面板）。
+     也就是说，「区分不出来」不是渲染没做，是**数据模型把区分强加给了两个
+     恰好读同一个类型的编辑器**。
+  4. taskToEntry()（calendar.ts:52）在没有日期时返回 null——没日期的任务
+     永远不上日历；eventToEntry() 永远产出条目。这就是为什么「四象限里看得
+     到，日历里看不到」。
+  5. 精度阶梯只有四档：none | day | period | time（task.ts:30）。日程永远是
+     一个区间。两者根本无法互相表达。
+  6. 还有一个可以直接看到的症状：time 精度的任务在周视图里画的是
+     formatRange(startAt, endAt)，而 taskToEntry 对一个时刻任务令
+     end = dueAt，于是 chip 上写的是「15:30 - 15:30」（WeekView.tsx:392、
+     calendar.ts:67）。一个「时刻」被当成零长区间画了出来。这不是排版问题，
+     是模型里没有一个「点 / 区间」的区分。
+
+  ── 本稿的解法（一句话）─────────────────────────────────────────────────
+  一个事项 = 一个时间形状 + 一组属性。**没有 kind 列**。是不是「会议」不是
+  存出来的，是它的时间形状决定的：有开始有结束就是一段，只有一个时刻就是
+  一个点，只有一天就是一天。所有差异行为（是否逾期、会不会提醒、能不能重
+  复）都由几何推出，不需要用户先声明自己建的是哪一类。
+
+  ── 六个组合实测（脚本实算，非目测）──────────────────────────────────────
+  这里的数是在浏览器里把每个元素真实渲染后的背景逐层合成、再读 computed color
+  算出来的。903 个带文字的元素 × 6 组合，低于门槛的现在是 0 个。
+
+  组合              二级墨  安静墨  chip字  chip标题  chip时间  完成标题  CTA  象限选中 禁用CTA
+  refined/light      5.07    4.68    4.68    14.57     5.17     5.66   5.17   5.06    6.42
+  refined/dark       6.96    5.58    5.58    12.28     6.27     6.85   5.03   7.16   10.00
+  protool/light      5.65    4.67    4.67    13.65     5.33     6.05   5.37   5.35    6.95
+  protool/dark       6.64    5.19    5.19    12.45     6.04     6.58   6.19   5.42    9.63
+  editorial/light    5.96    4.77    4.77    11.52     5.48     6.23   4.79   5.37    6.63
+  editorial/dark     6.15    4.68    4.68    10.94     5.44     6.07   5.41   4.68    8.91
+
+  chip 标题/时间取八条清单色相里最低的一条。全部 ≥ 4.5。
+
+  ── 三处必须承认的细节 ───────────────────────────────────────────────────
+  1. --tl-text-tertiary 在 --tl-bg 上不过线（4.27 / 4.49 / 4.62 三档浅色）。
+     所以本稿引入了一个派生令牌 --tl-ink-quiet（secondary 往 text 推 28%），
+     只给「真要被读的小字」用。这是对 DESIGN-LANGUAGE §2.1 的有意偏离。
+  2. 它最初写在 :root，引用的两个变量还没定义 → color-mix 整条被丢弃 →
+     字**静默回落到全黑**，禁用 CTA 反而变成 14.8:1。移到 [data-skin] 才对。
+     这类失效不打日志，只能靠量。
+  3. 一稿里详情面板的象限 tab 直接用 --tl-quadrant-qN-tint 做底：那带 alpha，
+     叠在 sunken 槽上比叠在 surface 上暗一档，q2 只有 4.40。改成「抬到 surface
+     + 自身 7%/8% 淡底」后四档最低 4.69。
+
+  一处**已有的**非文字缺口，本稿不新增、也不假装没有：chip 左侧 3px 色条
+  压在 chip 自身淡底上只有 2.14–3.71:1（浅色最低，深色 3.61–3.71）。它和
+  今天写进 calendar.css 的是同一套 --tl-block-* 令牌，是一条冗余装饰（文字
+  标题与块底色才是识别信息），不属于 1.4.11 要求的「识别控件所必需的边界」。
+  本稿不改它；如果以后要收紧，改的是色条取色，不是模型。
+
+  ── 依据 ─────────────────────────────────────────────────────────────────
+  packages/adapters/src/sqlite/schema.ts（:36 tasks, :51 events, migrate 无事务）
+  packages/core/src/domain/types.ts:120-202
+  packages/core/src/domain/calendar.ts:52
+  packages/core/src/domain/task.ts:30, :32, :80
+  packages/core/src/application/task-service.ts:47, :107
+  packages/core/src/application/list-service.ts:54
+  packages/core/src/application/import-service.ts:35
+  packages/features/src/calendar/EventEditor.tsx:149/301/330/538
+  packages/features/src/calendar/QuickEventComposer.tsx:472-483
+  packages/features/src/calendar/WeekView.tsx:392
+  packages/features/src/reminders/ReminderScheduler.ts:90
+  apps/desktop/src/shell/Shell.tsx:429-432
+  docs/DESIGN-LANGUAGE.md §1-§5
+  packages/ui/src/tokens.css
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一个事项模型 · 设计提案 J</title>
+<style>
+/* ============================================================================
+   T3 共享令牌 —— 逐值取自 packages/ui/src/tokens.css
+   （T1 字面量只允许出现在 tokens.css；本文件的皮肤块就是它的镜像。）
+   ========================================================================== */
+:root {
+  --tl-font-sans: "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei",
+                  "Noto Sans SC", system-ui, -apple-system, sans-serif;
+  --tl-font-mono: "SFMono-Regular", "Cascadia Code", Consolas, monospace;
+
+  --tl-space-hairline: 1px;
+  --tl-space-dense: 2px;
+  --tl-space-dense-2: 3px;
+  --tl-space-1: 4px;
+  --tl-space-compact: 6px;
+  --tl-space-2: 8px;
+  --tl-space-3: 12px;
+  --tl-space-4: 16px;
+  --tl-space-5: 20px;
+  --tl-space-6: 24px;
+  --tl-space-8: 32px;
+
+  --tl-radius-xs: 4px;
+  --tl-radius-sm: 6px;
+  --tl-radius-md: 8px;
+  --tl-radius-lg: 10px;
+  --tl-radius-xl: 12px;
+  --tl-radius-full: 999px;
+
+  --tl-font-size-xs: 12px;
+  --tl-font-size-sm: 13px;
+  --tl-font-size-base: 14px;
+  --tl-font-size-md: 15px;
+  --tl-font-size-lg: 17px;
+  --tl-font-size-xl: 20px;
+
+  --tl-font-weight-regular: 400;
+  --tl-font-weight-medium: 500;
+  --tl-font-weight-semibold: 600;
+
+  --tl-line-height-tight: 1.2;
+  --tl-line-height-snug: 1.35;
+  --tl-line-height-normal: 1.5;
+
+  --tl-duration-fast: 120ms;
+  --tl-duration-base: 180ms;
+  --tl-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --tl-ease-out: cubic-bezier(0, 0, 0.2, 1);
+
+  --tl-control-h: 32px;
+  --tl-control-h-sm: 28px;
+  --tl-row-h: 36px;
+
+  /* 彩色块：一条规则管所有日历块与清单卡（tokens.css 注释原话） */
+  --tl-block-tint: 14%;
+  --tl-block-tint-hover: 20%;
+  --tl-block-tint-muted: 7%;
+  --tl-block-bar: 3px;
+  --tl-block-bar-muted: 55%;
+  --tl-block-radius: var(--tl-radius-sm);
+}
+
+/* 深色把同一套中性/染色翻一档；色相身份不变。 */
+[data-theme="dark"] {
+  --tl-block-tint: 16%;
+  --tl-block-tint-hover: 22%;
+  --tl-block-tint-muted: 8%;
+}
+
+/* 安静的元信息墨。必须在 [data-skin] **之后**声明：它引用 --tl-text-secondary
+   与 --tl-text，而这两个只在皮肤块里定义。写在 :root 里时这两个变量还是空的，
+   color-mix 整条失效，字会**静默回落到全黑**（实测禁用 CTA 变成 14.8:1，
+   比启用态还响）——这是 cascade 顺序造成的一类假绿。
+
+   --tl-text-tertiary 是给「提示」的，在 --tl-bg 上不过线：实测
+   4.27 / 5.07 / 4.49 / 5.06 / 4.62 / 4.99，浅色三档 < 4.5。
+   所以任何真要被读的小字（行副标题、时间戳、存储列、禁用 CTA）用这个：
+   secondary 往 text 推 28%，六组合在 bg / sunken / subtle / surface 上最低 6.32。 */
+[data-skin] {
+  --tl-ink-quiet: color-mix(in oklab, var(--tl-text-secondary) 72%, var(--tl-text));
+}
+
+/* ---- A · refined（默认皮肤）--------------------------------------------- */
+[data-skin="refined"] {
+  --tl-bg: #f5f5f6;
+  --tl-surface: #ffffff;
+  --tl-surface-raised: #ffffff;
+  --tl-surface-subtle: #fafafa;
+  --tl-surface-hover: #f4f4f5;
+  --tl-surface-sunken: #f0f0f2;
+  --tl-border: #ececee;
+  --tl-border-soft: #f2f2f4;
+  --tl-border-strong: #e3e3e6;
+  --tl-text: #1d1d1f;
+  --tl-text-secondary: #6e6e73;
+  --tl-text-tertiary: #747478;
+  --tl-text-disabled: #c7c7cc;
+  --tl-text-inverse: #ffffff;
+  --tl-accent: #3b82f6;
+  --tl-accent-hover: #2f74e8;
+  --tl-accent-ink: #2563eb;
+  --tl-accent-tint: #eef4ff;
+  --tl-accent-strong: #2563eb;
+  --tl-accent-strong-hover: #1d4ed8;
+  --tl-accent-contrast: #ffffff;
+  --tl-cta-bg: var(--tl-accent-strong);
+  --tl-cta-bg-hover: var(--tl-accent-strong-hover);
+  --tl-cta-text: var(--tl-accent-contrast);
+  --tl-danger: #ff5252;
+  --tl-danger-ink: #c62828;
+  --tl-danger-tint: #fff0ef;
+  --tl-success: #10b981;
+  --tl-success-ink: #047857;
+  --tl-focus-ring: #3b82f6;
+  --tl-quadrant-q1: #ff5252; --tl-quadrant-q1-tint: #fff0ef; --tl-quadrant-q1-ink: #c62828;
+  --tl-quadrant-q2: #ff9500; --tl-quadrant-q2-tint: #fff6e8; --tl-quadrant-q2-ink: #955400;
+  --tl-quadrant-q3: #3b82f6; --tl-quadrant-q3-tint: #eff5ff; --tl-quadrant-q3-ink: #2563eb;
+  --tl-quadrant-q4: #10b981; --tl-quadrant-q4-tint: #ebf9f3; --tl-quadrant-q4-ink: #047857;
+  --tl-hue-1-base: #5b8def; --tl-hue-2-base: #3aa88b; --tl-hue-3-base: #d99a3d;
+  --tl-hue-4-base: #dd7366; --tl-hue-5-base: #8b79c9; --tl-hue-6-base: #c56d92;
+  --tl-hue-7-base: #88a35c; --tl-hue-8-base: #4a9cc0;
+  --tl-block-title-ink: var(--tl-text);
+  --tl-block-time-ink: color-mix(in oklab, var(--tl-text-secondary) 88%, var(--tl-text));
+  --tl-shadow-sm: 0 1px 2px rgba(20, 20, 25, 0.05);
+  --tl-shadow-md: 0 1px 2px rgba(20, 20, 25, 0.04), 0 6px 16px -10px rgba(20, 20, 25, 0.14);
+  --tl-shadow-lg: 0 2px 4px rgba(20, 20, 25, 0.05), 0 14px 34px -12px rgba(20, 20, 25, 0.18);
+}
+[data-skin="refined"][data-theme="dark"] {
+  --tl-bg: #161617;
+  --tl-surface: #1f1f21;
+  --tl-surface-raised: #262628;
+  --tl-surface-subtle: #1a1a1c;
+  --tl-surface-hover: #2a2a2d;
+  --tl-surface-sunken: #121214;
+  --tl-border: #2e2e32;
+  --tl-border-soft: #26262a;
+  --tl-border-strong: #3c3c42;
+  --tl-text: #f5f5f7;
+  --tl-text-secondary: #a8a8ae;
+  --tl-text-tertiary: #87878e;
+  --tl-text-disabled: #5a5a61;
+  --tl-text-inverse: #1d1d1f;
+  --tl-accent: #3b82f6;
+  --tl-accent-hover: #4f8ef7;
+  --tl-accent-ink: #60a5fa;
+  --tl-accent-tint: #1c2b45;
+  --tl-accent-strong: #3b82f6;
+  --tl-accent-strong-hover: #4f8ef7;
+  --tl-accent-contrast: #101418;
+  --tl-danger: #ff5252;
+  --tl-danger-ink: #ff6b6b;
+  --tl-danger-tint: #3a2424;
+  --tl-success: #10b981;
+  --tl-success-ink: #34d399;
+  --tl-focus-ring: #60a5fa;
+  --tl-quadrant-q1: #ff5252; --tl-quadrant-q1-tint: #3a2424; --tl-quadrant-q1-ink: #ff6b6b;
+  --tl-quadrant-q2: #ff9500; --tl-quadrant-q2-tint: #3a2e1c; --tl-quadrant-q2-ink: #ffb74d;
+  --tl-quadrant-q3: #3b82f6; --tl-quadrant-q3-tint: #1c2b45; --tl-quadrant-q3-ink: #60a5fa;
+  --tl-quadrant-q4: #10b981; --tl-quadrant-q4-tint: #173229; --tl-quadrant-q4-ink: #34d399;
+  --tl-hue-1-base: #5b8def; --tl-hue-2-base: #3aa88b; --tl-hue-3-base: #d99a3d;
+  --tl-hue-4-base: #dd7366; --tl-hue-5-base: #8b79c9; --tl-hue-6-base: #c56d92;
+  --tl-hue-7-base: #88a35c; --tl-hue-8-base: #4a9cc0;
+  --tl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --tl-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.4), 0 14px 34px -12px rgba(0, 0, 0, 0.6);
+  --tl-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 14px 34px -12px rgba(0, 0, 0, 0.6);
+}
+
+/* ---- B · protool -------------------------------------------------------- */
+[data-skin="protool"] {
+  --tl-bg: #fbfbfa;
+  --tl-surface: #ffffff;
+  --tl-surface-raised: #ffffff;
+  --tl-surface-subtle: #f6f5f2;
+  --tl-surface-hover: #f4f3f0;
+  --tl-surface-sunken: #f2f1ee;
+  --tl-border: #e6e5e3;
+  --tl-border-soft: #efeeeb;
+  --tl-border-strong: #d8d5d0;
+  --tl-text: #1f1e1d;
+  --tl-text-secondary: #6d6660;
+  --tl-text-tertiary: #777470;
+  --tl-text-disabled: #c3c0ba;
+  --tl-text-inverse: #ffffff;
+  --tl-accent: #5b5bd6;
+  --tl-accent-hover: #4b4bc6;
+  --tl-accent-ink: #5b5bd6;
+  --tl-accent-tint: #eeeefb;
+  --tl-accent-strong: #5b5bd6;
+  --tl-accent-strong-hover: #4b4bc6;
+  --tl-accent-contrast: #ffffff;
+  --tl-cta-bg: var(--tl-accent-strong);
+  --tl-cta-bg-hover: var(--tl-accent-strong-hover);
+  --tl-cta-text: var(--tl-accent-contrast);
+  --tl-danger: #c64141;
+  --tl-danger-ink: #b03838;
+  --tl-danger-tint: #fbeeee;
+  --tl-success: #3f8f68;
+  --tl-success-ink: #2a6449;
+  --tl-focus-ring: #5b5bd6;
+  --tl-quadrant-q1: #cf4b4b; --tl-quadrant-q1-tint: #fbeeee; --tl-quadrant-q1-ink: #b03838;
+  --tl-quadrant-q2: #cf8a2e; --tl-quadrant-q2-tint: #fbf3e6; --tl-quadrant-q2-ink: #8a5a1a;
+  --tl-quadrant-q3: #3f79bf; --tl-quadrant-q3-tint: #edf3fb; --tl-quadrant-q3-ink: #33689f;
+  --tl-quadrant-q4: #3f8f68; --tl-quadrant-q4-tint: #edf6f1; --tl-quadrant-q4-ink: #2f7052;
+  --tl-hue-1-base: #55688a; --tl-hue-2-base: #3f8f68; --tl-hue-3-base: #bd7a2d;
+  --tl-hue-4-base: #b34f5b; --tl-hue-5-base: #8a6bb8; --tl-hue-6-base: #c2688a;
+  --tl-hue-7-base: #6f8a4f; --tl-hue-8-base: #4a8fa0;
+  --tl-block-title-ink: var(--tl-text);
+  --tl-block-time-ink: color-mix(in oklab, var(--tl-text-secondary) 88%, var(--tl-text));
+  --tl-shadow-sm: 0 1px 2px rgba(31, 30, 29, 0.05);
+  --tl-shadow-md: 0 1px 2px rgba(31, 30, 29, 0.04), 0 6px 16px -10px rgba(31, 30, 29, 0.14);
+  --tl-shadow-lg: 0 2px 4px rgba(31, 30, 29, 0.05), 0 14px 30px -14px rgba(31, 30, 29, 0.2);
+  --tl-radius-xs: 3px; --tl-radius-sm: 5px; --tl-radius-md: 7px;
+  --tl-radius-lg: 8px; --tl-radius-xl: 10px;
+}
+[data-skin="protool"][data-theme="dark"] {
+  --tl-bg: #141413;
+  --tl-surface: #1d1d1b;
+  --tl-surface-raised: #242422;
+  --tl-surface-subtle: #191917;
+  --tl-surface-hover: #272725;
+  --tl-surface-sunken: #101010;
+  --tl-border: #302f2d;
+  --tl-border-soft: #262624;
+  --tl-border-strong: #3d3c39;
+  --tl-text: #f4f3f1;
+  --tl-text-secondary: #a5a29d;
+  --tl-text-tertiary: #888680;
+  --tl-text-disabled: #55534f;
+  --tl-text-inverse: #1f1e1d;
+  --tl-accent: #8b8bf0;
+  --tl-accent-hover: #9c9cf4;
+  --tl-accent-ink: #8b8bf0;
+  --tl-accent-tint: #22223a;
+  --tl-accent-strong: #8b8bf0;
+  --tl-accent-strong-hover: #9c9cf4;
+  --tl-accent-contrast: #141413;
+  --tl-danger: #e06a6a;
+  --tl-danger-ink: #ea7a7a;
+  --tl-danger-tint: #33201f;
+  --tl-success: #5aab84;
+  --tl-success-ink: #5aab84;
+  --tl-focus-ring: #8b8bf0;
+  --tl-quadrant-q1: #cf4b4b; --tl-quadrant-q1-tint: #33201f; --tl-quadrant-q1-ink: #ea7a7a;
+  --tl-quadrant-q2: #cf8a2e; --tl-quadrant-q2-tint: #332a19; --tl-quadrant-q2-ink: #d99a3d;
+  --tl-quadrant-q3: #3f79bf; --tl-quadrant-q3-tint: #1d2735; --tl-quadrant-q3-ink: #8b8bf0;
+  --tl-quadrant-q4: #3f8f68; --tl-quadrant-q4-tint: #1b2a23; --tl-quadrant-q4-ink: #5aab84;
+  --tl-hue-1-base: #7d8fae; --tl-hue-2-base: #5aab84; --tl-hue-3-base: #d99a3d;
+  --tl-hue-4-base: #d07b86; --tl-hue-5-base: #a48fd0; --tl-hue-6-base: #d18fa9;
+  --tl-hue-7-base: #93a96f; --tl-hue-8-base: #6fb0c2;
+  --tl-block-title-ink: var(--tl-text);
+  --tl-block-time-ink: color-mix(in oklab, var(--tl-text-secondary) 88%, var(--tl-text));
+  --tl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --tl-shadow-md: 0 2px 4px rgba(0, 0, 0, 0.5), 0 14px 34px -12px rgba(0, 0, 0, 0.65);
+  --tl-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.5), 0 14px 34px -12px rgba(0, 0, 0, 0.65);
+  --tl-radius-xs: 3px; --tl-radius-sm: 5px; --tl-radius-md: 7px;
+  --tl-radius-lg: 8px; --tl-radius-xl: 10px;
+}
+
+/* ---- C · editorial ------------------------------------------------------ */
+[data-skin="editorial"] {
+  --tl-bg: #f7f3ec;
+  --tl-surface: #fffdf8;
+  --tl-surface-raised: #fffdf8;
+  --tl-surface-subtle: #faf6ef;
+  --tl-surface-hover: #f2ece1;
+  --tl-surface-sunken: #f2ece1;
+  --tl-border: #e8e0d3;
+  --tl-border-soft: #f0e9dd;
+  --tl-border-strong: #dccfbd;
+  --tl-text: #2f2a24;
+  --tl-text-secondary: #6b6155;
+  --tl-text-tertiary: #746d63;
+  --tl-text-disabled: #cfc5b6;
+  --tl-text-inverse: #fffdf8;
+  --tl-accent: #4a6d8c;
+  --tl-accent-hover: #3d5b75;
+  --tl-accent-ink: #4a6d8c;
+  --tl-accent-tint: rgba(74, 109, 140, 0.09);
+  --tl-accent-strong: #4a6d8c;
+  --tl-accent-strong-hover: #3d5b75;
+  --tl-accent-contrast: #fffdf8;
+  --tl-cta-bg: #b4553f;
+  --tl-cta-bg-hover: #9c4634;
+  --tl-cta-text: #fffdf8;
+  --tl-danger: #b4553f;
+  --tl-danger-ink: #9c4634;
+  --tl-danger-tint: rgba(180, 85, 63, 0.09);
+  --tl-success: #6b8a5e;
+  --tl-success-ink: #47613d;
+  --tl-focus-ring: #4a6d8c;
+  --tl-quadrant-q1: #b4553f; --tl-quadrant-q1-tint: rgba(180, 85, 63, 0.075); --tl-quadrant-q1-ink: #9c4634;
+  --tl-quadrant-q2: #c08a2e; --tl-quadrant-q2-tint: rgba(192, 138, 46, 0.1); --tl-quadrant-q2-ink: #8a5f17;
+  --tl-quadrant-q3: #4a6d8c; --tl-quadrant-q3-tint: rgba(74, 109, 140, 0.075); --tl-quadrant-q3-ink: #4a6d8c;
+  --tl-quadrant-q4: #6b8a5e; --tl-quadrant-q4-tint: rgba(107, 138, 94, 0.09); --tl-quadrant-q4-ink: #4f6a45;
+  --tl-hue-1-base: #4a6d8c; --tl-hue-2-base: #6b8a5e; --tl-hue-3-base: #c08a2e;
+  --tl-hue-4-base: #b4553f; --tl-hue-5-base: #7d6a92; --tl-hue-6-base: #a56273;
+  --tl-hue-7-base: #8a8a4f; --tl-hue-8-base: #4f8a8a;
+  --tl-block-title-ink: var(--tl-text);
+  --tl-block-time-ink: color-mix(in oklab, var(--tl-text-secondary) 88%, var(--tl-text));
+  --tl-shadow-sm: 0 1px 2px rgba(90, 70, 40, 0.06);
+  --tl-shadow-md: 0 1px 2px rgba(90, 70, 40, 0.06), 0 10px 26px -22px rgba(90, 70, 40, 0.35);
+  --tl-shadow-lg: 0 10px 30px -14px rgba(70, 50, 25, 0.3), 0 2px 6px rgba(90, 70, 40, 0.08);
+  --tl-radius-xs: 2px; --tl-radius-sm: 4px; --tl-radius-md: 6px;
+  --tl-radius-lg: 8px; --tl-radius-xl: 12px;
+}
+[data-skin="editorial"][data-theme="dark"] {
+  --tl-bg: #1a1713;
+  --tl-surface: #221e19;
+  --tl-surface-raised: #2a251f;
+  --tl-surface-subtle: #1e1a16;
+  --tl-surface-hover: #2e2822;
+  --tl-surface-sunken: #14110e;
+  --tl-border: #362f27;
+  --tl-border-soft: #2b251f;
+  --tl-border-strong: #453c31;
+  --tl-text: #f0e9dd;
+  --tl-text-secondary: #a89c8b;
+  --tl-text-tertiary: #8a8782;
+  --tl-text-disabled: #574f45;
+  --tl-text-inverse: #1a1713;
+  --tl-accent: #7d9dba;
+  --tl-accent-hover: #8fadc7;
+  --tl-accent-ink: #7d9dba;
+  --tl-accent-tint: rgba(125, 157, 186, 0.14);
+  --tl-accent-strong: #7d9dba;
+  --tl-accent-strong-hover: #8fadc7;
+  --tl-accent-contrast: #1a1713;
+  --tl-cta-bg: #cd7661;
+  --tl-cta-bg-hover: #d98a76;
+  --tl-cta-text: #1a1713;
+  --tl-danger: #cd7661;
+  --tl-danger-ink: #d98a76;
+  --tl-danger-tint: rgba(205, 118, 97, 0.14);
+  --tl-success: #86a377;
+  --tl-success-ink: #86a377;
+  --tl-focus-ring: #7d9dba;
+  --tl-quadrant-q1: #cd7661; --tl-quadrant-q1-tint: rgba(205, 118, 97, 0.14); --tl-quadrant-q1-ink: #d98a76;
+  --tl-quadrant-q2: #d2a052; --tl-quadrant-q2-tint: rgba(210, 160, 82, 0.15); --tl-quadrant-q2-ink: #d2a052;
+  --tl-quadrant-q3: #7d9dba; --tl-quadrant-q3-tint: rgba(125, 157, 186, 0.14); --tl-quadrant-q3-ink: #7d9dba;
+  --tl-quadrant-q4: #86a377; --tl-quadrant-q4-tint: rgba(134, 163, 119, 0.15); --tl-quadrant-q4-ink: #86a377;
+  --tl-hue-1-base: #7d9dba; --tl-hue-2-base: #86a377; --tl-hue-3-base: #d2a052;
+  --tl-hue-4-base: #cd7661; --tl-hue-5-base: #9d8ab2; --tl-hue-6-base: #bf8695;
+  --tl-hue-7-base: #a6a66f; --tl-hue-8-base: #6fa6a6;
+  --tl-block-title-ink: var(--tl-text);
+  --tl-block-time-ink: color-mix(in oklab, var(--tl-text-secondary) 88%, var(--tl-text));
+  --tl-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --tl-shadow-md: 0 4px 10px -2px rgba(0, 0, 0, 0.5), 0 20px 44px -16px rgba(0, 0, 0, 0.65);
+  --tl-shadow-lg: 0 4px 10px -2px rgba(0, 0, 0, 0.5), 0 20px 44px -16px rgba(0, 0, 0, 0.65);
+  --tl-radius-xs: 2px; --tl-radius-sm: 4px; --tl-radius-md: 6px;
+  --tl-radius-lg: 8px; --tl-radius-xl: 12px;
+}
+
+/* ============================================================================
+   页面外壳（文档 chrome，不是产品界面；与 G 稿同一形态）
+   ========================================================================== */
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: #111114; color: #f2f2f4;
+  font: .875rem/1.6 var(--tl-font-sans);
+  padding: 0 0 80px;
+}
+.page-head {
+  padding: 1.75rem 2rem 1.25rem; border-bottom: 1px solid #26262c;
+  position: sticky; top: 0; z-index: 50; background: #111114;
+}
+.page-head h1 { margin: 0 0 .375rem; font-size: 1.25rem; letter-spacing: -.01em; }
+.page-head p { margin: 0; color: #8b8b95; font-size: .8125rem; max-width: 72rem; }
+.page-head q { color: #e8e8ee; font-style: normal; }
+.page-head code, .annot code {
+  background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem;
+  border-radius: 4px; font-size: .75rem;
+}
+.skin-switch { display: flex; gap: .25rem; margin-top: 1rem; flex-wrap: wrap; }
+.skin-switch button {
+  appearance: none; border: 1px solid #2e2e36; background: #1a1a1f;
+  color: #c9c9d1; font: inherit; font-size: .78rem;
+  padding: .375rem .875rem; border-radius: 7px; cursor: pointer;
+}
+.skin-switch button:hover { background: #232329; }
+.skin-switch button[aria-pressed="true"] { background: #2b2b34; border-color: #4a4a58; color: #fff; }
+
+.stage { padding: 1.75rem 2rem 0; }
+.cap {
+  display: flex; align-items: baseline; gap: .625rem;
+  margin: 0 0 .875rem; color: #8b8b95; font-size: .78rem;
+}
+.cap b { color: #e8e8ee; font-size: .875rem; font-weight: 600; }
+.cap .rule { flex: 1; height: 1px; background: #26262c; }
+
+.canvas {
+  position: relative;
+  border: 1px solid #26262c; border-radius: 14px;
+  background: var(--tl-bg);
+  color: var(--tl-text);
+  font-family: var(--tl-font-sans);
+  padding: 2rem 1.25rem;
+}
+.canvas--tall { padding-block: 2.5rem; }
+.canvas__note {
+  color: var(--tl-text-secondary); font-size: var(--tl-font-size-sm); margin: 0;
+  max-inline-size: 72ch;
+}
+/* Any <code> inside a canvas takes the product's sunken chip, not the doc
+   chrome's near-black slab. The page-level `.annot code` rule is for text on
+   #111114; on a light skin it would be an unreadable black box. */
+.canvas code {
+  background: var(--tl-surface-sunken); color: var(--tl-text);
+  padding: .0625rem .25rem; border-radius: var(--tl-radius-xs);
+  font-size: .85em;
+}
+.canvas__note code {
+  background: var(--tl-surface-sunken); color: var(--tl-text);
+  padding: .0625rem .25rem; border-radius: var(--tl-radius-xs);
+  font-size: var(--tl-font-size-xs);
+}
+.canvas__center { display: grid; place-items: center; }
+.stack { display: flex; flex-direction: column; gap: var(--tl-space-4); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--tl-space-2); }
+.hr { block-size: 1px; background: var(--tl-border-soft); border: 0; margin: 0; }
+
+.visually-hidden {
+  position: absolute; inline-size: 1px; block-size: 1px;
+  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+
+/* ============================================================================
+   日历 chip —— 与 calendar.css / styles.css 的 .tl-chip 同一套令牌
+   ========================================================================== */
+.chip {
+  display: flex; align-items: center; gap: 5px;
+  inline-size: 100%; min-inline-size: 0;
+  padding: var(--tl-space-dense-2) var(--tl-space-compact) var(--tl-space-dense-2) 7px;
+  border: 0;
+  border-inline-start: var(--tl-block-bar) solid var(--chip-color);
+  border-radius: var(--tl-block-radius);
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint), var(--tl-surface));
+  color: var(--tl-block-title-ink);
+  font: var(--tl-font-weight-regular) var(--tl-font-size-sm)/var(--tl-line-height-snug) var(--tl-font-sans);
+  text-align: start;
+  overflow: hidden;
+}
+.chip--done {
+  background: color-mix(in oklab, var(--chip-color) var(--tl-block-tint-muted), var(--tl-surface));
+  border-inline-start-color: color-mix(in oklab, var(--chip-color) var(--tl-block-bar-muted), var(--tl-surface));
+}
+.chip--done .chip__title {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in oklab, currentColor 55%, transparent);
+  color: var(--tl-block-time-ink);
+}
+.chip__title { min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip__time {
+  margin-inline-start: auto; flex: 0 0 auto;
+  font-size: var(--tl-font-size-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--tl-block-time-ink);
+  white-space: nowrap;
+}
+.chip--allday .chip__dot {
+  inline-size: 5px; block-size: 5px; border-radius: 50%;
+  background: var(--chip-color); flex: none;
+}
+.chip--narrowchip .chip__time { display: none; }
+
+/* ============================================================================
+   捕获条（与 G 稿同一根条，删掉了类型开关）
+   ========================================================================== */
+.bar {
+  inline-size: min(35rem, 100%);
+  background: var(--tl-surface);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  box-shadow: var(--tl-shadow-lg);
+  color: var(--tl-text);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.bar--old { inline-size: min(25rem, 100%); }
+
+/* 现状的类型开关（§04 的 before 用） */
+.type-seg {
+  display: inline-flex; gap: var(--tl-space-dense); padding: var(--tl-space-dense);
+  background: var(--tl-surface-sunken);
+  border-radius: var(--tl-radius-md);
+}
+.type-seg__btn {
+  appearance: none; border: 0; cursor: pointer;
+  block-size: 26px; padding: 0 var(--tl-space-3);
+  border-radius: var(--tl-radius-sm);
+  background: transparent; color: var(--tl-ink-quiet);
+  font: inherit; font-size: var(--tl-font-size-sm);
+}
+.type-seg__btn[aria-checked="true"] {
+  background: var(--tl-surface); color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+  box-shadow: var(--tl-shadow-sm);
+}
+
+.bar__title {
+  inline-size: 100%;
+  border: 0; background: transparent; resize: none;
+  padding: var(--tl-space-3) var(--tl-space-4) var(--tl-space-2);
+  font: inherit; font-size: var(--tl-font-size-lg); line-height: var(--tl-line-height-normal);
+  color: var(--tl-text);
+  min-block-size: 4.4375rem;
+  max-block-size: 11rem;
+  overflow-y: auto;
+  display: block;
+  outline: none;
+}
+.bar__title::placeholder { color: var(--tl-ink-quiet); }
+.bar__title:focus-visible { outline: 2px solid var(--tl-focus-ring); outline-offset: -2px; }
+
+/* 时间行：捕获条的第一个控件 */
+.bar__when {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--tl-space-1);
+  padding: 0 var(--tl-space-4) var(--tl-space-3);
+}
+.wchip {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--tl-space-compact);
+  block-size: var(--tl-control-h-sm);
+  padding: 0 var(--tl-space-3);
+  border: 1px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-sm);
+  background: transparent; color: var(--tl-text);
+  font: inherit; font-size: var(--tl-font-size-sm);
+  white-space: nowrap;
+}
+.wchip[aria-checked="true"] {
+  background: var(--tl-accent-tint);
+  border-color: var(--tl-accent-ink);
+  color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+.wchip__plus { color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); }
+.wchip:focus-visible { outline: 2px solid var(--tl-focus-ring); outline-offset: 1px; }
+
+/* 精度的第二层：上午/下午/晚上/具体时间 */
+.sub {
+  display: flex; flex-wrap: wrap; gap: var(--tl-space-1);
+  padding: 0 var(--tl-space-4) var(--tl-space-3);
+}
+.schip {
+  appearance: none; cursor: pointer; border: 0;
+  block-size: 26px; padding: 0 var(--tl-space-2);
+  border-radius: var(--tl-radius-sm);
+  background: transparent; color: var(--tl-text-secondary);
+  font: inherit; font-size: var(--tl-font-size-xs);
+}
+.schip[aria-checked="true"] {
+  background: var(--tl-accent-tint); color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium);
+}
+
+/* 象限行：四张等宽 chip，与板上卡头同一套色相。
+   flex-basis 必须是一个**够放下标签**的值（7.5rem），不能是 0：
+   `flex: 1 1 0` + `white-space: nowrap` 会让四个按钮缩到内容以下，
+   于是「不重要不紧急」直接溢出到按钮边框外面（2× 截图实测）。
+   内容宽约 108px（6 个汉字 78 + 点 6 + 间距 6 + 内边距 16 + 边 2）。
+   放不下时 flex-wrap 落成 2×2，不缩字号、不裁标签。 */
+.qrow {
+  display: flex; flex-wrap: wrap; gap: 0;
+  padding: 0 var(--tl-space-4) var(--tl-space-3);
+}
+.qchip {
+  appearance: none; cursor: pointer;
+  flex: 1 1 7.5rem; min-inline-size: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--tl-space-compact);
+  block-size: var(--tl-control-h);
+  padding: 0 var(--tl-space-2);
+  border: 1px solid transparent;
+  border-radius: var(--tl-radius-sm);
+  background: transparent; color: var(--tl-ink-quiet);
+  font: inherit; font-size: var(--tl-font-size-sm);
+  white-space: nowrap;
+}
+.qchip:first-child { border-start-start-radius: var(--tl-radius-sm); border-end-start-radius: var(--tl-radius-sm); }
+.qchip:last-child { border-start-end-radius: var(--tl-radius-sm); border-end-end-radius: var(--tl-radius-sm); }
+.qchip__dot { inline-size: .375rem; block-size: .375rem; border-radius: 50%; background: var(--qc); flex: none; }
+.qchip[aria-checked="true"] {
+  background: var(--qt); border-color: var(--qi); color: var(--qi);
+  font-weight: var(--tl-font-weight-medium);
+}
+.qchip:nth-child(1) { --qc: var(--tl-quadrant-q1); --qt: var(--tl-quadrant-q1-tint); --qi: var(--tl-quadrant-q1-ink); }
+.qchip:nth-child(2) { --qc: var(--tl-quadrant-q2); --qt: var(--tl-quadrant-q2-tint); --qi: var(--tl-quadrant-q2-ink); }
+.qchip:nth-child(3) { --qc: var(--tl-quadrant-q3); --qt: var(--tl-quadrant-q3-tint); --qi: var(--tl-quadrant-q3-ink); }
+.qchip:nth-child(4) { --qc: var(--tl-quadrant-q4); --qt: var(--tl-quadrant-q4-tint); --qi: var(--tl-quadrant-q4-ink); }
+
+.bar__foot {
+  display: flex; align-items: center; gap: var(--tl-space-2);
+  padding: var(--tl-space-2) var(--tl-space-4) var(--tl-space-3);
+  border-block-start: 1px solid var(--tl-border-soft);
+}
+.list-chip {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: var(--tl-space-2);
+  block-size: 26px; padding: 0 var(--tl-space-2);
+  border: 0; border-radius: var(--tl-radius-sm);
+  background: transparent; color: var(--tl-text-secondary);
+  font: inherit; font-size: var(--tl-font-size-sm);
+}
+.list-chip__dot { inline-size: .375rem; block-size: .375rem; border-radius: 50%; background: var(--tl-accent); flex: none; }
+.bar__spacer { flex: 1; }
+.bar__cta {
+  appearance: none; cursor: pointer; border: 0;
+  block-size: var(--tl-control-h); padding: 0 var(--tl-space-4);
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-cta-bg); color: var(--tl-cta-text);
+  font: inherit; font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-semibold);
+}
+.bar__cta:disabled { cursor: not-allowed; background: var(--tl-surface-sunken); color: var(--tl-ink-quiet); }
+.bar__hint {
+  margin: 0; padding: 0 var(--tl-space-4) var(--tl-space-3);
+  color: var(--tl-ink-quiet); font-size: var(--tl-font-size-xs);
+  line-height: var(--tl-line-height-snug);
+}
+.bar__hint code {
+  background: var(--tl-surface-sunken); color: var(--tl-ink-quiet);
+  padding: 0 .2rem; border-radius: var(--tl-radius-xs); font-size: .68rem;
+}
+
+/* ============================================================================
+   详情面板（§07）—— .tk-section 的节奏
+   ========================================================================== */
+.panel {
+  inline-size: min(24rem, 100%);
+  background: var(--tl-surface);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-xl);
+  box-shadow: var(--tl-shadow-lg);
+  overflow: hidden;
+}
+.panel__head {
+  display: flex; align-items: flex-start; gap: var(--tl-space-2);
+  padding: var(--tl-space-4) var(--tl-space-4) var(--tl-space-3);
+}
+.panel__title { margin: 0; font-size: var(--tl-font-size-lg); font-weight: var(--tl-font-weight-semibold); flex: 1; }
+.panel__tick {
+  inline-size: 20px; block-size: 20px; flex: none;
+  border: 1.5px solid var(--tl-border-strong);
+  border-radius: var(--tl-radius-full);
+  display: grid; place-items: center;
+  color: transparent; font-size: 11px;
+}
+.panel__tick--on {
+  border-color: var(--tl-accent-ink);
+  background: var(--tl-accent-ink);
+  /* 勾是**字形**，按文字算：--tl-accent-contrast 压 --tl-accent-ink
+     是 5.17 / 7.28 / 5.37 / 6.19 / 5.36 / 6.30。不能用 accent-contrast 之外
+     的淡色——实测那会掉到 1:1。 */
+  color: var(--tl-accent-contrast);
+}
+.panel__body { padding: 0 var(--tl-space-4) var(--tl-space-4); }
+.panel__section { padding-block: var(--tl-space-3); border-block-end: 1px solid var(--tl-border-soft); }
+.panel__section:last-child { border-block-end: 0; }
+.panel__label {
+  margin: 0 0 var(--tl-space-2);
+  font-size: var(--tl-font-size-xs); font-weight: var(--tl-font-weight-semibold);
+  color: var(--tl-text-secondary); letter-spacing: .02em;
+}
+.panel__value { margin: 0; font-size: var(--tl-font-size-sm); color: var(--tl-text); }
+.panel__hint { margin: var(--tl-space-1) 0 0; font-size: var(--tl-font-size-xs); color: var(--tl-ink-quiet); }
+.seg {
+  display: inline-flex; gap: var(--tl-space-dense); padding: var(--tl-space-dense);
+  background: var(--tl-surface-sunken); border-radius: var(--tl-radius-md);
+  flex-wrap: wrap;
+}
+/* 详情面板里四个象限标签排成 2×2，与 TaskDetailPanel 的 .tk-quadrant-seg
+   一致（styles.css:1357 的注释：380px 面板里就是 2×2）。
+   不这么做时 flex-wrap 会落在 3+1，第四档单独换行——读起来像一个坏了的分段控件。 */
+.seg--quad { display: grid; grid-template-columns: 1fr 1fr; inline-size: 100%; }
+.seg--quad .seg__btn { inline-size: 100%; }
+.seg__btn {
+  appearance: none; border: 0; cursor: pointer;
+  block-size: 26px; padding: 0 var(--tl-space-2);
+  border-radius: var(--tl-radius-sm);
+  background: transparent; color: var(--tl-ink-quiet);
+  font: inherit; font-size: var(--tl-font-size-xs);
+}
+.seg__btn[aria-checked="true"] {
+  background: var(--tl-surface); color: var(--tl-accent-ink);
+  font-weight: var(--tl-font-weight-medium); box-shadow: var(--tl-shadow-sm);
+}
+.seg--quad .seg__btn[aria-checked="true"] {
+  /* 选中块把地面抬成**自身色相的淡底**，并从 --tl-surface-sunken 的槽里升起来。
+     比例用现成的 --tl-block-tint-muted（7% 亮 / 8% 暗）——不能更高：
+     14% 时 refined/light 的 q3-ink 压在自家淡底上只有 4.25，过不了 4.5；
+     7% 时六组合四档最低 4.69 / 5.39 / 5.27 / 5.14 / 4.89 / 5.26。
+     也不能直接叠 --tl-quadrant-qN-tint：那带 alpha（editorial 是 rgba(...,.1)），
+     叠在 sunken 槽上会比叠在 surface 上暗一档，q2 只有 4.40。 */
+  background: color-mix(in oklab, var(--qi) var(--tl-block-tint-muted), var(--tl-surface));
+  color: var(--qi); box-shadow: none;
+  outline: 1px solid var(--qi); outline-offset: -1px;
+}
+/* 四档的选中字压在自身色相淡底上（见上一条）：六组合逐档最低
+   5.17 / 5.93 / 5.80 / 5.67 / 5.36 / 5.84。
+   出问题的是「qN-ink 直接压 sunken 槽里的 rgba tint」：editorial/light 的 q2
+   只有 4.40，过不了 4.5。 */
+/* 选中态的四色。注意：`outline` 只在选中态声明（见上一条规则）——
+   若在这里给每个按钮都声明 --qi，未选中的按钮会画出四道 ink 色描边，
+   四档看起来会像四个「已开启」的框。未选中一律透明地面 + secondary 墨。 */
+.seg--quad .seg__btn:nth-child(1) { --qi: var(--tl-quadrant-q1-ink); }
+.seg--quad .seg__btn:nth-child(2) { --qi: var(--tl-quadrant-q2-ink); }
+.seg--quad .seg__btn:nth-child(3) { --qi: var(--tl-quadrant-q3-ink); }
+.seg--quad .seg__btn:nth-child(4) { --qi: var(--tl-quadrant-q4-ink); }
+
+/* ============================================================================
+   阶梯 / 迁移 / 矩阵
+   ========================================================================== */
+.rung {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) 15rem;
+  gap: var(--tl-space-4);
+  align-items: center;
+  padding: var(--tl-space-3) 0;
+  border-block-end: 1px solid var(--tl-border-soft);
+}
+.rung:last-child { border-block-end: 0; }
+.rung__name { font-size: var(--tl-font-size-sm); font-weight: var(--tl-font-weight-semibold); color: var(--tl-text); }
+.rung__name span { display: block; font-weight: var(--tl-font-weight-regular); color: var(--tl-ink-quiet); font-size: var(--tl-font-size-xs); }
+.rung__storage {
+  font-family: var(--tl-font-mono);
+  font-size: var(--tl-font-size-xs);
+  color: var(--tl-ink-quiet);
+  background: var(--tl-surface-sunken);
+  border-radius: var(--tl-radius-xs);
+  padding: var(--tl-space-1) var(--tl-space-2);
+  overflow-wrap: anywhere;
+}
+.rung__chip { inline-size: 100%; }
+/* 「某半天」那一行必须让人看出：存储是整天，标签才是半天的桶。
+   所以两条 chip 并排：一条写「下午」的标签，一条是它同一天里的实际占位。 */
+.rung__pair { display: flex; flex-direction: column; gap: var(--tl-space-1); }
+.rung__cap { font-size: var(--tl-font-size-xs); color: var(--tl-ink-quiet); }
+
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--tl-space-3); }
+.flow__col { flex: 1 1 14rem; min-inline-size: 0; display: flex; flex-direction: column; gap: var(--tl-space-2); }
+.flow__label { font-size: var(--tl-font-size-xs); color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-semibold); }
+.flow__box {
+  background: var(--tl-surface); border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-lg); padding: var(--tl-space-3);
+  font-size: var(--tl-font-size-xs); color: var(--tl-text-secondary);
+  line-height: var(--tl-line-height-normal);
+}
+.flow__box b { color: var(--tl-text); font-weight: var(--tl-font-weight-semibold); }
+.flow__box code { background: var(--tl-surface-sunken); color: var(--tl-text); padding: 0 .2rem; border-radius: var(--tl-radius-xs); }
+.flow__arrow { display: grid; place-items: center; color: var(--tl-ink-quiet); font-size: var(--tl-font-size-lg); }
+
+.daycell {
+  background: var(--tl-surface);
+  border: 1px solid var(--tl-border);
+  border-radius: var(--tl-radius-lg);
+  padding: var(--tl-space-2);
+  display: flex; flex-direction: column; gap: var(--tl-space-1);
+  inline-size: min(19rem, 100%);
+}
+.daycell__date {
+  font-size: var(--tl-font-size-xs); color: var(--tl-ink-quiet);
+  font-variant-numeric: tabular-nums; padding-inline: 2px;
+}
+.timeline-slot {
+  display: grid; grid-template-columns: 3rem 1fr; gap: var(--tl-space-2);
+  align-items: center; font-size: var(--tl-font-size-xs); color: var(--tl-ink-quiet);
+}
+.timeline-slot__time { font-variant-numeric: tabular-nums; text-align: end; }
+.timeline-slot__body { min-inline-size: 0; }
+
+/* ============================================================================
+   SPEC TABLES
+   ========================================================================== */
+table.spec {
+  inline-size: 100%; border-collapse: collapse; margin-block-start: var(--tl-space-4);
+  font-size: .78rem; color: var(--tl-text-secondary);
+}
+table.spec th, table.spec td {
+  text-align: start; padding: .4rem .6rem;
+  border-block-end: 1px solid var(--tl-border-strong);
+  vertical-align: top;
+}
+table.spec th:first-child { inline-size: 13rem; }
+table.spec tr[data-verdict] td:first-child { position: relative; }
+table.spec th { color: var(--tl-text-secondary); font-weight: var(--tl-font-weight-medium); }
+table.spec td { color: var(--tl-text); }
+/* 词汇表的「判定」列只有一个字宽的意义，别让它抢走字符串列的空间 */
+table.spec--vocab th:nth-child(1) { inline-size: 46%; }
+table.spec--vocab th:nth-child(2) { inline-size: 4.5rem; white-space: nowrap; }
+table.spec td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.spec tr.bad td.num { color: var(--tl-danger-ink); font-weight: var(--tl-font-weight-semibold); }
+table.spec tr.keep td:nth-child(2) { color: var(--tl-success-ink); font-weight: var(--tl-font-weight-semibold); }
+table.spec tr.change td:nth-child(2) { color: var(--tl-danger-ink); font-weight: var(--tl-font-weight-semibold); }
+table.spec td code {
+  background: var(--tl-surface-sunken); padding: .0625rem .25rem;
+  border-radius: var(--tl-radius-xs); font-size: .72rem;
+}
+table.spec caption {
+  caption-side: top; text-align: start; padding-block-end: var(--tl-space-2);
+  color: var(--tl-ink-quiet); font-size: var(--tl-font-size-xs);
+}
+
+.annot { margin: 1rem 0 0; padding-inline-start: 1.25rem; color: #8b8b95; font-size: .8125rem; }
+.annot li { margin-block-end: .375rem; }
+.annot b { color: #d8d8e0; font-weight: 600; }
+.annot code { background: #1f1f26; color: #cfcfd8; padding: .0625rem .3125rem; border-radius: 4px; font-size: .75rem; }
+.annot .bad { color: #ff8a8a; }
+.annot .ok { color: #7ee2b0; }
+
+/* `.annot` 本来是「页面深色 chrome 上的说明列表」，文字色 #8b8b95 是按 #111114 定的
+   （5.59:1）。放进 .canvas 就会压在浅色皮肤上——实测 3.05（editorial/light）到
+   3.37（refined/light），低于 4.5。所以画布内一律改用产品令牌：
+   secondary（4.65–6.96）+ text 作强调。 */
+.annot--in { color: var(--tl-text-secondary); font-size: var(--tl-font-size-xs); line-height: var(--tl-line-height-normal); }
+.annot--in b { color: var(--tl-text); }
+.annot--in code {
+  background: var(--tl-surface-sunken); color: var(--tl-text);
+  border-radius: var(--tl-radius-xs); font-size: .72rem;
+}
+
+.callout {
+  border-inline-start: 3px solid var(--tl-accent);
+  background: var(--tl-accent-tint);
+  border-radius: var(--tl-radius-md);
+  padding: var(--tl-space-3) var(--tl-space-4);
+  margin-block-start: var(--tl-space-4);
+  color: var(--tl-text);
+  font-size: var(--tl-font-size-sm);
+  line-height: var(--tl-line-height-normal);
+  max-inline-size: 80ch;
+}
+.callout b { font-weight: var(--tl-font-weight-semibold); }
+.callout code {
+  background: color-mix(in oklab, var(--tl-text) 8%, transparent);
+  color: var(--tl-text); padding: .0625rem .25rem;
+  border-radius: var(--tl-radius-xs); font-size: .85em;
+}
+.callout--warn {
+  border-inline-start-color: var(--tl-danger-ink);
+  background: var(--tl-danger-tint);
+}
+
+@media (max-width: 720px) {
+  .rung { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<header class="page-head">
+  <h1>一个事项模型 · 设计提案 J <span style="color:#8b8b95;font-weight:400">v1</span></h1>
+  <p>
+    <q>任务 / 日程，你引入了这两个概念，但是在四象限和各个日历视图里完全区分不出来啊。
+    别硬造概念，都是要干的事。</q>
+    ——这句话是对的，而且它指向的不是一个控件，是数据模型。
+    本稿的答案是<b>删掉一个概念</b>：两张表合成一张，捕获条上的类型开关删除，
+    点开任何一块都进同一个详情面板。<b>「任务 / 日程」的区别对用户完全不可见。</b>
+  </p>
+  <p style="margin-top:.5rem;color:#8b8b95">
+    依据：<code>schema.ts:36/51</code>（两张表）、<code>types.ts:176</code>（CalendarEntry 早已统一）、
+    <code>calendar.ts:52</code>（无日期不上日历）、<code>Shell.tsx:429-432</code>（唯一的点击分叉）、
+    <code>list-service.ts:54</code>（清单删除守卫）、<code>migrate()</code>（无事务）。
+  </p>
+  <div class="skin-switch" role="group" aria-label="皮肤">
+    <button type="button" data-set-skin="refined" aria-pressed="true">A · Refined</button>
+    <button type="button" data-set-skin="protool" aria-pressed="false">B · Pro Tool</button>
+    <button type="button" data-set-skin="editorial" aria-pressed="false">C · Editorial</button>
+    <span style="width:1px;background:#2e2e36;margin-inline:.25rem" aria-hidden="true"></span>
+    <button type="button" data-set-theme="light" aria-pressed="true">明</button>
+    <button type="button" data-set-theme="dark" aria-pressed="false">暗</button>
+  </div>
+</header>
+
+<!-- ============================ 01 症状 ============================ -->
+<section class="stage">
+  <p class="cap"><b>01</b> 症状 · 同一天、同一个标题、同一块颜色 <span class="rule"></span>
+    <span>唯一的差别在点开之后</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="row" style="align-items:flex-start;gap:var(--tl-space-6)">
+      <div class="daycell">
+        <div class="daycell__date">周四 11 月 26 日</div>
+        <div class="timeline-slot">
+          <div class="timeline-slot__time">14:00</div>
+          <div class="timeline-slot__body">
+            <div class="chip" style="--chip-color: var(--tl-hue-1-base)">
+              <span class="chip__title">产品评审</span>
+              <span class="chip__time">14:00 – 15:00</span>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-slot">
+          <div class="timeline-slot__time">14:00</div>
+          <div class="timeline-slot__body">
+            <div class="chip" style="--chip-color: var(--tl-hue-1-base)">
+              <span class="chip__title">产品评审</span>
+              <span class="chip__time">14:00 – 15:00</span>
+            </div>
+          </div>
+        </div>
+        <div class="timeline-slot">
+          <div class="timeline-slot__time">15:30</div>
+          <div class="timeline-slot__body">
+            <div class="chip" style="--chip-color: var(--tl-hue-3-base)">
+              <span class="chip__title">接孩子</span>
+              <span class="chip__time">15:30 – 15:30</span>
+            </div>
+          </div>
+        </div>
+        <p class="canvas__note" style="margin-block-start:var(--tl-space-2);font-size:var(--tl-font-size-xs)">
+          上面两条是<b>两个不同的对象</b>：一条 <code>Task</code>、一条 <code>CalendarEvent</code>。
+          在日历上它们逐像素相同：同色、同时段、同标题。点开才发现一个进任务面板、一个进日程编辑器
+          （<code>Shell.tsx:430</code>）。
+        </p>
+      </div>
+
+      <div class="stack" style="flex:1 1 22rem;min-inline-size:0">
+        <ul class="annot annot--in" style="margin:0">
+          <li><b>用户不是「分不清」，是没有东西可分。</b>日历只投影 <code>CalendarEntry</code>，
+            而 <code>types.ts:176</code> 的注释自己写着「the calendar never needs to know which
+            source an entry came from」。视图层早就不分了，是模型在强迫两个编辑器分。</li>
+          <li><b>第三条 chip 是一个读数。</b>「15:30 接孩子」在存储里是一个时刻（<code>dueAt</code>），
+            但 <code>taskToEntry</code> 令 <code>end = dueAt</code>，周视图用
+            <code>formatRange</code> 画，于是它写着「15:30 – 15:30」。
+            模型里没有一个「点 / 区间」的区分，视图就只能猜。</li>
+          <li><b>两种对象各自只有一半的规则。</b>没有日期的任务根本不上日历
+            （<code>taskToEntry()</code> 在 <code>dueDate === null</code> 时返回 <code>null</code>），
+            而日程永远上日历（它一定有一个区间）。</li>
+        </ul>
+
+        <div class="callout">
+          <b>本稿的承诺：</b>改完之后，用户在任何界面都不需要、也不会被要求理解「任务 / 日程」。
+          没有开关、没有类型徽标、没有两个编辑器。捕获时不做类型选择；点开时不做类型判断。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 02 字段 ============================ -->
+<section class="stage">
+  <p class="cap"><b>02</b> 一个事项 · 字段表 <span class="rule"></span>
+    <span>没有 kind 列；形状决定行为</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:var(--tl-space-3)">
+      合并后的 <code>items</code> 是两张表的并集，去掉一个字段（<code>due_date</code> 可由
+      <code>start_at</code> 推导），加上一个字段（<code>end_at</code> 显式存在）。
+      类型与可空性逐列如下。
+    </p>
+
+    <table class="spec">
+      <thead>
+        <tr><th>字段</th><th>类型</th><th>可空</th><th>来自 tasks</th><th>来自 events</th><th>说明</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>id</code></td><td>TEXT 主键</td><td class="num">否</td><td>✓</td><td>✓</td>
+          <td>原 id 原样保留。<code>task_</code> / <code>event_</code> 前缀是日志线索，不重写。</td></tr>
+        <tr><td><code>list_id</code></td><td>TEXT</td><td class="num">是</td><td>原为否</td><td>原为可空</td>
+          <td>统一为可空：没有清单的日程保持 NULL，不替用户挑一个清单塞进去。</td></tr>
+        <tr><td><code>title</code></td><td>TEXT</td><td class="num">否</td><td>✓</td><td>✓</td><td></td></tr>
+        <tr><td><code>notes</code></td><td>TEXT</td><td class="num">否</td><td>✓</td><td>✓</td><td>默认空串。</td></tr>
+        <tr><td><code>status</code></td><td>TEXT</td><td class="num">否</td><td>✓</td><td>新增</td>
+          <td><code>open</code> | <code>done</code>，默认 <code>open</code>。每个事项都有。</td></tr>
+        <tr><td><code>completed_at</code></td><td>TEXT</td><td class="num">是</td><td>✓</td><td>新增</td><td></td></tr>
+        <tr><td><code>important</code></td><td>INTEGER 0/1</td><td class="num">否</td><td>✓</td><td>新增，默认 0</td><td></td></tr>
+        <tr><td><code>urgent</code></td><td>INTEGER 0/1</td><td class="num">否</td><td>✓</td><td>新增，默认 0</td><td>象限由此推导，不落库。</td></tr>
+        <tr><td><code>start_at</code></td><td>TEXT 时刻</td><td class="num">是</td><td>由 <code>due_at</code> 来</td><td>✓</td>
+          <td>NULL ⇔ 没有时间限制（<code>不限</code>）。</td></tr>
+        <tr><td><code>end_at</code></td><td>TEXT 时刻</td><td class="num">是</td><td>推导</td><td>✓</td>
+          <td>与 <code>start_at</code> 同时为 NULL，或同时非 NULL。<b>可以等于 <code>start_at</code></b>：那是一个时刻，不是零长区间。</td></tr>
+        <tr><td><code>all_day</code></td><td>INTEGER 0/1</td><td class="num">否</td><td>✓</td><td>✓</td><td></td></tr>
+        <tr><td><code>due_period</code></td><td>TEXT</td><td class="num">是</td><td>✓</td><td>新增，恒 NULL</td>
+          <td><code>morning</code> | <code>afternoon</code> | <code>evening</code>。只在半天档有值。</td></tr>
+        <tr><td><code>recurrence</code></td><td>TEXT JSON</td><td class="num">是</td><td>✓</td><td>新增，恒 NULL</td><td>规范 JSON，同 <code>recurrence-codec</code>。</td></tr>
+        <tr><td><code>created_at</code></td><td>TEXT</td><td class="num">否</td><td>✓</td><td>✓</td><td></td></tr>
+        <tr><td><code>updated_at</code></td><td>TEXT</td><td class="num">否</td><td>✓</td><td>✓</td><td></td></tr>
+        <tr><td colspan="6" style="color:var(--tl-ink-quiet)">
+          删除：<code>due_date</code>。它存在的理由是「全天任务的 <code>due_at</code> 是一个捏造的午夜」；
+          <code>start_at</code> / <code>end_at</code> 是真实的日边界之后，本地日期由
+          <code>localDateOf(start_at)</code> 推出来，不需要第二个日期列。
+          这也顺带消掉了一类 bug：两列可能互相矛盾。
+        </td></tr>
+      </tbody>
+    </table>
+
+    <hr class="hr" style="margin-block:var(--tl-space-6)">
+
+    <p class="canvas__note" style="color:var(--tl-text);font-weight:var(--tl-font-weight-semibold);margin-block-end:var(--tl-space-1)">
+      核心原则：没有 <code>kind</code> 列。行为是时间形状的函数。
+    </p>
+    <p class="canvas__note" style="margin-block-end:var(--tl-space-3)">
+      精度不落库，和今天 <code>duePrecisionOf()</code> 的选择一致（<code>task.ts:22-28</code>：
+      「persisting a second answer to the same question is how the two get out of sync」）。
+      下面每一条都能从四个字段算出来，不需要再存一个枚举。
+    </p>
+
+    <table class="spec" style="margin-block-start:var(--tl-space-2)">
+      <thead>
+        <tr><th>判据</th><th>推出</th><th>行为</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>start_at IS NULL</code></td><td><b>无时间限制</b></td><td>不上日历；不提醒；不算逾期；可以完成。</td></tr>
+        <tr><td><code>all_day = 0</code></td><td><b>具体时刻</b></td><td>在时间网格里。提醒在 <code>start_at</code>。</td></tr>
+        <tr><td><code>end_at = start_at</code></td><td>└ 是一个<b>点</b>（截止）</td><td>chip 只写一个时刻；过点即逾期。</td></tr>
+        <tr><td><code>end_at &gt; start_at</code></td><td>└ 是一段<b>区间</b></td><td>chip 写区间；过 <code>end_at</code> 才逾期。</td></tr>
+        <tr><td><code>all_day = 1</code> 且同一本地日</td><td><b>某一天</b></td><td>全天线；提醒 09:00。</td></tr>
+        <tr><td>└ 且 <code>due_period</code> 非空</td><td><b>某半天</b></td><td>chip 写「上午 / 下午 / 晚上」；按半天边界逾期。</td></tr>
+        <tr><td><code>all_day = 1</code> 且跨多本地日</td><td><b>一段日子</b></td><td>横跨全天线；一条，不是 N 条。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-4)">
+      <b>这解释了旧代码里两个四分支 switch 为什么要存在。</b>
+      <code>isOverdue()</code>（<code>task.ts:80</code>）和
+      <code>reminderAnchorOf()</code>（<code>ReminderScheduler.ts:90</code>）各自按四档精度分支，
+      根因是 <code>due_at</code> 被四种含义共用（截止时刻 / 捏造的午夜 / 半天桶 / 真区间）。
+      有了显式的区间之后，逾期判定塌缩成<b>一条</b>规则：
+      <b>未完成且 <code>now &gt; end_at</code></b>（全天档的 <code>end_at</code> 就是下一个本地午夜，
+      所以「次日起算逾期」自动成立）。提醒锚点还剩两个分支（全天 → 09:00 或半天桶小时；
+      其余 → <code>start_at</code>），因为「什么时候该打扰你」本来就是另一个问题，不该混进存储。
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>为什么 <code>end_at</code> 可以等于 <code>start_at</code>，而不是「只有区间」。</b>
+      今天一个 15:30 的截止任务在存储里只有一个时刻；强制补一个 30 分钟结束时间会改写用户的语义
+      （「交报告」不是一个 30 分钟的会）。让 <code>end = start</code> 表达「点」，既保留了旧语义，
+      又让视图能正确只写一个时刻——顺手修掉「15:30 – 15:30」。</li>
+    <li><b>为什么不是「区间永远为真、没有空」。</b>「这周有空就做」没有开始时刻；给它编一个
+      「周一 00:00」就等于替用户做了一个他没做的决定。NULL 是诚实的，而且
+      <code>taskToEntry</code> 的 null 分支已经把「不上日历」这件事说清楚了。</li>
+    <li><b>为什么 <code>list_id</code> 保持可空。</b>现有 <code>events.list_id</code> 就是可空的
+      （<code>ON DELETE SET NULL</code>）。迁移时替 13 条日程挑一个清单，是把它们搬进用户没选过的地方。
+      可空 + 详情面板显示「无清单」是唯一不撒谎的处理。</li>
+  </ul>
+</section>
+
+<!-- ============================ 03 阶梯 ============================ -->
+<section class="stage">
+  <p class="cap"><b>03</b> 精度阶梯 · 同一件事的六种说法 <span class="rule"></span>
+    <span>用户说的是「大概时间」，存的是区间</span></p>
+
+  <div class="canvas canvas--tall">
+    <p class="canvas__note" style="margin-block-end:var(--tl-space-4)">
+      每一行左边是用户脑子里的说法，中间是 chip 长什么样，右边是存储。
+      <b>右边的差异对用户不可见</b>——他只会看到「全天」「下午」「15:30」「14:00 – 15:00」这几种标签。
+    </p>
+
+    <div class="stack" style="gap:0">
+      <div class="rung">
+        <div class="rung__name">不限<span>没有时间限制</span></div>
+        <div class="rung__chip">
+          <!-- 这一档不上日历，所以不画 chip —— 画的是一张四象限卡。
+               画成日历 chip 会让读者以为它有一个未标出的时间。 -->
+          <div style="display:flex;align-items:center;gap:var(--tl-space-2);
+                      padding:var(--tl-space-2) var(--tl-space-3);
+                      border:1px dashed var(--tl-border-strong);
+                      border-radius:var(--tl-radius-lg);
+                      background:var(--tl-surface-subtle);
+                      font-size:var(--tl-font-size-sm);color:var(--tl-text-secondary)">
+            <span style="inline-size:.375rem;block-size:.375rem;border-radius:50%;background:var(--tl-quadrant-q4);flex:none"></span>
+            <span style="color:var(--tl-text);min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">读《深度工作》</span>
+            <span style="margin-inline-start:auto;font-size:var(--tl-font-size-xs);color:var(--tl-ink-quiet);flex:none">
+              只在四象限 / 清单里，日历上没有它
+            </span>
+          </div>
+        </div>
+        <div class="rung__storage">start_at = NULL<br>end_at = NULL</div>
+      </div>
+
+      <div class="rung">
+        <div class="rung__name">某一天<span>全天</span></div>
+        <div class="rung__chip"><div class="chip chip--allday" style="--chip-color: var(--tl-hue-1-base)">
+          <span class="chip__dot" aria-hidden="true"></span>
+          <span class="chip__title">整理相册</span>
+          <span class="chip__time">全天</span>
+        </div></div>
+        <div class="rung__storage">all_day = 1<br>[D 00:00, D+1 00:00)</div>
+      </div>
+
+      <div class="rung">
+        <div class="rung__name">某半天<span>上午 / 下午 / 晚上</span></div>
+        <div class="rung__chip">
+          <div class="rung__pair">
+            <div class="chip chip--allday" style="--chip-color: var(--tl-hue-4-base)">
+              <span class="chip__dot" aria-hidden="true"></span>
+              <span class="chip__title">回客户邮件</span>
+              <span class="chip__time">下午</span>
+            </div>
+            <p class="rung__cap">
+              它占的是<b>整天</b>那一格（和上一行一样），「下午」只是这个格子的标签——
+              不是一个 12:00–19:00 的块，所以它不会和下午的会抢位置。
+            </p>
+          </div>
+        </div>
+        <div class="rung__storage">all_day = 1, due_period = 'afternoon'<br>区间仍是整天</div>
+      </div>
+
+      <div class="rung">
+        <div class="rung__name">某个时刻<span>点，不是一段</span></div>
+        <div class="rung__chip"><div class="chip" style="--chip-color: var(--tl-hue-3-base)">
+          <span class="chip__title">接孩子</span>
+          <span class="chip__time">15:30</span>
+        </div></div>
+        <div class="rung__storage">all_day = 0<br>end_at = start_at</div>
+      </div>
+
+      <div class="rung">
+        <div class="rung__name">某段时间<span>一个小时也好</span></div>
+        <div class="rung__chip"><div class="chip" style="--chip-color: var(--tl-hue-1-base)">
+          <span class="chip__title">产品评审</span>
+          <span class="chip__time">14:00 – 15:00</span>
+        </div></div>
+        <div class="rung__storage">all_day = 0<br>end_at &gt; start_at</div>
+      </div>
+
+      <div class="rung">
+        <div class="rung__name">一段时间<span>跨多天</span></div>
+        <div class="rung__chip"><div class="chip chip--allday" style="--chip-color: var(--tl-hue-5-base)">
+          <span class="chip__dot" aria-hidden="true"></span>
+          <span class="chip__title">出差 · 上海</span>
+          <span class="chip__time">3 天</span>
+        </div></div>
+        <div class="rung__storage">all_day = 1<br>end_at 落在更晚的本地日</div>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-5)">
+      <b>「这周」不是一个新档位，就是一段日子。</b>周一到下周一，全天——7 天。
+      chip 的标签按跨度显示「本周」，存储和「出差 3 天」完全一样。
+      所以捕获条上的「这周」不需要新列、新枚举、新分支；它只是 span 档的一个渲染规则。
+      <b>这也顺带回答了「这周能不能重复」：不能，见第 06 节。</b>
+    </div>
+
+    <div class="callout callout--warn" style="margin-block-start:var(--tl-space-3)">
+      <b>一处必须明说的后续工作量：</b>现在的月视图只按 <code>startAt</code> 的本地日分桶
+      （<code>MonthView.tsx:53</code>、<code>WeekView.tsx:144</code>），所以跨多天的条目今天只显示在
+      第一天。模型允许 span 只代表视图必须会画它。全天线（周 / 多日 / 日视图都有）是最自然的落点：
+      一条横条跨过它覆盖的列。演示数据里 12 条日程全部当天起止，所以迁移当下不会看到回归；
+      但用户自己建过跨天日程的话，这是模型开放出来的新能力，不是迁移修好的旧账。
+    </div>
+  </div>
+
+  <ul class="annot">
+    <li><b>半天不是一个时长，是一个桶。</b>沿用现有注释（calendar.ts:44-49）：把上午画成
+      09:00–12:00 会把它变成一个块，而设计明确拒绝那样做。所以 <code>due_period</code> 只改标签，
+      区间仍是整天。</li>
+    <li><b>点与区间的区别只在 <code>end_at</code>。</b>没有第二种类型、没有布尔开关，
+      所以用户永远不需要选「这是截止还是会议」。他填不填结束时间，模型就知道。</li>
+    <li><b>六档的格子没有变密。</b>「不限 / 某天 / 某半天 / 某时刻 / 某段 / 跨天」是同一根轴上
+      逐渐增加的信息量，不是六个平行的类别。这正是用户说的「有的是明确时间，有的只是大概」。</li>
+  </ul>
+</section>
+
+<!-- ============================ 04 捕获条 ============================ -->
+<section class="stage">
+  <p class="cap"><b>04</b> 捕获条 · 第一个控件从「选类型」变成「说时间」 <span class="rule"></span>
+    <span>同一根条，删掉了开关</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="row" style="align-items:flex-start;gap:var(--tl-space-6)">
+      <div class="stack" style="flex:1 1 22rem;min-inline-size:0">
+        <p class="canvas__note" style="margin:0"><b style="color:var(--tl-text)">现状</b>
+          <span style="color:var(--tl-danger-ink);font-weight:var(--tl-font-weight-semibold)">· 先问一个用户没有答案的问题</span></p>
+        <div class="bar bar--old" role="dialog" aria-modal="false" aria-label="快速添加">
+          <div style="padding:var(--tl-space-3) var(--tl-space-4) 0">
+            <div class="type-seg" role="radiogroup" aria-label="类型">
+              <button type="button" class="type-seg__btn" role="radio" aria-checked="true">任务</button>
+              <button type="button" class="type-seg__btn" role="radio" aria-checked="false">日程</button>
+            </div>
+          </div>
+          <textarea class="bar__title" rows="2" aria-label="标题" placeholder="要做什么？"></textarea>
+          <div class="bar__hint">
+            第一行是类型开关（<code>QuickEventComposer.tsx:472-483</code>）。
+            翻到「日程」时标题占位文案变成「要安排什么？」，底下的控件整套换掉。
+          </div>
+          <div class="bar__foot">
+            <button type="button" class="list-chip"><span class="list-chip__dot"></span>收集箱</button>
+            <span class="bar__spacer"></span>
+            <button type="button" class="bar__cta" disabled>添加</button>
+          </div>
+        </div>
+        <ul class="annot annot--in" style="margin-block-start:var(--tl-space-2)">
+          <li>用户为了记一条「周五前把合同发给法务」，要先回答：它算任务还是日程？
+            这个问题<b>没有正确答案</b>，因为两者在界面上没有区别（第 01 节）。</li>
+          <li>翻错之后，标题、象限、时间<b>全部换一套控件</b>；G 稿的解法是「保留但收起」，
+            那是在承认这个开关本身有问题。</li>
+        </ul>
+      </div>
+
+      <div class="stack" style="flex:1 1 22rem;min-inline-size:0">
+        <p class="canvas__note" style="margin:0"><b style="color:var(--tl-text)">本稿</b>
+          <span style="color:var(--tl-success-ink);font-weight:var(--tl-font-weight-semibold)">· 标题第一，时间第二</span></p>        <div class="bar" role="dialog" aria-modal="false" aria-label="快速添加">
+          <label class="visually-hidden" for="j-title">要做什么</label>
+          <textarea class="bar__title" id="j-title" rows="2" placeholder="要做什么？"></textarea>
+
+          <div class="bar__when" role="radiogroup" aria-label="什么时候">
+            <button type="button" class="wchip" role="radio" aria-checked="true">不限</button>
+            <button type="button" class="wchip" role="radio" aria-checked="false">今天</button>
+            <button type="button" class="wchip" role="radio" aria-checked="false">明天</button>
+            <button type="button" class="wchip" role="radio" aria-checked="false">这周</button>
+            <button type="button" class="wchip" role="radio" aria-checked="false">
+              周四 15:00
+            </button>
+            <button type="button" class="wchip" role="radio" aria-checked="false">
+              自定<span class="wchip__plus">…</span>
+            </button>
+          </div>
+
+          <div class="sub" role="radiogroup" aria-label="时间精度">
+            <button type="button" class="schip" role="radio" aria-checked="false">上午</button>
+            <button type="button" class="schip" role="radio" aria-checked="false">下午</button>
+            <button type="button" class="schip" role="radio" aria-checked="false">晚上</button>
+            <button type="button" class="schip" role="radio" aria-checked="false">具体时间</button>
+          </div>
+
+          <div class="qrow" role="radiogroup" aria-label="象限">
+            <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot"></span>重要且紧急</button>
+            <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot"></span>重要不紧急</button>
+            <button type="button" class="qchip" role="radio" aria-checked="false"><span class="qchip__dot"></span>不重要但紧急</button>
+            <button type="button" class="qchip" role="radio" aria-checked="true"><span class="qchip__dot"></span>不重要不紧急</button>
+          </div>
+
+          <div class="bar__foot">
+            <button type="button" class="list-chip"><span class="list-chip__dot"></span>收集箱</button>
+            <span class="bar__spacer"></span>
+            <button type="button" class="bar__cta" disabled>添加</button>
+          </div>
+        </div>
+        <p class="canvas__note" style="font-size:var(--tl-font-size-xs)">
+          第一行是标题，第一个<b>控件</b>是时间。默认「不限」——不选也能直接回车添加。
+          时间行的六个 chip 是<b>同一根轴上的递进</b>，不是六个类别。
+        </p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-5)">
+      <b>为什么时间是第一个控件，而象限不是。</b>「什么时候」是捕获时<b>已经在脑子里</b>的东西
+      （用户说「有的是有明确时间」），不问也得问；「重要还是紧急」是事后判断，且它有一张常驻的板
+      可以随时改。所以捕获条把时间放在第一行、象限放在第三行，默认落在 Q4——与
+      <code>TaskService.createInbox</code> 的默认值一致。
+    </div>
+
+    <table class="spec" style="margin-block-start:var(--tl-space-5)">
+      <thead>
+        <tr><th>捕获入口</th><th>标题</th><th>默认时间</th><th>为什么</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>四象限板 · <code>Ctrl+N</code></td><td>空</td><td>不限</td><td>板是「重要 × 紧急」的镜头，不预设时间。</td></tr>
+        <tr><td>日历空槽点击</td><td>空</td><td>点中的那一天 / 那个时刻</td><td>点哪儿就落哪儿，用户已经用位置回答了「什么时候」。</td></tr>
+        <tr><td>顶栏「新建」</td><td>空</td><td>今天</td><td>没有上下文，给一个最容易改的默认。</td></tr>
+        <tr><td>清单行内添加</td><td>空</td><td>不限</td><td>清单是「放哪儿」的镜头，不是「什么时候」的镜头。</td></tr>
+      </tbody>
+    </table>
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-2)">
+      四个入口，<b>没有一个问类型</b>。默认时间由入口上下文推出，用户只在自己想改的时候才碰它。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>「任务 / 日程」开关删除，不是隐藏。</b><code>CaptureMode</code> 类型、<code>mode</code> 属性、
+      <code>type-seg</code> 这一组控件一起消失。留一个隐藏的开关，等于留一个以后会被重新打开的洞。</li>
+    <li><b>时间行的措辞是用户的原话。</b>「不限 / 今天 / 明天 / 这周」——没有一个词需要解释；
+      第五个 chip 直接写「周四 15:00」，是<b>结果</b>而不是「自定义时间」这种抽象说法。</li>
+    <li><b>第二层只在需要时出现。</b>选了「今天」才出现「上午 / 下午 / 晚上 / 具体时间」；
+      选了「具体时间」才出现时钟与时长。这与详情面板已有的「时间精度」是同一套词
+      （<code>task.json</code> 的 <code>detail.precision.*</code>），不是新词汇。</li>
+    <li><b>主按钮只有一个动词：添加。</b>今天任务的动词是「添加」、日程是「新建」——那套分工是为两种
+      对象准备的。对象合并后保留「添加」，顶栏按钮改成不带宾语的「新建」。</li>
+  </ul>
+</section>
+
+<!-- ============================ 05 完成语义 ============================ -->
+<section class="stage">
+  <p class="cap"><b>05</b> 完成 · 会议能不能打勾 <span class="rule"></span>
+    <span>能。完成 = 不再需要你处理</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="row" style="align-items:flex-start;gap:var(--tl-space-6)">
+      <div class="stack" style="flex:1 1 20rem;min-inline-size:0">
+        <div class="daycell">
+          <div class="daycell__date">三个事项，三种状态</div>
+          <div class="timeline-slot">
+            <div class="timeline-slot__time">14:00</div>
+            <div class="timeline-slot__body">
+              <div class="chip" style="--chip-color: var(--tl-hue-1-base)">
+                <span class="chip__title">产品评审</span><span class="chip__time">14:00 – 15:00</span>
+              </div>
+            </div>
+          </div>
+          <div class="timeline-slot">
+            <div class="timeline-slot__time">15:30</div>
+            <div class="timeline-slot__body">
+              <div class="chip chip--done" style="--chip-color: var(--tl-hue-3-base)">
+                <span class="chip__title">接孩子</span><span class="chip__time">15:30</span>
+              </div>
+            </div>
+          </div>
+          <div class="timeline-slot">
+            <div class="timeline-slot__time">09:30</div>
+            <div class="timeline-slot__body">
+              <div class="chip chip--done" style="--chip-color: var(--tl-hue-2-base)">
+                <span class="chip__title">周会</span><span class="chip__time">09:30 – 10:00</span>
+              </div>
+            </div>
+          </div>
+          <p class="canvas__note" style="font-size:var(--tl-font-size-xs);margin-block-start:var(--tl-space-1)">
+            未完成（还没开的会）/ 已完成（今天的截止）/ 已完成（昨天的会，同样打勾）。
+            三条用的是同一套 <code>--tl-block-tint*</code>，没有第二套「日程样式」。
+          </p>
+        </div>
+
+        <div class="panel">
+          <div class="panel__head">
+            <h3 class="panel__title">产品评审</h3>
+            <span class="panel__tick panel__tick--on" aria-hidden="true">✓</span>
+          </div>
+          <div class="panel__body">
+            <div class="panel__section" style="padding-block-start:0">
+              <p class="panel__label">时间</p>
+              <div class="seg" role="radiogroup" aria-label="时间精度">
+                <button type="button" class="seg__btn" role="radio" aria-checked="false">不限</button>
+                <button type="button" class="seg__btn" role="radio" aria-checked="false">某天</button>
+                <button type="button" class="seg__btn" role="radio" aria-checked="false">半天</button>
+                <button type="button" class="seg__btn" role="radio" aria-checked="true">具体时间</button>
+              </div>
+              <p class="panel__value" style="margin-block-start:var(--tl-space-2)">
+                11 月 26 日 · 14:00 – 15:00
+              </p>
+              <p class="panel__hint">结束时间晚于开始时间就是一段；相等就是一个时刻。</p>
+            </div>
+            <div class="panel__section">
+              <p class="panel__label">重复</p>
+              <p class="panel__value">不重复</p>
+            </div>
+            <div class="panel__section">
+              <p class="panel__label">象限</p>
+              <div class="seg seg--quad" role="radiogroup" aria-label="象限">
+                <button type="button" class="seg__btn" role="radio" aria-checked="false">重要且紧急</button>
+                <button type="button" class="seg__btn" role="radio" aria-checked="true">重要不紧急</button>
+                <button type="button" class="seg__btn" role="radio" aria-checked="false">不重要但紧急</button>
+                <button type="button" class="seg__btn" role="radio" aria-checked="false">不重要不紧急</button>
+              </div>
+            </div>
+            <div class="panel__section">
+              <p class="panel__label">清单</p>
+              <p class="panel__value">工作</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack" style="flex:1 1 22rem;min-inline-size:0">
+        <ul class="annot annot--in" style="margin:0">
+          <li><b>能打勾。定义是「不再需要你处理」，不是「你成功了」。</b>
+            会开完就结束了；哪怕你没去，那个时段也过去了、也不再有下一步。
+            在这个定义下，完成一个会和完成一条待办是同一个动作，同一个勾。</li>
+          <li><b>过去但没人打勾，不会被自动打勾。</b>应用不知道会发生什么。它保持
+            <code>open</code>，然后由现有规则算成逾期——这是同一件事在今天也该有的诚实。</li>
+          <li><b>过去但没人打勾，也不会在日历上变红。</b>chip 不用
+            <code>--tl-danger-ink</code>。日历是记录，不是内疚板。逾期只出现在<b>清单镜头的
+            「已逾期」分组</b>里（<code>task.json</code> 的 <code>list.groups.overdue</code> 已有）。
+            这也符合「视图是镜头，不是类型」：同一个事项在不同镜头里有不同的呈现重点。</li>
+          <li><b>现在的状态是「永远不结束」。</b><code>CalendarEvent</code> 没有 status 字段，
+            所以昨天的会今天还在，明天的还在，上个月的还在——它们只能靠时间淡出视线。
+            合并之后，<code>status</code> 是每个事项都有的字段，这个问题从模型里消失。</li>
+        </ul>
+
+        <div class="callout callout--warn">
+          <b>迁移里的一个语义赌注（第 08 节展开）：</b>那些<b>已经过去</b>的日程，迁移时按
+          <code>done</code> 导入。理由是：会开完就结束了，剩下的动作只有「看一眼」。
+          代价是：一条你其实没去、但还想补个后续的会，会被记成已完成——一次点击就能改回来。
+          替代方案是把它们全部留成 <code>open</code>，那样用户升级后第一眼看到的是
+          「逾期 15 条」，其中 13 条是从没打算做的旧会议。两条路都不完美，本稿选前者。
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 06 重复 ============================ -->
+<section class="stage">
+  <p class="cap"><b>06</b> 重复 · 一个会也能「每周五」 <span class="rule"></span>
+    <span>规则挂在事项上，不挂在类型上</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:var(--tl-space-3)">
+      今天只有 <code>tasks</code> 有 <code>recurrence</code> 列，日程没有。合并之后，
+      「每周五复盘」是一个事项、一条重复规则，而不是「一个任务 + 十二个日程」。
+      但重复并不是对每一档都成立——因为它需要一个<b>可以往前推的锚点</b>。
+    </p>
+
+    <table class="spec" style="margin-block-start:0">
+      <thead>
+        <tr><th>精度档</th><th>能重复？</th><th>下一次怎么算</th><th>理由</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>不限</td><td>不下发规则（保留列）</td><td>—</td>
+          <td>没有日期就没有下一次。现有 <code>TaskService</code> 的行为就是「无日期的任务只是完成」，
+            本稿不改：列在，规则永远不触发。</td></tr>
+        <tr><td>某一天</td><td class="num">能</td><td>日期 + 一个周期</td><td>同今天。</td></tr>
+        <tr><td>某半天</td><td class="num">能</td><td>日期 + 周期，<code>due_period</code> 不变</td><td>同今天。</td></tr>
+        <tr><td>某个时刻 / 某段时间</td><td class="num">能</td><td>日期 + 周期，<b>时钟与时长不变</b></td>
+          <td>这是新增能力。周会的下一次仍是同一时刻、同样的时长——
+            「时长」由 <code>end_at − start_at</code> 推出，不用另存。</td></tr>
+        <tr class="bad"><td>一段时间（跨多天，含「这周」）</td><td class="num">不能</td><td>—</td>
+          <td>见下。</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-4)">
+      <b>为什么跨天的不能重复（包括「这周」）：</b>重复引擎只推<b>一个锚点</b>，其余信息由锚点派生。
+      一个 span 有两个端点，推的时候必须让端点保持同样的跨度；更要命的是，「每周一次、每次三天的出差」
+      的两次发生会重叠，而完成一条重复事项会派生下一条——重叠时「我完成的是哪一次」没有答案。
+      这是重复引擎的问题，不是模型的问题：模型已经能存它，只是重复按钮对 span 不出现。
+      「这周」是 span，所以同理。
+    </div>
+
+    <hr class="hr" style="margin-block:var(--tl-space-5)">
+
+    <p class="canvas__note" style="color:var(--tl-text);font-weight:var(--tl-font-weight-semibold);margin-block-end:var(--tl-space-1)">
+      完成时仍是「拆开」，不是「原地推进」。
+    </p>
+    <p class="canvas__note">
+      沿用 <code>TaskService.toggleDone</code> 现有的决定（<code>task-service.ts:100-125</code>）：
+      当前这一条<b>原地标成 done</b>，同时<b>新开一条</b>下一次。理由是完成控件必须能画出一个勾——
+      旧做法（在同一行上把日期往前推、留成 open）让勾永远打不上，一次点击和一次无声的空操作无法区分。
+      合并之后这个规则对会也成立：<b>上周的周会显示成已完成，本周的周会是一条新的 open 事项。</b>
+      这不是重复存储，是两段历史，而它们本来就是两段历史。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>重复是事项的属性，不是「任务」的属性。</b>这一条单独就足以说明为什么不能维持两张表：
+      两张表里无论如何都得把 <code>recurrence</code> 复制一份到 events，然后两套推进代码要保持一致。</li>
+    <li><b>「不能重复」是能力边界，不是类型。</b>界面隐藏重复控件，是因为这个形状没有定义「下一次」，
+      不是因为它是另一类东西。用户不会被告知「日程不可以重复」。</li>
+  </ul>
+</section>
+
+<!-- ============================ 07 点开哪 ============================ -->
+<section class="stage">
+  <p class="cap"><b>07</b> 点开哪 · 一个答案 <span class="rule"></span>
+    <span>任何一块，任何视图，同一个面板</span></p>
+
+  <div class="canvas canvas--tall">
+    <div class="flow">
+      <div class="flow__col">
+        <p class="flow__label">现状</p>
+        <div class="flow__box"><b>日历 chip</b><br>月 / 周 / 日 / 多日 / 多周</div>
+        <div class="flow__arrow" aria-hidden="true">↓</div>
+        <div class="flow__box" style="border-color:var(--tl-danger-ink)">
+          <code>entry.source</code> ?<br>
+          <b>task</b> → 任务详情面板（<code>setOpenTaskId</code>）<br>
+          <b>event</b> → 日程编辑器（<code>setEditingEntry</code>）
+        </div>
+        <p class="canvas__note" style="font-size:var(--tl-font-size-xs)">
+          <code>Shell.tsx:429-432</code>。用户看到的是两个长相不同、能力不同的抽屉，
+          而他在点之前无法知道会打开哪一个——因为 chip 长得一样。
+        </p>
+      </div>
+
+      <div class="flow__col">
+        <p class="flow__label">本稿</p>
+        <div class="flow__box"><b>任何一块</b><br>日历 chip / 清单行 / 象限卡</div>
+        <div class="flow__arrow" aria-hidden="true">↓</div>
+        <div class="flow__box" style="border-color:var(--tl-success-ink)">
+          <b>详情面板</b>（同一个）<br>
+          <code>setOpenTaskId(entry.id)</code>，一行。
+        </div>
+        <p class="canvas__note" style="font-size:var(--tl-font-size-xs)">
+          没有判断，因为已经没有可判断的东西。
+        </p>
+      </div>
+
+      <div class="flow__col">
+        <p class="flow__label">面板里有什么</p>
+        <div class="flow__box">
+          标题 · 完成 · <b>时间</b>（精度 + 起止）· 重复 · 象限 · 清单 · 备注 · 删除
+        </div>
+        <p class="canvas__note" style="font-size:var(--tl-font-size-xs)">
+          今天散在两个地方：<code>EventEditor</code> 有起止时间 / 清单 / 备注，
+          <code>TaskDetailPanel</code> 有象限 / 重复 / 备注。合并后它们是一张表上的七个段落，
+          用 §5.3 的发丝线分隔，不套面板。
+        </p>
+      </div>
+    </div>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-5)">
+      <b>一个细节让这个合并更顺：</b><code>CalendarEntry</code> 早就在携带
+      <code>notes</code> 和 <code>listId</code> 了。它自己的注释写着，这是为了让「an inspector can
+      patch them without a second fetch」——也就是说，统一面板所需的数据通路<b>已经存在</b>，
+      只是今天只给日程编辑器用。合并之后任务面板接管它，不需要新的读端口。
+    </div>
+
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-4)">
+      <b style="color:var(--tl-text)">另一个随之消失的东西：</b>
+      <code>EventEditor.tsx:149/301/330/538</code> 那四处 <code>source === 'event'</code> 判断，
+      全部在问「这条能不能编辑」。合并后没有只读条目，也没有「任务类日程需在任务详情中修改」
+      这句提示（<code>calendar.json</code> 的 <code>event.taskEntryReadonly</code>）——
+      因为它描述的问题不存在了。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>可预测性不是指「总是同一个编辑器」，而是「不需要知道任何前置概念」。</b>
+      今天点开哪一个是数据决定的；改完之后点开哪一个是<b>唯一</b>的。</li>
+    <li><b>顶栏的「新建」也打开这条捕获条。</b>今天顶栏走 <code>EventEditor</code>、
+      <code>Ctrl+N</code> 走 <code>QuickEventComposer</code>，两个输入框、两套校验。
+      合并后只有一条捕获路径，其余全部是它的变体（带日期上下文）。</li>
+  </ul>
+</section>
+
+<!-- ============================ 08 迁移 ============================ -->
+<section class="stage">
+  <p class="cap"><b>08</b> 迁移 · 18 + 13 条真实数据 <span class="rule"></span>
+    <span>逐字段映射，以及三个必须承认的代价</span></p>
+
+  <div class="canvas">
+    <p class="canvas__note" style="margin-block-end:var(--tl-space-3)">
+      迁移的方向是「形状改变，信息不丢」。任务方向是纯搬运；日程方向要补四个新字段，
+      所以要写清默认值，并说清它让用户看到什么。
+    </p>
+
+    <table class="spec" style="margin-block-start:0">
+      <thead>
+        <tr><th>源</th><th>目标字段</th><th>映射</th><th>信息损失</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>tasks.due_at</code></td><td><code>start_at</code></td><td>原值</td><td>无</td></tr>
+        <tr><td><code>tasks.due_date</code> + <code>all_day</code></td><td><code>end_at</code></td>
+          <td>全天 → <code>endOfDay(due_date)</code>；具体时刻 → <code>= start_at</code>（点）</td>
+          <td>无。时刻任务的「点」语义被显式化，正是第 01 节那个「15:30 – 15:30」的修复。</td></tr>
+        <tr><td><code>tasks.due_period</code></td><td><code>due_period</code></td><td>原值</td><td>无</td></tr>
+        <tr><td><code>tasks.status</code> / <code>completed_at</code> / <code>important</code> /
+          <code>urgent</code> / <code>recurrence</code> / <code>list_id</code></td>
+          <td>同名列</td><td>原值</td><td>无</td></tr>
+        <tr><td><code>events.start_at</code> / <code>end_at</code> / <code>all_day</code> / <code>list_id</code></td>
+          <td>同名列</td><td>原值（<code>list_id</code> 可能仍是 NULL）</td><td>无</td></tr>
+        <tr class="bad"><td><code>events.*</code> 缺的四个字段</td><td><code>status</code> / <code>completed_at</code> /
+          <code>important</code> / <code>urgent</code> / <code>recurrence</code></td>
+          <td>见下方默认规则</td><td>见下方</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-4)">
+      <b>日程 → 事项的默认值（三条规则）：</b><br>
+      1. <code>important = 0, urgent = 0, recurrence = NULL, due_period = NULL</code>——不猜。
+      这会把每一场会默认放进「不重要不紧急」的象限，与今天新建任务的默认一致（<code>createInbox</code>）。<br>
+      2. <b><code>end_at &lt;= now</code> 的（已经开完的）→ <code>status = 'done'</code>，
+      <code>completed_at = end_at</code></b>。这是本稿唯一替用户下的判断，理由见第 05 节。<br>
+      3. <code>end_at &gt; now</code> 的（未来的）→ <code>status = 'open'</code>。
+    </div>
+
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-3)">
+      <b style="color:var(--tl-text)">18 条任务 → 18 条事项，逐档核对：</b>
+      5 条不限（<code>start/end = NULL</code>）、8 条某天（全天区间）、2 条某半天
+      （全天区间 + <code>due_period</code>）、3 条某时刻（<code>end = start</code>）。
+      其中 2 条已逾期——它们<b>仍然是 open</b>，逾期判定与今天完全一致。
+      <b>13 条日程 → 13 条事项，全部是「某段时间」</b>（<code>all_day = 0, end &gt; start</code>）；
+      其中已经结束的按规则 2 记成 done，未来的保持 open。
+    </p>
+
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-2)">
+      <b style="color:var(--tl-text)">代价一：</b>每一场会都成了「不重要不紧急」。四象限板现在会显示
+      13 条会议，全部堆在 Q4。它们有日期，会按日期排序，但当用户打开默认视图时，看到的确实是
+      一屏新的东西。缓解办法是演示/种子数据从现在起给日程也分配象限，让 Q4 不显得是一个垃圾桶；
+      但用户自己那 13 条不会因此被挪走——<b>应用不替用户判断重要性</b>。
+    </p>
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-2)">
+      <b style="color:var(--tl-text)">代价二：</b>清单删除守卫的口径变了。今天
+      <code>ListService.remove</code> 只数 tasks（<code>list-service.ts:54-59</code>），
+      只有日程的清单是能删的，删完日程变成 <code>list_id = NULL</code>。合并后一类只有一张表，
+      守卫自然会数到会议：<b>一个只剩会议的清单，现在删不掉了。</b>
+      这更安全（不会悄悄孤儿化），但确实是一个用户能注意到的行为变化，必须在更新说明里写出来。
+    </p>
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-2)">
+      <b style="color:var(--tl-text)">代价三：</b>导出与备份的文案与列。CSV 现在只有任务列
+      （<code>export-import.ts:169</code>），合并后要么导出全部事项（需要加「开始 / 结束」两列），
+      要么保持只导任务——但「只导任务」在新模型下没有定义。本稿选前者；
+      备份 JSON 的 <code>BACKUP_VERSION</code> 从 3 升到 4，旧文件照常能导入（缺字段按默认值）。
+    </p>
+
+    <hr class="hr" style="margin-block:var(--tl-space-5)">
+
+    <p class="canvas__note" style="color:var(--tl-text);font-weight:var(--tl-font-weight-semibold);margin-block-end:var(--tl-space-1)">
+      安全网（这是本稿要求实现方必须加的东西，不是可选项）
+    </p>
+    <ul class="annot annot--in" style="margin:0">
+      <li><b>迁移前写一份 JSON 备份。</b>复用 <code>BackupFile</code> 序列化器，把当前库写成
+        <code>pre-v4-backup.json</code> 放在应用数据目录，并显示路径。今天没有任何自动备份；
+        一次不可逆的表替换不应该没有这张底牌。</li>
+      <li><b>迁移必须可重入。</b><code>migrate()</code>（<code>schema.ts</code>）逐条执行语句、
+        没有包事务。所以：建新表 → <code>INSERT OR IGNORE ... SELECT</code>（按 id 幂等）→
+        核对行数 → 才删旧表。中途崩掉，下次启动重跑不会重复插入，也不会丢掉一半。</li>
+      <li><b>不要在迁移里删旧表之前忘了核对。</b>行数不等就停在旧库上、把错误写进日志，
+        不要把数据删掉。宁可这次启动失败。</li>
+    </ul>
+  </div>
+
+  <ul class="annot">
+    <li><b>方向是对的，风险在「不可逆」。</b>见第 11 节——本稿最不舒服的一点不是映射，
+      是升级之后回不去。</li>
+    <li><b>保留原 id 前缀。</b><code>task_</code> / <code>event_</code> 不重写：它们是日志与备份里的
+      线索，重写只会制造一次无意义的全表更新。前缀不是类型，id 仍然是不透明句柄。</li>
+  </ul>
+</section>
+
+<!-- ============================ 09 词汇 ============================ -->
+<section class="stage">
+  <p class="cap"><b>09</b> 词汇 · 改哪些字，不改哪些字 <span class="rule"></span>
+    <span>删掉的是名词，不是按钮</span></p>
+
+  <div class="canvas">
+    <div class="callout" style="margin-top:0">
+      <b>结论：这个词不需要新名字，它需要一个更少的名字。</b>
+      合并后剩下的名词沿用 <b>「任务」</b>——它已经是这个应用里出现最广的词（中文词表里 50 处）、
+      是清单与四象限的语言、也是用户说「都是要干的事」时最接近的那个词。
+      「日程」降级为<b>视图名</b>，不再指称对象。
+      本稿<b>不</b>引入「事项」做界面用词：它是设计文档里的模型名，不是用户要学的第三个词。
+    </div>
+
+    <table class="spec spec--vocab">
+      <thead>
+        <tr><th>用户可见字符串</th><th>判定</th><th>改成什么 / 为什么</th></tr>
+      </thead>
+      <tbody>
+        <tr class="change"><td><code>shell:topBar.newEvent</code>「新建日程」</td><td>改</td>
+          <td>→「新建」。这是唯一一个把「日程」当宾语的地方，而它现在可以建任何东西。</td></tr>
+        <tr class="change"><td><code>calendar:event.newTitle</code>「新建日程」/ <code>editTitle</code>「编辑日程」</td><td>改</td>
+          <td>→「新建」/「编辑」。<code>EventEditor</code> 整个消失，这两句随它一起走；
+            统一面板的标题按事项来。</td></tr>
+        <tr class="change"><td><code>calendar:event.capture.type</code>「类型」<br>
+          <code>typeTask</code>「任务」/ <code>typeEvent</code>「日程」</td><td>删</td>
+          <td>开关本身删除，这三个 key 一起删。留一个 key 就是留一个可以再打开的开关。</td></tr>
+        <tr class="change"><td><code>calendar:event.capture.placeholderEvent</code>「要安排什么？」</td><td>删</td>
+          <td>捕获条只剩一个占位文案「要做什么？」。两个问句存在的前提是两种对象。</td></tr>
+        <tr class="change"><td><code>calendar:event.taskEntryReadonly</code>
+          「任务类日程需在任务详情中修改」</td><td>删</td>
+          <td>它描述的是「一个只读的日程条目」。没有只读条目，也就没有这句话。</td></tr>
+        <tr class="change"><td><code>misc:reminders.kind.*</code>「任务 / 日程」徽标</td><td>删</td>
+          <td>提醒横幅上的类型徽标是用户唯一被明确告知「这一个是日程」的地方——正是本稿要消除的。
+            删掉徽标，只留标题与时间。</td></tr>
+        <tr class="change"><td><code>calendar:emptyHint</code>「点击时间轴空白处新建日程…」</td><td>改</td>
+          <td>→「点击时间轴空白处，或按住拖动选择时间段」。动作还在，宾语去掉。</td></tr>
+        <tr class="change"><td><code>misc</code> 备份说明「任务、清单与日程」；
+          计数「任务 N / 日程 M」</td><td>改</td>
+          <td>→「所有任务都保存在…」；计数合并成一个「任务 N」。
+            备份面板是用户会认真读的地方，那里的分类词最容易重新制造两个概念。</td></tr>
+        <tr class="change"><td><code>shell</code> 设置描述「所有任务与日程都保存在…」</td><td>改</td>
+          <td>→「所有内容都保存在你自己电脑上的单个文件中」。一句话，不动卖点。</td></tr>
+        <tr class="keep"><td><code>shell:nav.tasks</code>「任务」</td><td>留</td>
+          <td>它现在是唯一的名词，保留。侧栏的「任务 / 日历 / 四象限」是<b>镜头</b>，不是类型。</td></tr>
+        <tr class="keep"><td><code>shell:nav.calendar</code>「日历」</td><td>留</td>
+          <td>视图名。</td></tr>
+        <tr class="keep"><td><code>misc:views.agenda</code>「日程视图」</td><td>留</td>
+          <td><b>有意的保留。</b>「日程」在这里指「一张按时间排的表」，是视图的名字，
+            不是对象的类名——就像「月视图」不叫「月」。改它会波及快捷键面板、视图切换器、
+            侧栏三处，而且换不到清晰度：用户不会因为这个词以为有第二类东西。</td></tr>
+        <tr class="keep"><td>「添加任务」（清单行内、象限行内、快速添加）</td><td>留</td>
+          <td>合并后它对每一项都成立，是正确的那一半。</td></tr>
+        <tr class="keep"><td>「任务清单」（平铺清单镜头）</td><td>留</td>
+          <td>清单是一个<b>地方</b>，不是对象的类名。它是「任务按日期分组的那个镜头」。</td></tr>
+        <tr class="keep"><td>「任务详情」（面板的无障碍标签）</td><td>留</td>
+          <td>面板现在编辑一切，但「任务」已经是唯一的名词，这句话仍然为真。
+            为一个屏幕阅读器标签做全量替换不值得。</td></tr>
+        <tr class="keep"><td>「全天 / 上午 / 下午 / 晚上 / 时间精度 / 已逾期」</td><td>留</td>
+          <td>这些是时间词汇，本来就不分对象，合并后正好成为唯一的精度语言。</td></tr>
+        <tr class="keep"><td>toast「已完成「X」」「已重新打开「X」」</td><td>留</td>
+          <td>不包含类型词。</td></tr>
+      </tbody>
+    </table>
+
+    <hr class="hr" style="margin-block:var(--tl-space-5)">
+
+    <p class="canvas__note" style="color:var(--tl-text);font-weight:var(--tl-font-weight-semibold);margin-block-end:var(--tl-space-1)">
+      为什么不叫「事项」（以及为什么不叫「待办」「事」）
+    </p>
+    <ul class="annot annot--in" style="margin:0">
+      <li><b>事项</b>是对的模型名、错的界面词。它中性、覆盖两边，但它是公文语，
+        且要替换中文词表里 50 处「任务」、外加英文的 Task。换来的清晰度与「保留任务」相同——
+        因为问题的根源是<b>两个词</b>，不是这个词选得不好。把「事项」写进 ADR 和本稿，
+        让它在代码与文档里当模型名；用户看不到它。</li>
+      <li><b>待办</b>把「还没做」写进了名词。一场开完的会不是「待办」，而合并后的每一项都能
+        完成、都可能已完成——名词和状态会互相打架。</li>
+      <li><b>事</b>太虚，做不了按钮文案（「添加事」不成话）。</li>
+      <li><b>可逆性：</b>如果以后确实想换成中性名词，「事项」是现成的落点——「待办事项」「日程事项」
+        在中文里都成立，所以这一步可以晚点再走，不必和这次模型合并绑在一起。</li>
+    </ul>
+
+    <div class="callout" style="margin-block-start:var(--tl-space-4)">
+      <b>英文词表同步（同一张表的原则）：</b><code>New event</code> → <code>New</code>；
+      <code>Event</code> / <code>Task</code> 的类型标签删除；<code>Agenda</code> 保留为视图名。
+      不需要新造一个 <code>Item</code> 去替换 <code>Task</code>——用户读到的仍然是 Task，
+      只是不再有一个 Event 在旁边让他比较。
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 10 对比度 ============================ -->
+<section class="stage">
+  <p class="cap"><b>10</b> 六个组合的对比度（脚本实算） <span class="rule"></span>
+    <span>文字 4.5:1 · 边界 3:1</span></p>
+
+  <div class="canvas">
+    <table class="spec" style="margin-block-start:0">
+      <thead>
+        <tr>
+          <th>组合</th>
+          <th>二级墨<br>面板</th>
+          <th>安静墨<br>面板</th>
+          <th>选中 chip 字<br>淡底</th>
+          <th>chip 标题<br>块底</th>
+          <th>chip 时间<br>块底</th>
+          <th>完成标题<br>弱块底</th>
+          <th>象限 tab<br>淡底</th>
+          <th>启用 CTA</th>
+          <th>禁用 CTA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>refined / light</td><td class="num">5.07</td><td class="num">7.31</td><td class="num">4.68</td><td class="num">14.57</td><td class="num">5.17</td><td class="num">5.66</td><td class="num">5.37</td><td class="num">6.42</td><td class="num">6.42</td></tr>
+        <tr><td>refined / dark</td><td class="num">6.96</td><td class="num">8.79</td><td class="num">5.58</td><td class="num">12.28</td><td class="num">6.27</td><td class="num">6.85</td><td class="num">8.22</td><td class="num">10.00</td><td class="num">10.00</td></tr>
+        <tr><td>protool / light</td><td class="num">5.65</td><td class="num">7.84</td><td class="num">4.67</td><td class="num">13.65</td><td class="num">5.33</td><td class="num">6.05</td><td class="num">5.35</td><td class="num">6.95</td><td class="num">6.95</td></tr>
+        <tr><td>protool / dark</td><td class="num">6.64</td><td class="num">8.54</td><td class="num">5.19</td><td class="num">12.45</td><td class="num">6.04</td><td class="num">6.58</td><td class="num">6.19</td><td class="num">9.63</td><td class="num">9.63</td></tr>
+        <tr><td>editorial / light</td><td class="num">5.96</td><td class="num">7.67</td><td class="num">4.77</td><td class="num">11.52</td><td class="num">5.48</td><td class="num">6.23</td><td class="num">5.01</td><td class="num">6.63</td><td class="num">6.63</td></tr>
+        <tr><td>editorial / dark</td><td class="num">6.15</td><td class="num">7.84</td><td class="num">4.68</td><td class="num">10.94</td><td class="num">5.44</td><td class="num">6.07</td><td class="num">6.24</td><td class="num">8.91</td><td class="num">8.91</td></tr>
+      </tbody>
+    </table>
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-2)">
+      这些数不是手算的：脚本在浏览器里把每个元素<b>真实渲染后</b>的背景逐层合成，
+      再读 computed color 算比例。903 个带文字的元素 × 6 组合，低于门槛的现在是 0 个。
+      「chip 标题 / 时间」取八条清单色相的最低值（<code>--tl-hue-1…8-base</code>），
+      块底是 <code>color-mix(hue, --tl-block-tint 14% / 16%, surface)</code>。
+      「选中 chip 字」是 <code>--tl-accent-ink</code> 压 <code>--tl-accent-tint</code>；
+      「象限选中」是 <code>--tl-quadrant-qN-ink</code> 压
+      <code>color-mix(qN-ink, --tl-block-tint-muted, surface)</code>，四档逐一测过取最低。
+      表里没有「三级墨」一列：它正是需要引入安静墨的<b>反例</b>——tertiary 在
+      <code>--tl-bg</code> 上只有 4.27 / 4.49 / 4.62（三档浅色），低于 4.5。
+    </p>
+
+    <table class="spec" style="margin-block-start:var(--tl-space-4)">
+      <thead><tr><th>项</th><th>取色</th><th>为什么</th></tr></thead>
+      <tbody>
+        <tr><td>当前 chip</td><td><code>--tl-block-title-ink</code> / 块底</td>
+          <td>与 calendar.css 完全一致；本稿没有新造彩色块，只是让会议走进同一套。</td></tr>
+        <tr><td>完成态 chip</td><td><code>--tl-block-time-ink</code> / 弱块底</td>
+          <td><code>--tl-block-tint-muted</code> 7%/8%。已完成仍读得出来是哪个事项，
+            但明显退后。与今天 <code>.tl-chip--done</code> 同一套。</td></tr>
+        <tr><td>时间 chip（捕获条）选中</td><td><code>--tl-accent-ink</code> / <code>--tl-accent-tint</code></td>
+          <td>与 <code>.tl-seg</code> 同一语义：选中项被抬起来。边框用 <code>--tl-accent-ink</code>，
+            六组合 5.17 / 6.47 / 5.37 / 5.67 / 5.36 / 5.84，过 1.4.11 的 3:1。</td></tr>
+        <tr><td>象限 tab（详情面板）选中</td><td><code>--tl-quadrant-qN-ink</code> / 自身 7%–8% 淡底</td>
+          <td><b>不能用 <code>--tl-quadrant-qN-tint</code></b>：那带 alpha，叠在 sunken 槽上比叠在
+            surface 上暗一档，q2 只有 4.40。抬到 surface + 7% 后四档最低 4.69。</td></tr>
+        <tr><td>安静墨（行副标题 / 存储列 / 禁用 CTA）</td><td><code>--tl-ink-quiet</code></td>
+          <td><code>--tl-text-tertiary</code> 在 <code>--tl-bg</code> 上只有 4.27（refined/light），
+            低于 4.5。安静墨是 secondary 往 text 推 28%，bg / sunken / subtle / surface 上最低 6.32。
+            <b>这是对 §2.1「安静提示用 tertiary」的一处有意偏离</b>，只用在真正要被读的小字上。</td></tr>
+        <tr><td>错误墨 / 提示条</td><td><code>--tl-danger-ink</code> / <code>--tl-danger-tint</code> 合到面板</td>
+          <td>六组合 15.20 / 13.23 / 14.72 / 13.85 / 12.46 / 11.25（提示条自身是 tint 底 +
+            ink 字）。第 11 节的三条红框用的就是这一对。</td></tr>
+        <tr><td>CTA</td><td><code>--tl-cta-text</code> / <code>--tl-cta-bg</code></td>
+          <td>不能用 <code>--tl-accent</code> + <code>--tl-accent-contrast</code>：refined/light 是
+            3.68:1。cta 这对令牌就是为此而存在（6.42 / 10.00 / 6.95 / 9.63 / 6.63 / 8.91）。</td></tr>
+        <tr class="bad"><td>块左侧 3px 色条<span style="color:var(--tl-text-secondary);font-weight:400">（已有缺口）</span></td>
+          <td><code>--tl-hue-N-base</code> / 块底</td>
+          <td><b>2.14–3.71</b>。这是一条冗余装饰（标题文字 + 块底色才是识别信息），不属于
+            1.4.11 要求的「识别控件所必需的边界」。本稿不改它，因为它和今天写进
+            <code>calendar.css</code> 的是同一套令牌；要收紧就改色条取色，那是另一张单子。</td></tr>
+      </tbody>
+    </table>
+
+    <p class="canvas__note" style="margin-block-start:var(--tl-space-3)">
+      焦点环：<code>--tl-focus-ring</code> 压面板 = 3.68 / 6.47 / 5.37 / 5.67 / 5.36 / 5.84，
+      全部 ≥ 3。禁用 CTA 仍是「颜色不是淡出」：<code>--tl-surface-sunken</code> 底 +
+      <code>--tl-ink-quiet</code> 墨，六组合 6.42 / 10.00 / 6.95 / 9.63 / 6.63 / 8.91——
+      比「淡出」更安静，却比 §5.1 原定的 <code>--tl-text-disabled</code>（1.48–2.74，
+      按钮会消失成空槽）读得清。
+      <b>这里有一个本稿自己踩过的坑，值得记下来：</b>安静墨最初声明在 <code>:root</code>，
+      但它引用的 <code>--tl-text-secondary</code> / <code>--tl-text</code> 只在
+      <code>[data-skin]</code> 里定义，cascade 顺序导致 <code>color-mix</code> 整条失效，
+      字静默回落到全黑——禁用 CTA 变成 14.8:1，比启用态还响。移到皮肤块之后才对。
+      <b>这一类「变量为空 → 声明被丢弃 → 回落到继承值」的失效是静默的，只有量出来才看得见。</b>
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>本稿没有新增任何颜色。</b>六组合的差异全部来自 tokens.css 已有的皮肤与主题；
+      合并改变的是<b>哪些条目用哪套令牌</b>，不是令牌本身。</li>
+    <li><b>时间 chip 的选中态是唯一的新组合</b>——它复用 <code>--tl-accent-ink</code> /
+      <code>--tl-accent-tint</code> 这一对，已经在详情面板的 <code>.tk-quadrant-seg</code>
+      与视图切换器里验证过。</li>
+  </ul>
+</section>
+
+<!-- ============================ 11 风险 ============================ -->
+<section class="stage">
+  <p class="cap"><b>11</b> 最不舒服的三件事 <span class="rule"></span>
+    <span>说清楚，而不是藏起来</span></p>
+
+  <div class="canvas">
+    <div class="stack" style="gap:var(--tl-space-3)">
+      <div class="callout callout--warn" style="margin:0">
+        <b>1 · 升级之后回不去（最不舒服的一条）。</b>
+        <code>migrate()</code> 只执行版本号更高的迁移；一个<b>旧版本</b>的程序打开 v+1 的库时，
+        会跳过所有迁移，然后去查已经删掉的 <code>tasks</code> 表——启动即失败。
+        自动更新回滚、或用户重装旧安装包，都会走到这里。本稿的两条缓解：
+        迁移前写 JSON 备份（可被新版本重新导入），以及<b>不删旧表</b>、只把它标记为废弃
+        （代价是库里有冗余数据，收益是旧版本仍能读）。两条可以只选一条；
+        我倾向「先不删，过两个版本再删」，因为回滚窗口是真实的。
+      </div>
+
+      <div class="callout callout--warn" style="margin:0">
+        <b>2 · 「过去的会按已完成导入」是一个语义赌注。</b>
+        如果用户那天没去开会、但会后还要补一份纪要，这条会被记成 done。
+        它一次点击就能改回来，而且「已完成」在日历上只是安静地退后，不是划掉一整个时代。
+        但它仍然是应用替用户下的判断。替代方案（全部留成 open）会让升级后的第一屏变成
+        「逾期 15 条」——那个更糟。
+      </div>
+
+      <div class="callout callout--warn" style="margin:0">
+        <b>3 · 清单删除守卫变严了。</b>
+        一个只剩会议的清单，今天能删（会议变成 <code>NULL</code> 列表），合并后会被拒绝并显示条数。
+        这更安全，但它是一个用户可感知的规则变化，必须写进更新说明，否则会被当成 bug。
+      </div>
+
+      <div class="callout" style="margin:0">
+        <b>还有一件不是风险、但要排期的事：</b>跨多天的条目在月 / 周视图里目前只画在第一天
+        （<code>MonthView.tsx:53</code>、<code>WeekView.tsx:144</code>）。模型允许 span 之后，
+        「画成一条横跨的带」是必须补上的渲染工作。它不影响这次迁移的正确性
+        （现有 13 条日程都是当天起止），但它决定「这周」在日历上看起来是否可信。
+      </div>
+    </div>
+
+    <hr class="hr" style="margin-block:var(--tl-space-5)">
+
+    <p class="canvas__note" style="color:var(--tl-text);font-weight:var(--tl-font-weight-semibold);margin-block-end:var(--tl-space-1)">
+      最后，正面回答用户的第二个问题：「产品设计一定要逻辑全局一致」。
+    </p>
+    <p class="canvas__note">
+      这次合并之所以是对的做法，不是因为它「更优雅」，而是因为一致性有可检验的标准：
+      <b>同一个对象在每一个镜头里都是同一个对象，且用户不需要先分类才能操作它。</b>
+      现在四象限、清单、日历对「任务」是三种说法（有的能上日历、有的不能），对「日程」是另一种说法；
+      合并之后只有一种。捕获、点开、完成、重复、删除、备份——六个动作里没有一步会问
+      「这是任务还是日程」。这就是那句话在数据模型里的样子。
+    </p>
+  </div>
+
+  <ul class="annot">
+    <li><b>本稿是设计提案，不是迁移方案。</b>没有改任何 <code>.tsx</code> / <code>.ts</code>；
+      字段表与默认规则是给实现方的契约，不是已经落地的代码。</li>
+    <li><b>可检验的验收：</b>全仓 grep <code>source === 'event'</code> 应为 0；
+      grep 用户词汇 <code>新建日程</code> 应为 0；两个编辑器类组件应只剩一个；
+      <code>items</code> 表不存在任何叫 <code>kind</code> / <code>type</code> 的列。</li>
+  </ul>
+</section>
+
+<script>
+document.querySelectorAll('[data-set-skin]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-skin', btn.getAttribute('data-set-skin'));
+    document.querySelectorAll('[data-set-skin]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+document.querySelectorAll('[data-set-theme]').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    document.body.setAttribute('data-theme', btn.getAttribute('data-set-theme'));
+    document.querySelectorAll('[data-set-theme]').forEach(function (b) {
+      b.setAttribute('aria-pressed', String(b === btn));
+    });
+  });
+});
+
+/* 单选组：点一个，其余取消，并维护 roving tabindex（与 SegmentedControl 同一约定）。 */
+function wireRadioGroup(group) {
+  var items = Array.prototype.slice.call(group.querySelectorAll('[role="radio"]'));
+  if (!items.length) return;
+  function select(target, moveFocus) {
+    items.forEach(function (x) {
+      var on = x === target;
+      x.setAttribute('aria-checked', String(on));
+      x.tabIndex = on ? 0 : -1;
+    });
+    if (moveFocus) target.focus();
+  }
+  var checked = items.filter(function (x) { return x.getAttribute('aria-checked') === 'true'; })[0] || items[0];
+  select(checked, false);
+  items.forEach(function (item, i) {
+    item.addEventListener('click', function () { select(item, false); });
+    item.addEventListener('keydown', function (e) {
+      var last = items.length - 1, next = null;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = i === last ? 0 : i + 1;
+      else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = i === 0 ? last : i - 1;
+      else if (e.key === 'Home') next = 0;
+      else if (e.key === 'End') next = last;
+      else return;
+      e.preventDefault();
+      select(items[next], true);
+    });
+  });
+}
+document.querySelectorAll('[role="radiogroup"]').forEach(wireRadioGroup);
+</script>
+</body>
+</html>

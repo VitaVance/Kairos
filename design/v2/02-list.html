@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 平铺清单</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+/* ============================================================================
+   02 平铺清单 —— 按时间分组 / 按清单分组
+   颜色全部来自 shared.css 的令牌；清单色是数据，走内联 style。
+   ========================================================================== */
+.topbar { padding-inline-end: 10rem; }
+.topbar__actions { flex-wrap: wrap; }
+
+.content--list { padding: 0; display: flex; flex-direction: column; }
+.listscroll { flex: 1; min-block-size: 0; overflow: auto; padding: var(--sp-4); }
+
+/* ---- 时间阶梯：六档六形（与 01 同一套形状语言）-------------------------- */
+.lad {
+  display: inline-flex; align-items: center; gap: 5px;
+  flex: none;
+  block-size: 22px; padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-sm); line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lad > svg { inline-size: 13px; block-size: 13px; flex: none; }
+.lad__pre { color: var(--ink-quiet); font-weight: 400; }
+
+.lad--month {          /* 一整片：虚线胶囊 + 字距 */
+  border: 1px dashed var(--ink-3);
+  border-radius: var(--radius-full);
+  padding-inline: 9px;
+  letter-spacing: .04em;
+  color: var(--ink-2);
+}
+.lad--week {           /* 一周的窗口：只留两端竖括号 */
+  border-inline: 2px solid var(--ink-3);
+  border-radius: 0;
+  padding-inline: 7px;
+  color: var(--ink-1);
+}
+.lad--day {            /* 一整天：实线方角 + 实心底 */
+  border: 1px solid var(--ink-3);
+  background: var(--bg-subtle);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.lad--period {         /* 一天的一半：实线圆角 + 半圆图标 */
+  border: 1px solid var(--ink-3);
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--ink-1);
+}
+.lad--time {           /* 精确到点：实心深色 + 钟表 + 粗数字 */
+  border-color: var(--ink-1);
+  background: var(--ink-1);
+  color: var(--bg-surface);
+  font-weight: 600;
+}
+.lad--time .lad__pre { color: inherit; opacity: .72; font-weight: 500; }
+.lad--none { color: var(--ink-quiet); padding-inline: 4px; gap: 6px; }
+.lad--none > svg { opacity: .8; }
+
+.lad.is-late { border-color: var(--danger-ink); color: var(--danger-ink); }
+.lad--day.is-late, .lad--period.is-late { background: var(--danger-tint); }
+.lad--time.is-late {
+  background: var(--danger-tint); border-color: var(--danger-ink); color: var(--danger-ink);
+}
+.lad--time.is-late .lad__pre { color: var(--danger-ink); opacity: .78; }
+.lad.is-passed { border-color: var(--warning-ink); color: var(--warning-ink); }
+.lad--week.is-passed { border-inline-color: var(--warning-ink); }
+
+.sig {
+  display: inline-flex; align-items: center;
+  flex: none;
+  block-size: 18px; padding: 0 5px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-xs); font-weight: 600;
+  white-space: nowrap;
+}
+.sig--danger { background: var(--danger-tint); color: var(--danger-ink); }
+.sig--warn {
+  border-color: var(--warning-ink);
+  color: var(--warning-ink);
+  background: var(--bg-surface);
+}
+
+/* ---- 分组容器 ------------------------------------------------------------ */
+.groups {
+  background: var(--bg-surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  overflow: clip;
+}
+.group + .group { border-block-start: 1px solid var(--hairline); }
+
+/* 吸顶分组头：滚动时停在内容区顶端 */
+.ghead {
+  position: sticky; inset-block-start: 0; z-index: 1;
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--bg-subtle);
+  border-block-end: 1px solid var(--hairline-soft);
+  box-shadow: 0 -1px 0 var(--bg-subtle);
+}
+.ghead__glyph { display: grid; place-items: center; color: var(--ink-3); flex: none; }
+.ghead__name { font-size: var(--text-sm); font-weight: 600; color: var(--ink-1); }
+.ghead__name--late { color: var(--danger-ink); }
+.ghead__name--passed { color: var(--warning-ink); }
+.ghead__n {
+  font-size: var(--text-xs); font-weight: 600; color: var(--ink-quiet);
+  font-variant-numeric: tabular-nums;
+}
+.ghead__hint { font-size: var(--text-xs); color: var(--ink-quiet); }
+.ghead__dot { inline-size: 7px; block-size: 7px; border-radius: 50%; flex: none; }
+.ghead__spacer { flex: 1; }
+
+/* ---- 行 ------------------------------------------------------------------ */
+.rows { list-style: none; margin: 0; padding: 0; }
+.lrow {
+  display: flex; align-items: center; gap: var(--sp-2);
+  min-block-size: 38px; padding: 2px var(--sp-4);
+  border-block-start: 1px solid var(--hairline-soft);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+}
+.rows > .lrow:first-child { border-block-start: 0; }
+.lrow:hover { background: var(--bg-hover); }
+.lrow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.lrow[aria-selected="true"] {
+  background: var(--accent-tint);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.lrow[aria-selected="true"]:hover { background: var(--accent-tint); }
+
+.lrow__title {
+  flex: 1; min-inline-size: 0;
+  font-size: var(--text-body); color: var(--ink-1);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.lrow[aria-selected="true"] .lrow__title { font-weight: 600; color: var(--accent-ink); }
+
+/* 清单归属：点 + 名 */
+.lrow__list {
+  display: inline-flex; align-items: center; gap: 5px;
+  flex: none; min-inline-size: 4.4rem;
+  font-size: var(--text-xs); color: var(--ink-2);
+  white-space: nowrap;
+}
+.lrow__list .lad__dot { inline-size: 6px; block-size: 6px; border-radius: 50%; flex: none; }
+.lrow__list--empty { min-inline-size: 4.4rem; }
+
+/* 重复标记 */
+.lrow__rep {
+  display: grid; place-items: center; flex: none;
+  color: var(--ink-3);
+}
+.lrow__rep svg { inline-size: 13px; block-size: 13px; }
+
+/* 顺延到本周 */
+.snooze {
+  appearance: none; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px;
+  flex: none;
+  block-size: 24px; padding: 0 var(--sp-2);
+  border: 1px solid var(--warning-ink);
+  border-radius: var(--radius-sm);
+  background: var(--bg-surface);
+  color: var(--warning-ink);
+  font: inherit; font-size: var(--text-xs); font-weight: 600;
+  white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease);
+}
+.snooze:hover { background: var(--bg-hover); }
+.snooze:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.snooze svg { inline-size: 13px; block-size: 13px; }
+
+/* 已完成行 */
+.lrow--done .lrow__title {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-4);
+}
+
+/* ---- 空状态 --------------------------------------------------------------- */
+.listempty {
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center; color: var(--ink-quiet); font-size: var(--text-sm);
+}
+
+/* 描述条 */
+.listnote {
+  display: flex; align-items: center; gap: var(--sp-2);
+  padding-block-end: var(--sp-3);
+  font-size: var(--text-sm); color: var(--ink-quiet);
+}
+.listnote b { color: var(--ink-2); font-weight: 600; }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+
+<div class="app">
+  <nav class="rail" aria-label="主导航">
+    <div class="rail__group">
+      <button type="button" class="rail__item" aria-label="四象限" title="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/>
+          <rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="日历" title="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-current="page" aria-label="搜索" title="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+        </svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button type="button" class="rail__item" aria-label="备份" title="备份">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="设置" title="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+      <button type="button" class="rail__item" aria-label="更多" title="更多">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="19" cy="12" r="1" fill="currentColor"/><circle cx="5" cy="12" r="1" fill="currentColor"/>
+        </svg>
+      </button>
+    </div>
+  </nav>
+
+  <aside class="sidebar" aria-label="筛选与清单">
+    <div class="sidebar__head">智能筛选</div>
+    <div class="sidebar__group" id="smartFilters"></div>
+    <div class="sidebar__head"><span>清单</span><span id="listTotal"></span></div>
+    <div class="sidebar__group" id="listFilters"></div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title">平铺清单</h1>
+      <span class="topbar__sub" id="todayLine"></span>
+      <span class="topbar__sub" id="openLine"></span>
+      <div class="topbar__actions">
+        <div class="seg" role="radiogroup" aria-label="分组方式">
+          <button type="button" class="seg__item" role="radio" data-group="time" aria-checked="true">按时间</button>
+          <button type="button" class="seg__item" role="radio" data-group="list" aria-checked="false">按清单</button>
+        </div>
+      </div>
+    </header>
+    <div class="content content--list">
+      <div class="listscroll" id="scroll">
+        <p class="listnote" id="note"></p>
+        <div class="groups" id="groups"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---- 图标（Lucide 几何，24 网格）--------------------------------------- */
+  function sw(size) { return size <= 14 ? 1.9 : size <= 16 ? 1.8 : size <= 18 ? 1.7 : 1.6; }
+  function svg(size, body) {
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none"' +
+      ' stroke="currentColor" stroke-width="' + sw(size) + '" stroke-linecap="round"' +
+      ' stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
+  }
+  var P = {
+    chev: '<path d="m6 9 6 6 6-6"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    cal: '<path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>',
+    layers: '<path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 17 9 5 9-5"/>',
+    repeat: '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+    arrow: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+    month: '<rect x="3" y="8" width="18" height="8" rx="2" stroke-dasharray="3 2.5"/>',
+    week: '<rect x="3" y="6.5" width="18" height="11" rx="2"/><path d="M9 6.5v11M15 6.5v11"/>',
+    day: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>',
+    period: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
+    time: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    none: '<path d="M6 12h12"/>'
+  };
+  var GLYPH = { month: P.month, week: P.week, day: P.day, period: P.period, time: P.time, none: P.none };
+
+  /* 时间分组的顺序（ADR 0004：month → week → day(按日期) → period → time → none）*/
+  var GROUP_ORDER = ['month', 'week', 'day', 'period', 'time', 'none'];
+  var GROUP_NAME = {
+    month: '下个月', week: '这周', day: '按天', period: '时段', time: '具体时刻', none: '不限'
+  };
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function boot() {
+    var K = window.Kairos;
+    if (!K) { return; }
+
+    var groupsEl = document.getElementById('groups');
+    var scrollEl = document.getElementById('scroll');
+    var smartBox = document.getElementById('smartFilters');
+    var listBox = document.getElementById('listFilters');
+    var noteEl = document.getElementById('note');
+
+    var state = { group: 'time', filter: 'all', list: null, selected: null };
+
+    var PERIOD_RANK = { morning: 0, afternoon: 1, evening: 2 };
+    var RANK = { month: 0, week: 1, day: 2, period: 3, time: 4, none: 5 };
+
+    function byId(id) {
+      for (var i = 0; i < K.ITEMS.length; i++) {
+        if (K.ITEMS[i].id === id) { return K.ITEMS[i]; }
+      }
+      return null;
+    }
+    function listOf(id) {
+      for (var i = 0; i < K.LISTS.length; i++) {
+        if (K.LISTS[i].id === id) { return K.LISTS[i]; }
+      }
+      return { name: '', color: 'transparent' };
+    }
+
+    function cmp(a, b) {
+      var r = RANK[a.rung] - RANK[b.rung];
+      if (r) { return r; }
+      var ad = a.date || '9999-99-99', bd = b.date || '9999-99-99';
+      if (ad !== bd) { return ad < bd ? -1 : 1; }
+      var at = a.time || '', bt = b.time || '';
+      if (at !== bt) { return at < bt ? -1 : 1; }
+      var ap = PERIOD_RANK[a.period] == null ? 0 : PERIOD_RANK[a.period];
+      var bp = PERIOD_RANK[b.period] == null ? 0 : PERIOD_RANK[b.period];
+      return ap - bp;
+    }
+
+    function passes(it) {
+      if (state.list && it.list !== state.list) { return false; }
+      if (state.filter === 'today') { return coversToday(it); }
+      if (state.filter === 'recent') { return inRecent(it); }
+      return true;
+    }
+    function coversToday(it) {
+      if (it.rung === 'none') { return false; }
+      if (it.rung === 'week') { return K.weekStartOf(it.date) === K.weekStartOf(K.TODAY); }
+      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.TODAY); }
+      return it.date === K.TODAY;
+    }
+    function inRecent(it) {
+      if (it.rung === 'none') { return false; }
+      if (K.isLate(it) || K.isWindowPassed(it)) { return true; }
+      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.TODAY); }
+      if (it.rung === 'week') {
+        var ws = K.weekStartOf(it.date);
+        return ws >= K.TODAY && ws <= K.addDays(K.TODAY, 6);
+      }
+      return it.date >= K.TODAY && it.date <= K.addDays(K.TODAY, 6);
+    }
+
+    /* ---- 阶梯标签 ---------------------------------------------------------- */
+    function ladHTML(it, showListName) {
+      var label = K.rungLabel(it);
+      var cls = 'lad lad--' + it.rung;
+      if (K.isLate(it)) { cls += ' is-late'; }
+      if (K.isWindowPassed(it)) { cls += ' is-passed'; }
+
+      if (it.rung === 'none' && showListName) {
+        var l = listOf(it.list);
+        return '<span class="' + cls + '"><i class="lad__dot" style="background:' + l.color + '"></i>' +
+          '<span>' + esc(l.name) + '</span></span>';
+      }
+
+      var inner;
+      if (it.rung === 'time') {
+        var sp = label.lastIndexOf(' ');
+        var pre = sp > 0 ? label.slice(0, sp) : '';
+        var main = sp > 0 ? label.slice(sp + 1) : label;
+        inner = (pre ? '<span class="lad__pre">' + esc(pre) + '</span>' : '') + '<span>' + esc(main) + '</span>';
+      } else if (it.rung === 'period') {
+        var p = K.PERIOD_LABEL[it.period];
+        var pre2 = label.slice(0, label.length - p.length);
+        inner = '<span class="lad__pre">' + esc(pre2) + '</span><span>' + esc(p) + '</span>';
+      } else {
+        inner = '<span>' + esc(label) + '</span>';
+      }
+
+      var extra = '';
+      if (K.isWindowPassed(it)) { extra = '<span class="sig sig--warn">未完成</span>'; }
+      else if (K.isLate(it)) { extra = '<span class="sig sig--danger">已过</span>'; }
+      else if (K.urgencyOf(it) === 'near' && !it.urgent) { extra = '<span class="sig sig--warn">马上到期</span>'; }
+
+      return '<span class="' + cls + '">' + svg(13, GLYPH[it.rung]) + inner + '</span>' + extra;
+    }
+
+    /* ---- 行 ---------------------------------------------------------------- */
+    function rowHTML(it, showList) {
+      var sel = state.selected === it.id;
+      var l = listOf(it.list);
+      // 按时间分组：一行带清单归属（点 + 名）。
+      // 但「不限」这一档的阶梯标签本来就显示清单名（ADR 0004），再放一次就重复了。
+      // 按清单分组：分组头已经是清单名，行上留同宽的占位，让阶梯列仍然对齐。
+      var showListCell = showList && it.rung !== 'none';
+      var listCell = showListCell
+        ? '<span class="lrow__list"><i class="lad__dot" style="background:' + l.color + '"></i>' + esc(l.name) + '</span>'
+        : '<span class="lrow__list lrow__list--empty" aria-hidden="true"></span>';
+
+      var snooze = K.isWindowPassed(it)
+        ? '<button type="button" class="snooze" data-snooze="' + it.id + '">' + svg(13, P.arrow) + '顺延到本周</button>'
+        : '';
+
+      var rep = it.repeat ? '<span class="lrow__rep" title="重复">' + svg(14, P.repeat) + '</span>' : '';
+
+      return '<li class="lrow' + (it.done ? ' lrow--done' : '') + '" data-id="' + it.id + '"' +
+        ' tabindex="0" role="option" aria-selected="' + sel + '">' +
+        '<input type="checkbox" class="check"' + (it.done ? ' checked' : '') +
+          ' aria-label="把「' + esc(it.title) + '」标记为' + (it.done ? '未完成' : '已完成') + '">' +
+        '<span class="lrow__title">' + esc(it.title) + '</span>' +
+        rep +
+        ladHTML(it, showList) +
+        listCell +
+        snooze +
+        '</li>';
+    }
+
+    /* ---- 分组：按时间 ------------------------------------------------------ */
+    function buildTimeGroups(items) {
+      var groups = [];
+      var byRung = {};
+      items.forEach(function (it) {
+        (byRung[it.rung] = byRung[it.rung] || []).push(it);
+      });
+
+      GROUP_ORDER.forEach(function (rung) {
+        var arr = byRung[rung];
+        if (!arr || !arr.length) { return; }
+
+        // week / month：窗口已过的单独成段，排在当前窗口之前。
+        // 这是「让用户看见自己拖了多久」——已过的窗口不进当前窗口，也不被藏。
+        if (rung === 'week' || rung === 'month') {
+          var open = arr.filter(function (it) { return !K.isWindowPassed(it); }).sort(cmp);
+          var passed = arr.filter(function (it) { return K.isWindowPassed(it); }).sort(cmp);
+          if (passed.length) {
+            groups.push({ rung: rung, items: passed, passed: true, title: K.rungLabel(passed[0]) });
+          }
+          if (open.length) {
+            groups.push({ rung: rung, items: open, title: rung === 'week' ? '这周' : GROUP_NAME.month });
+          }
+          return;
+        }
+
+        if (rung !== 'day') {
+          arr.sort(cmp);
+          groups.push({ rung: rung, items: arr, title: GROUP_NAME[rung] });
+          return;
+        }
+        // day 档按具体日期再分一组一组的：今天 / 明天 / 11月29日 …
+        var byDate = {};
+        arr.forEach(function (it) { (byDate[it.date] = byDate[it.date] || []).push(it); });
+        Object.keys(byDate).sort().forEach(function (date) {
+          var dayItems = byDate[date].sort(cmp);
+          groups.push({
+            rung: 'day', items: dayItems, title: K.rungLabel(dayItems[0]),
+            late: K.isLate(dayItems[0])
+          });
+        });
+      });
+
+      return groups;
+    }
+
+    function groupHeadHTML(g) {
+      var glyph = svg(15, GLYPH[g.rung]);
+      var nameCls = 'ghead__name';
+      var extra = '';
+      if (g.passed) {
+        nameCls += ' ghead__name--passed';
+        extra = '<span class="ghead__hint">计划窗口已过，不算逾期</span>';
+      }
+      if (g.late) { nameCls += ' ghead__name--late'; }
+
+      return '<div class="ghead">' +
+        '<span class="ghead__glyph">' + glyph + '</span>' +
+        '<span class="' + nameCls + '">' + esc(g.title) + '</span>' +
+        '<span class="ghead__n">' + g.items.length + '</span>' +
+        (extra ? '<span class="ghead__spacer"></span>' + extra : '') +
+        '</div>';
+    }
+
+    /* ---- 分组：按清单 ------------------------------------------------------ */
+    function buildListGroups(items) {
+      return K.LISTS.map(function (l) {
+        var arr = items.filter(function (it) { return it.list === l.id; }).sort(cmp);
+        return { rung: 'list', list: l, items: arr };
+      }).filter(function (g) { return g.items.length; });
+    }
+
+    function listHeadHTML(g) {
+      var open = g.items.filter(function (i) { return !i.done; }).length;
+      return '<div class="ghead">' +
+        '<span class="ghead__dot" style="background:' + g.list.color + '"></span>' +
+        '<span class="ghead__name">' + esc(g.list.name) + '</span>' +
+        '<span class="ghead__n">' + open + ' 件未完成 · 共 ' + g.items.length + '</span>' +
+        '</div>';
+    }
+
+    /* ---- 渲染 -------------------------------------------------------------- */
+    function render() {
+      var items = K.ITEMS.filter(passes);
+
+      var html = '';
+      if (state.group === 'time') {
+        var groups = buildTimeGroups(items);
+        if (!groups.length) {
+          html = '<div class="listempty">没有符合条件的事</div>';
+        } else {
+          groups.forEach(function (g) {
+            html += '<section class="group">' + groupHeadHTML(g) +
+              '<ul class="rows" role="listbox" aria-label="' + esc(g.title) + '">' +
+              g.items.map(function (it) { return rowHTML(it, true); }).join('') +
+              '</ul></section>';
+          });
+        }
+        noteEl.innerHTML = '<b>按时间</b>排序：下个月 → 这周 → 按天 → 时段 → 具体时刻 → 不限。粗窗口在前，因为它们最容易被忘。';
+      } else {
+        var lgroups = buildListGroups(items);
+        if (!lgroups.length) {
+          html = '<div class="listempty">没有符合条件的事</div>';
+        } else {
+          lgroups.forEach(function (g) {
+            html += '<section class="group">' + listHeadHTML(g) +
+              '<ul class="rows" role="listbox" aria-label="' + esc(g.list.name) + '">' +
+              g.items.map(function (it) { return rowHTML(it, false); }).join('') +
+              '</ul></section>';
+          });
+        }
+        noteEl.innerHTML = '<b>按清单</b>分组，同一清单内仍按时间阶梯排序。';
+      }
+
+      groupsEl.innerHTML = html;
+      renderSidebar();
+    }
+
+    function renderSidebar() {
+      var smart = [
+        { id: 'today', label: '今天', icon: P.cal },
+        { id: 'recent', label: '最近7天', icon: P.clock },
+        { id: 'all', label: '全部', icon: P.layers }
+      ];
+      smartBox.innerHTML = smart.map(function (s) {
+        var n = K.ITEMS.filter(function (it) {
+          if (it.done) { return false; }
+          if (s.id === 'today') { return coversToday(it); }
+          if (s.id === 'recent') { return inRecent(it); }
+          return true;
+        }).length;
+        var cur = state.filter === s.id && !state.list;
+        return '<button type="button" class="sidebar__row" data-smart="' + s.id + '"' +
+          (cur ? ' aria-current="true"' : '') + '>' +
+          svg(16, s.icon) +
+          '<span class="sidebar__label">' + s.label + '</span>' +
+          '<span class="sidebar__count">' + n + '</span></button>';
+      }).join('');
+
+      listBox.innerHTML = K.LISTS.map(function (l) {
+        var n = K.ITEMS.filter(function (it) { return it.list === l.id && !it.done; }).length;
+        var cur = state.list === l.id;
+        return '<button type="button" class="sidebar__row" data-list="' + l.id + '"' +
+          (cur ? ' aria-current="true"' : '') + '>' +
+          '<span class="sidebar__dot" style="background:' + l.color + '" aria-hidden="true"></span>' +
+          '<span class="sidebar__label">' + l.name + '</span>' +
+          '<span class="sidebar__count">' + n + '</span></button>';
+      }).join('');
+
+      var total = K.ITEMS.filter(function (it) { return !it.done; }).length;
+      document.getElementById('listTotal').textContent = total + ' 件';
+      document.getElementById('openLine').textContent = total + ' 件未完成';
+    }
+
+    /* ---- 顶栏日期 ---------------------------------------------------------- */
+    (function () {
+      var d = K.parse(K.TODAY);
+      var wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
+      document.getElementById('todayLine').textContent =
+        d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + wd;
+    })();
+
+    /* ---- 交互 -------------------------------------------------------------- */
+    // 分组切换：真的改变渲染
+    document.querySelector('.topbar__actions .seg').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-group]');
+      if (!b) { return; }
+      state.group = b.dataset.group;
+      this.querySelectorAll('[data-group]').forEach(function (x) {
+        x.setAttribute('aria-checked', String(x === b));
+      });
+      scrollEl.scrollTop = 0;
+      render();
+    });
+
+    // 侧栏
+    document.querySelector('.sidebar').addEventListener('click', function (e) {
+      var s = e.target.closest('[data-smart]');
+      if (s) {
+        state.filter = s.dataset.smart;
+        state.list = null;
+        render();
+        return;
+      }
+      var l = e.target.closest('[data-list]');
+      if (l) {
+        // 点清单 = 切到「按清单」分组并聚焦该清单
+        if (state.group !== 'list') {
+          state.group = 'list';
+          document.querySelectorAll('.seg [data-group]').forEach(function (x) {
+            x.setAttribute('aria-checked', String(x.dataset.group === 'list'));
+          });
+        }
+        state.list = null;
+        state.filter = 'all';
+        render();
+        var head = groupsEl.querySelector('.ghead__name');
+        if (head) { head.scrollIntoView({ block: 'nearest' }); }
+      }
+    });
+
+    // 行：选中 / 完成后重渲染 / 顺延
+    groupsEl.addEventListener('click', function (e) {
+      var snooze = e.target.closest('[data-snooze]');
+      if (snooze) {
+        e.stopPropagation();
+        var item = byId(+snooze.dataset.snooze);
+        if (item) {
+          item.date = K.WEEK_START;   // 移到本周周一
+          item.lateWeek = false;
+          render();
+          var moved = groupsEl.querySelector('.lrow[data-id="' + item.id + '"]');
+          if (moved) {
+            moved.setAttribute('aria-selected', 'true');
+            state.selected = item.id;
+            moved.scrollIntoView({ block: 'center' });
+          }
+        }
+        return;
+      }
+
+      var row = e.target.closest('.lrow');
+      if (!row) { return; }
+
+      var checkbox = e.target.closest('.check');
+      if (checkbox) {
+        var it = byId(+row.dataset.id);
+        if (it) { it.done = checkbox.checked; render(); }
+        return;
+      }
+
+      state.selected = state.selected === +row.dataset.id ? null : +row.dataset.id;
+      groupsEl.querySelectorAll('.lrow').forEach(function (r) {
+        r.setAttribute('aria-selected', String(+r.dataset.id === state.selected));
+      });
+    });
+
+    groupsEl.addEventListener('keydown', function (e) {
+      var row = e.target.closest('.lrow');
+      if (!row) { return; }
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        state.selected = state.selected === +row.dataset.id ? null : +row.dataset.id;
+        groupsEl.querySelectorAll('.lrow').forEach(function (r) {
+          r.setAttribute('aria-selected', String(+r.dataset.id === state.selected));
+        });
+      }
+    });
+
+    render();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>

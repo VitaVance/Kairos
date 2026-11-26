@@ -1,0 +1,1142 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kairos v2 · 周视图</title>
+<link rel="stylesheet" href="shared.css">
+<link rel="stylesheet" href="demo.css">
+<script src="data.js" defer></script>
+<script src="base.js" defer></script>
+<style>
+  .topbar__title { display: flex; align-items: baseline; gap: var(--sp-3); }
+  .topbar__title .sub { font-size: var(--text-sm); font-weight: 400; color: var(--ink-quiet); font-variant-numeric: tabular-nums; }
+  .topbar__actions { padding-inline-end: 10rem; }
+  .nav { display: flex; align-items: center; gap: var(--sp-1); }
+  .nav .btn { padding: 0 var(--sp-2); }
+
+  /* ---------- 底部视图胶囊（.floating-center 负责居中） ---------- */
+  .vpill {
+    display: flex; align-items: center; gap: 2px;
+    padding: 4px;
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-full);
+    box-shadow: var(--shadow-lg);
+    max-inline-size: 100%;
+    overflow-x: auto;
+  }
+  .vpill__item {
+    appearance: none; border: 0; cursor: pointer;
+    block-size: 30px; padding: 0 var(--sp-3);
+    border-radius: var(--radius-full);
+    background: transparent; color: var(--ink-2);
+    font: inherit; font-size: var(--text-body); white-space: nowrap;
+    transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  }
+  .vpill__item:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .vpill__item[aria-pressed="true"] { background: var(--accent-tint); color: var(--accent-ink); font-weight: 600; }
+  .vpill__item:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .vpill__sep { inline-size: 1px; block-size: 18px; background: var(--hairline); margin: 0 var(--sp-1); flex: none; }
+  .vpill__cta {
+    appearance: none; border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 4px;
+    block-size: 30px; padding: 0 var(--sp-3);
+    border-radius: var(--radius-full);
+    background: var(--cta-bg); color: var(--cta-text);
+    font: inherit; font-size: var(--text-body); font-weight: 600; white-space: nowrap;
+  }
+  .vpill__cta:hover { background: var(--cta-bg-hover); }
+  .vpill__cta:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  /* ============================ 周历外壳 ============================ */
+  .content--week { display: flex; flex-direction: column; padding: var(--sp-3) var(--sp-4) 76px; }
+  .wcal {
+    flex: 1; min-block-size: 0;
+    display: flex; flex-direction: column;
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+  }
+
+  /* 统一列：52px 时间轴 + 7 天 */
+  .grid7 { display: grid; grid-template-columns: 52px repeat(7, minmax(0, 1fr)); }
+
+  /* ---- 表头 ---- */
+  .whead { flex: none; border-block-end: 1px solid var(--hairline); background: var(--bg-subtle); }
+  .whead__corner {
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-block-end: 6px;
+    font-size: var(--text-xs); color: var(--ink-quiet);
+  }
+  .wday {
+    padding: var(--sp-2) var(--sp-1) 6px;
+    border-inline-start: 1px solid var(--hairline-soft);
+    display: flex; flex-direction: column; align-items: center; gap: 1px;
+  }
+  .wday__dow { font-size: var(--text-xs); color: var(--ink-quiet); font-weight: 500; }
+  .wday__num {
+    inline-size: 24px; block-size: 24px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: var(--text-md); font-weight: 600; color: var(--ink-1);
+    font-variant-numeric: tabular-nums;
+  }
+  .wday.is-today .wday__num { background: var(--accent); color: var(--accent-contrast); }
+  .wday.is-today .wday__dow { color: var(--accent-ink); font-weight: 600; }
+  .wday__load { font-size: var(--text-xs); color: var(--ink-quiet); font-variant-numeric: tabular-nums; }
+
+  /* ---- 窗口带 + 全天条目 ---- */
+  .allday { flex: none; background: var(--bg-surface); border-block-end: 1px solid var(--hairline); }
+
+  .arow { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: stretch; }
+  .arow + .arow { border-block-start: 1px solid var(--hairline-soft); }
+  .arow__gutter {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px; padding: 3px 2px;
+    border-inline-end: 1px solid var(--hairline);
+    text-align: center; line-height: 1.15;
+  }
+  .arow__gutter b { font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); }
+  .arow__gutter span { font-size: var(--text-xs); color: var(--ink-quiet); }
+
+  /* 一段（这周 / 下个月 / 出差三天）：一条按列定位的条。
+     它横跨的列就是它覆盖的那些天，不复制、不重复。 */
+  .bandlane { position: relative; block-size: 22px; }
+  .wband {
+    position: absolute; inset-block: 2px;
+    inset-inline-start: calc(var(--a, 0) * 100% / 7 + 3px);
+    inline-size: calc((var(--b, 7) - var(--a, 0)) * 100% / 7 - 6px);
+    display: flex; align-items: center; gap: 7px;
+    padding: 0 8px;
+    border: 1px solid color-mix(in oklab, var(--chip) 34%, var(--bg-surface));
+    border-inline-start: 3px solid var(--chip);
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--chip) 11%, var(--bg-surface));
+    color: var(--ink-1);
+    font: inherit; font-size: var(--text-xs); line-height: 1;
+    text-align: start; cursor: pointer; overflow: hidden;
+  }
+  .wband:hover { background: color-mix(in oklab, var(--chip) 17%, var(--bg-surface)); }
+  .wband:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .wband__tag {
+    flex: none; font-weight: 600; color: var(--ink-2);
+    padding-inline-end: 7px;
+    border-inline-end: 1px solid color-mix(in oklab, var(--chip) 32%, transparent);
+  }
+  .wband__title { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .wband__meta { flex: none; margin-inline-start: auto; color: var(--ink-quiet); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .wband__ticks { position: absolute; inset-block: 2px; inset-inline: 0; pointer-events: none; }
+  .wband__ticks i { position: absolute; inset-block: 0; inline-size: 1px; background: color-mix(in oklab, var(--chip) 22%, transparent); }
+  .wband--late {
+    background: color-mix(in oklab, var(--warning-ink) 8%, var(--bg-surface));
+    border-color: color-mix(in oklab, var(--warning-ink) 42%, var(--bg-surface));
+    border-inline-start-color: var(--warning-ink);
+  }
+  .wband--late .wband__tag { color: var(--warning-ink); border-inline-end-color: color-mix(in oklab, var(--warning-ink) 34%, transparent); }
+  .wband--late .wband__meta { color: var(--warning-ink); font-weight: 600; }
+  .wband--late .wband__ticks i { background: color-mix(in oklab, var(--warning-ink) 22%, transparent); }
+
+  /* 全天条目：7 列，每列一条竖分隔 */
+  .allday__chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: stretch; }
+  .aday {
+    min-block-size: 26px; padding: 3px 4px 4px;
+    border-inline-start: 1px solid var(--hairline-soft);
+    display: grid; gap: 3px; align-content: start; min-inline-size: 0;
+  }
+  .aday:first-child { border-inline-start: 0; }
+  .aday.is-today { background: color-mix(in oklab, var(--accent) 5%, transparent); }
+
+  .achip {
+    appearance: none; cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    inline-size: 100%; min-block-size: 20px; padding: 0 5px;
+    border: 0; border-inline-start: 3px solid var(--chip);
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--chip) 11%, var(--bg-surface));
+    color: var(--ink-1);
+    font: inherit; font-size: var(--text-xs); line-height: 1.35; text-align: start;
+  }
+  .achip:hover { background: color-mix(in oklab, var(--chip) 18%, var(--bg-surface)); }
+  .achip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .achip__mark { flex: none; font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); padding-inline-end: 4px; border-inline-end: 1px solid color-mix(in oklab, var(--chip) 35%, transparent); }
+  .achip__x { flex: 1; min-inline-size: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .achip__flag { flex: none; font-size: var(--text-xs); font-weight: 600; color: var(--danger-ink); }
+  .achip--late { background: var(--danger-tint); }
+  .achip--late .achip__mark { color: var(--danger-ink); }
+  .achip__ico { flex: none; display: inline-grid; place-items: center; color: var(--ink-quiet); }
+
+  /* ---- 压缩区：00:00–06:00 常驻在滚动区之外 ---- */
+  .comprow {
+    flex: none;
+    border-block-end: 1px solid var(--hairline-strong);
+    background: var(--bg-sunken);
+  }
+  .comprow__inner { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: stretch; }
+  .comprow__gutter {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 2px; gap: 1px;
+    border-inline-end: 1px solid var(--hairline);
+    font-size: var(--text-xs); color: var(--ink-quiet);
+    line-height: 1.1; text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .comprow__gutter b { font-weight: 600; color: var(--ink-2); }
+  .comprow__body {
+    display: flex; align-items: center; justify-content: center;
+    min-block-size: 30px; position: relative;
+  }
+  .comprow__body span {
+    font-size: var(--text-xs); color: var(--ink-quiet);
+    padding: 0 var(--sp-2);
+    position: relative; z-index: 1;
+    background: var(--bg-sunken);
+  }
+  .comprow__body::before {
+    content: ""; position: absolute; inset-inline: 6px; inset-block-start: 50%;
+    block-size: 1px; background: var(--hairline-strong);
+    background-image: none;
+  }
+
+  /* ---- 时间网格 ---- */
+  .wbody { flex: 1; min-block-size: 0; overflow: auto; position: relative; }
+  .wgrid { --hour: 38px; position: relative; min-inline-size: 0; }
+  .wgrid > .grid7 { block-size: calc(18 * var(--hour)); }
+
+  .hours { position: relative; border-inline-end: 1px solid var(--hairline); }
+  .hours__tick {
+    position: absolute; inset-inline: 0;
+    translate: 0 -50%;
+    padding-inline-end: 7px;
+    text-align: end;
+    font-size: var(--text-xs); color: var(--ink-quiet);
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+
+  .daycol {
+    position: relative; min-inline-size: 0;
+    border-inline-start: 1px solid var(--hairline-soft);
+  }
+  .daycol.is-weekend { background: var(--bg-subtle); }
+  .daycol.is-today { background: color-mix(in oklab, var(--accent) 4%, transparent); }
+
+  .hrule { position: absolute; inset-inline: 0; block-size: 1px; background: var(--hairline-soft); pointer-events: none; }
+
+  .slot {
+    position: absolute; inset-inline: 0;
+    border: 0; background: transparent; cursor: pointer; padding: 0;
+    border-radius: var(--radius-xs);
+    z-index: 1;
+  }
+  .slot:hover { background: color-mix(in oklab, var(--accent) 9%, transparent); }
+  .slot:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+
+  /* ---- 时间块 ---- */
+  .tblock {
+    position: absolute;
+    display: flex; flex-direction: column;
+    padding: 2px 4px 2px 5px;
+    border: 0; border-inline-start: 3px solid var(--chip);
+    border-radius: var(--radius-xs);
+    background: color-mix(in oklab, var(--chip) 14%, var(--bg-surface));
+    color: var(--ink-1);
+    font: inherit; text-align: start;
+    cursor: grab; overflow: hidden;
+    z-index: 3;
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--chip) 18%, transparent);
+    transition: background var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease);
+    touch-action: none;
+  }
+  .tblock:hover { background: color-mix(in oklab, var(--chip) 20%, var(--bg-surface)); z-index: 4; }
+  .tblock:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .tblock__time { font-size: var(--text-xs); color: var(--ink-2); font-variant-numeric: tabular-nums; line-height: 1.25; flex: none; }
+  .tblock__title { font-size: var(--text-xs); font-weight: 600; line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+  .tblock__flag { font-size: var(--text-xs); font-weight: 600; color: var(--danger-ink); flex: none; }
+  .tblock--short { flex-direction: row; align-items: center; gap: 5px; padding-block: 0; }
+  .tblock--short .tblock__time { flex: none; }
+  .tblock--short .tblock__title { flex: 1; min-inline-size: 0; display: block; white-space: nowrap; text-overflow: ellipsis; -webkit-line-clamp: unset; font-weight: 500; }
+  .tblock--short .tblock__flag { margin-inline-start: auto; }
+  .tblock--late {
+    background: var(--danger-tint);
+    border-inline-start-color: var(--danger);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--danger) 22%, transparent);
+  }
+  .tblock--late:hover { background: color-mix(in oklab, var(--danger) 16%, var(--bg-surface)); }
+  .tblock--late .tblock__time { color: var(--danger-ink); font-weight: 600; }
+  .tblock.is-dragging { cursor: grabbing; z-index: 30; box-shadow: var(--shadow-lg); }
+
+  /* 拖动时的时间提示 */
+  .dragtip {
+    position: fixed; z-index: var(--z-toast);
+    padding: 2px 6px; border-radius: var(--radius-xs);
+    background: var(--bg-surface); color: var(--ink-1);
+    border: 1px solid var(--hairline-strong);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--text-xs); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+  }
+  .dragtip[hidden] { display: none; }
+
+  /* ---- 当前时间线 ---- */
+  .nowline {
+    position: absolute; inset-inline: 52px; z-index: 6;
+    block-size: 0; pointer-events: none;
+    border-block-start: 2px solid var(--accent);
+  }
+  .nowline__dot {
+    position: absolute; inset-block-start: -6px;
+    inline-size: 10px; block-size: 10px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg-surface);
+  }
+  .nowline__label {
+    position: absolute; inset-block-start: -9px;
+    padding: 1px 5px; border-radius: var(--radius-xs);
+    background: var(--accent); color: var(--accent-contrast);
+    font-size: var(--text-xs); font-weight: 600;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+
+  /* ---- 内联捕获（非模态） ---- */
+  .cap {
+    position: fixed; z-index: var(--z-popover);
+    inline-size: 276px; padding: var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .cap[hidden] { display: none; }
+  .cap__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-2); margin-block-end: var(--sp-2); }
+  .cap__head b { font-size: var(--text-body); color: var(--ink-1); font-weight: 600; }
+  .cap__head span { font-size: var(--text-xs); color: var(--ink-quiet); font-variant-numeric: tabular-nums; }
+  .cap__row { display: flex; align-items: center; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+  .cap__label { font-size: var(--text-xs); color: var(--ink-2); inline-size: 2.6em; flex: none; }
+  .cap .field { block-size: var(--control-h-sm); }
+  .cap__actions { display: flex; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-3); }
+  .cap__actions .btn { block-size: var(--control-h-sm); font-size: var(--text-body); }
+  .cap__actions .btn:last-child { margin-inline-start: auto; }
+  .cap__hint { margin: var(--sp-2) 0 0; font-size: var(--text-xs); color: var(--ink-quiet); line-height: 1.5; }
+
+  /* ---- 条目弹层 ---- */
+  .pop {
+    position: fixed; z-index: var(--z-popover);
+    inline-size: 264px; padding: var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+  }
+  .pop[hidden] { display: none; }
+  .pop__title { font-size: var(--text-md); font-weight: 600; color: var(--ink-1); line-height: 1.4; }
+  .pop__meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+  .pop__when { display: inline-flex; align-items: center; block-size: 20px; padding: 0 var(--sp-2); border-radius: var(--radius-xs); background: var(--bg-sunken); color: var(--ink-2); font-size: var(--text-xs); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .pop__when.is-late { background: var(--danger-tint); color: var(--danger-ink); }
+  .pop__when.is-late-soft { background: transparent; color: var(--warning-ink); font-weight: 600; }
+  .pop__q, .pop__list { display: inline-flex; align-items: center; gap: 5px; font-size: var(--text-xs); color: var(--ink-2); }
+  .pop__list i { inline-size: 6px; block-size: 6px; border-radius: 50%; flex: none; }
+  .pop__note { margin: var(--sp-2) 0 0; font-size: var(--text-xs); color: var(--ink-quiet); line-height: 1.5; }
+  .pop__actions { display: flex; align-items: center; gap: var(--sp-1); margin-block-start: var(--sp-3); padding-block-start: var(--sp-3); border-block-start: 1px solid var(--hairline); }
+  .pop__actions .btn { block-size: var(--control-h-sm); font-size: var(--text-body); }
+  .pop__actions .btn:last-child { margin-inline-start: auto; }
+
+  /* ---- toast ---- */
+  .toast {
+    display: flex; align-items: center; gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    background: var(--bg-surface);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    font-size: var(--text-body); color: var(--ink-1);
+    max-inline-size: 460px;
+  }
+  .toast[hidden] { display: none; }
+  .toast svg { color: var(--success-ink); flex: none; }
+</style>
+</head>
+<body data-skin="refined" data-theme="light">
+<div class="app">
+  <!-- ======================= 导航轨 ======================= -->
+  <nav class="rail" aria-label="主导航">
+    <div class="rail__avatar" aria-hidden="true">G</div>
+    <div class="rail__group">
+      <button class="rail__item" type="button" aria-label="事情（清单）" title="事情">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="四象限" title="四象限">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="日历" aria-current="page" title="日历">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="搜索" title="搜索">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="归档" title="归档">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+      </button>
+    </div>
+    <div class="rail__group rail__group--bottom">
+      <button class="rail__item" type="button" aria-label="同步" title="同步">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      </button>
+      <button class="rail__item" type="button" aria-label="设置" title="设置">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ======================= 清单侧栏 ======================= -->
+  <aside class="sidebar" aria-label="清单">
+    <div class="sidebar__head"><span>快捷</span></div>
+    <div class="sidebar__group">
+      <button class="sidebar__row" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+        <span class="sidebar__label">今天</span><span class="sidebar__count">5</span>
+      </button>
+      <button class="sidebar__row" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span class="sidebar__label">最近</span><span class="sidebar__count">8</span>
+      </button>
+      <button class="sidebar__row" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        <span class="sidebar__label">全部</span><span class="sidebar__count">20</span>
+      </button>
+    </div>
+
+    <div class="sidebar__head">
+      <span>清单</span>
+      <button class="icon-btn" type="button" aria-label="新建清单" title="新建清单" style="block-size:20px;inline-size:20px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+      </button>
+    </div>
+    <div class="sidebar__group">
+      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#5b8def"></span><span class="sidebar__label">收集箱</span><span class="sidebar__count">3</span></button>
+      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#3aa88b"></span><span class="sidebar__label">工作</span><span class="sidebar__count">9</span></button>
+      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#8b79c9"></span><span class="sidebar__label">学习</span><span class="sidebar__count">1</span></button>
+      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#d99a3d"></span><span class="sidebar__label">生活</span><span class="sidebar__count">6</span></button>
+    </div>
+
+    <div class="sidebar__head" style="margin-block-start:auto"><span>状态</span></div>
+    <div class="sidebar__group">
+      <button class="sidebar__row" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <span class="sidebar__label">已完成</span><span class="sidebar__count">1</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ======================= 主区 ======================= -->
+  <div class="main">
+    <header class="topbar">
+      <h1 class="topbar__title"><span>11月23日 – 29日</span>
+        <span class="sub">2026 年 · 第 48 周 · 本周</span>
+      </h1>
+      <div class="nav" aria-label="周切换">
+        <button class="icon-btn" type="button" id="prevW" aria-label="上一周" title="上一周">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+        </button>
+        <button class="btn btn--secondary" type="button" id="todayBtn">今天</button>
+        <button class="icon-btn" type="button" id="nextW" aria-label="下一周" title="下一周">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+      <div class="topbar__actions">
+        <button class="icon-btn" type="button" aria-label="搜索" title="搜索">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        </button>
+        <button class="btn btn--primary" type="button" id="newBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+          新建事情
+        </button>
+      </div>
+    </header>
+
+    <div class="content content--week">
+      <div class="wcal">
+
+        <!-- 表头：7 天 -->
+        <div class="whead">
+          <div class="grid7">
+            <div class="whead__corner">全天</div>
+            <div id="wdayHead" style="display:contents"></div>
+          </div>
+        </div>
+
+        <!-- 窗口带 + 全天条目 -->
+        <div class="allday">
+          <div class="arow" id="bandRow1">
+            <div class="arow__gutter"><b>一段</b><span>跨多天</span></div>
+            <div class="bandlane" id="bandSlot1"></div>
+          </div>
+          <div class="arow" id="bandRow2">
+            <div class="arow__gutter"><b>一段</b><span>跨多天</span></div>
+            <div class="bandlane" id="bandSlot2"></div>
+          </div>
+          <div class="arow">
+            <div class="arow__gutter"><b>某天</b><span>日 / 时段</span></div>
+            <div class="allday__chips" id="alldayChips"></div>
+          </div>
+        </div>
+
+        <!-- 00:00–06:00：常驻压缩带 -->
+        <div class="comprow">
+          <div class="comprow__inner">
+            <div class="comprow__gutter"><b>00–06</b><span>压缩</span></div>
+            <div class="comprow__body"><span>夜间 00:00 – 06:00 · 已压缩，点开可展开</span></div>
+          </div>
+        </div>
+
+        <!-- 时间网格 06:00–24:00 -->
+        <div class="wbody" id="wbody">
+          <div class="wgrid" id="wgrid">
+            <div class="grid7">
+              <div class="hours" id="hours" aria-hidden="true"></div>
+              <div id="dayCols" style="display:contents"></div>
+            </div>
+            <div class="nowline" id="nowline" aria-hidden="true">
+              <span class="nowline__dot" id="nowDot"></span>
+              <span class="nowline__label" id="nowLabel">14:20</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 底部视图切换胶囊 -->
+    <div class="floating-center" style="inset-block-end:16px">
+      <div class="vpill" role="group" aria-label="切换视图">
+        <button class="vpill__item" type="button" data-view="quadrant" aria-pressed="false">四象限</button>
+        <button class="vpill__item" type="button" data-view="month" aria-pressed="false">月</button>
+        <button class="vpill__item" type="button" data-view="week" aria-pressed="true">周</button>
+        <button class="vpill__item" type="button" data-view="day" aria-pressed="false">日</button>
+        <button class="vpill__item" type="button" data-view="agenda" aria-pressed="false">日程</button>
+        <button class="vpill__item" type="button" data-view="multiday" aria-pressed="false">多日</button>
+        <button class="vpill__item" type="button" data-view="multiweek" aria-pressed="false">多周</button>
+        <button class="vpill__item" type="button" data-view="year" aria-pressed="false">年</button>
+        <span class="vpill__sep" aria-hidden="true"></span>
+        <button class="vpill__cta" type="button" id="newBtn2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
+          新建事情
+        </button>
+      </div>
+    </div>
+
+    <!-- toast -->
+    <div class="floating-center" style="inset-block-end:64px">
+      <div class="toast" id="toast" role="status" aria-live="polite" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+        <span id="toastText"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 内联捕获弹层（非模态） -->
+<div class="cap" id="cap" role="dialog" aria-label="在这个时间格新建事情" hidden>
+  <div class="cap__head"><b>在这段时间新建</b><span id="capWhen">—</span></div>
+  <div class="cap__row">
+    <label class="cap__label" for="capInput">事情</label>
+    <input class="field" id="capInput" type="text" placeholder="要做什么？" autocomplete="off">
+  </div>
+  <div class="cap__row">
+    <span class="cap__label">时长</span>
+    <div class="seg" role="group" aria-label="时长">
+      <button class="seg__item" type="button" data-dur="30" aria-checked="false">30 分</button>
+      <button class="seg__item" type="button" data-dur="60" aria-checked="true">1 小时</button>
+      <button class="seg__item" type="button" data-dur="120" aria-checked="false">2 小时</button>
+    </div>
+  </div>
+  <div class="cap__actions">
+    <button class="btn btn--ghost" type="button" id="capCancel">取消</button>
+    <button class="btn btn--primary" type="button" id="capSave">保存</button>
+  </div>
+  <p class="cap__hint">不打断当前视图：回车保存，Esc 取消。</p>
+</div>
+
+<!-- 条目弹层 -->
+<div class="pop" id="pop" role="dialog" aria-label="事情详情" hidden>
+  <div class="pop__title" id="popTitle">—</div>
+  <div class="pop__meta">
+    <span class="pop__when" id="popWhen">—</span>
+    <span class="pop__q" id="popQ"><i class="qdot qdot--2"></i><span>重要不紧急</span></span>
+    <span class="pop__list" id="popList"><i></i><span>工作</span></span>
+  </div>
+  <p class="pop__note" id="popNote" hidden></p>
+  <div class="pop__actions">
+    <button class="btn btn--secondary" type="button" id="popOpen">打开</button>
+    <button class="btn btn--primary" type="button" id="popDone">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      勾完成
+    </button>
+  </div>
+</div>
+
+<div class="dragtip" id="dragtip" hidden>—</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  'use strict';
+  var K = window.Kairos;
+  var LIST = {};
+  K.LISTS.forEach(function (l) { LIST[l.id] = l; });
+
+  var START = K.WEEK_START;
+  var DAYS = [];
+  for (var i = 0; i < 7; i++) DAYS.push(K.addDays(START, i));
+  var DOW = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+
+  var HOUR = 38;                 // 每小时像素
+  var DAY_START = 6 * 60;        // 网格从 06:00 起（00–06 在压缩带里）
+  var DAY_END = 24 * 60;
+  var GUTTER = 52;
+
+  function yOf(min) { return (min - DAY_START) / 60 * HOUR; }
+  function fmtTime(min) {
+    min = Math.round(min);
+    var h = Math.floor(min / 60), m = min % 60;
+    return String(h % 24).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+  function shortDate(d) { var p = d.split('-'); return (+p[1]) + '/' + (+p[2]); }
+
+  /* ---------------- 时间块 ---------------- */
+  var blocks = [];
+  var nextId = 1000;
+
+  K.ITEMS.forEach(function (it) {
+    if (it.done || it.rung !== 'time') return;
+    if (it.date < START || it.date > K.addDays(START, 6)) return;
+    var start = +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5);
+    var dur = 30;
+    if (it.end) dur = (+it.end.slice(0, 2) * 60 + +it.end.slice(3, 5)) - start;
+    blocks.push({
+      id: nextId++, title: it.title, date: it.date, start: start, dur: dur,
+      list: it.list, q: it.q, late: K.isLate(it), sourceId: it.id
+    });
+  });
+
+  var pop = document.getElementById('pop');
+  var cap = document.getElementById('cap');
+  var toast = document.getElementById('toast');
+  var dragtip = document.getElementById('dragtip');
+  var wbody = document.getElementById('wbody');
+  var grid = document.getElementById('wgrid');
+  var colsBox = document.getElementById('dayCols');
+  var activeBlock = null, activeTitle = '';
+  var capCtx = null;
+  var currentDur = 60;
+  var toastTimer = 0;
+
+  function toastMsg(text) {
+    document.getElementById('toastText').textContent = text;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.hidden = true; }, 3000);
+  }
+  function clampPlace(box, x, y) {
+    box.hidden = false;
+    var w = box.offsetWidth, h = box.offsetHeight;
+    box.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px';
+    box.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + 'px';
+  }
+
+  /* ---------------- 表头 ---------------- */
+  function renderHead() {
+    var head = document.getElementById('wdayHead');
+    head.innerHTML = '';
+    DAYS.forEach(function (d, i) {
+      var el = document.createElement('div');
+      el.className = 'wday';
+      if (d === K.TODAY) el.classList.add('is-today');
+      var n = blocks.filter(function (b) { return b.date === d; }).length + allDayOn(d).length;
+      el.innerHTML = '<span class="wday__dow">' + DOW[i] + '</span>' +
+        '<span class="wday__num">' + (+d.slice(8)) + '</span>' +
+        '<span class="wday__load">' + (n ? n + ' 件' : '—') + '</span>';
+      head.appendChild(el);
+    });
+  }
+
+  /* ---------------- 全天（day / period） ---------------- */
+  function allDayOn(date) {
+    return K.ITEMS.filter(function (it) {
+      return !it.done && it.date === date && (it.rung === 'day' || it.rung === 'period');
+    });
+  }
+  function whenLabel(it) {
+    var base = K.rungLabel(it);
+    if (K.isLate(it)) return base + (it.rung === 'time' ? ' · 已过' : ' · 逾期');
+    return base;
+  }
+
+  function renderAllDay() {
+    var box = document.getElementById('alldayChips');
+    box.innerHTML = '';
+    DAYS.forEach(function (d) {
+      var cell = document.createElement('div');
+      cell.className = 'aday' + (d === K.TODAY ? ' is-today' : '');
+      allDayOn(d).forEach(function (it) {
+        var list = LIST[it.list];
+        var late = K.isLate(it);
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'achip' + (late ? ' achip--late' : '');
+        b.style.setProperty('--chip', list.color);
+        b.dataset.id = it.id;
+        b.dataset.title = it.title;
+        b.dataset.q = it.q;
+        b.dataset.list = list.name;
+        b.dataset.lcolor = list.color;
+        b.dataset.when = whenLabel(it);
+        if (late) b.dataset.late = 'danger';
+
+        if (it.rung === 'period') {
+          var m = document.createElement('span');
+          m.className = 'achip__mark';
+          m.textContent = K.PERIOD_LABEL[it.period];
+          b.appendChild(m);
+        }
+        if (it.repeat === 'weekly') {
+          var ico = document.createElement('span');
+          ico.className = 'achip__ico';
+          ico.innerHTML = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>';
+          ico.title = '每周重复';
+          b.appendChild(ico);
+        }
+        var x = document.createElement('span');
+        x.className = 'achip__x';
+        x.textContent = it.title;
+        b.appendChild(x);
+        if (late) {
+          var f = document.createElement('span');
+          f.className = 'achip__flag';
+          f.textContent = '已过';
+          b.appendChild(f);
+        }
+        b.addEventListener('click', function (e) { e.stopPropagation(); openItem(b); });
+        cell.appendChild(b);
+      });
+      box.appendChild(cell);
+    });
+  }
+
+  /* ---------------- 一段：横跨的条 ----------------
+     「这周」= 11-23 → 11-30，「下一周」= 11-30 → 12-07。一段在周视图里按列定位：
+     本周完整横跨 7 列；跨过本周边界的段在边缘切平（不带圆角、不带竖条的那一侧）。 */
+  function spanRange(it) {
+    if (it.rung === 'week') {
+      var ws = K.weekStartOf(it.date);
+      return { start: ws, end: K.addDays(ws, 7) };
+    }
+    if (it.rung === 'month') {
+      var ms = K.monthStartOf(it.date);
+      var d = K.parse(ms);
+      d.setMonth(d.getMonth() + 1);
+      return { start: ms, end: K.fmt(d) };
+    }
+    return null;
+  }
+
+  function renderBands() {
+    var slots = [document.getElementById('bandSlot1'), document.getElementById('bandSlot2')];
+    slots.forEach(function (s) { s.innerHTML = ''; });
+
+    var weekEnd = K.addDays(START, 7);
+    var spans = [];
+    K.ITEMS.forEach(function (it) {
+      if (it.done) return;
+      var r = spanRange(it);
+      if (!r) return;
+      if (r.end <= START || r.start >= weekEnd) return;   // 与本周不重叠
+      // 只有 month 段覆盖本周时才算进来（11 月的 month 段不覆盖本周）
+      var a = 0, b = 7;
+      for (var i = 0; i < 7; i++) { if (DAYS[i] < r.start) a = i + 1; else break; }
+      for (var j = 6; j >= 0; j--) { if (K.addDays(DAYS[j], 1) > r.end) b = j; else break; }
+      if (a >= b) return;
+      spans.push({ item: it, a: a, b: b, contStart: r.start < START, contEnd: r.end > weekEnd });
+    });
+    spans.sort(function (x, y) {
+      var o = { month: 0, week: 1 };
+      return o[x.item.rung] - o[y.item.rung];
+    });
+
+    document.getElementById('bandRow1').hidden = !spans[0];
+    document.getElementById('bandRow2').hidden = !spans[1];
+
+    spans.slice(0, 2).forEach(function (sp, idx) {
+      var it = sp.item;
+      var list = LIST[it.list];
+      var passed = K.isWindowPassed(it);
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'wband' + (passed ? ' wband--late' : '');
+      b.style.setProperty('--chip', passed ? 'var(--warning-ink)' : list.color);
+      b.style.setProperty('--a', sp.a);
+      b.style.setProperty('--b', sp.b);
+      b.dataset.id = it.id;
+      b.dataset.title = it.title;
+      b.dataset.q = it.q;
+      b.dataset.list = list.name;
+      b.dataset.lcolor = list.color;
+      b.dataset.band = it.rung;
+      if (passed) { b.dataset.late = 'soft'; b.dataset.when = K.rungLabel(it) + ' · 未完成'; }
+      else b.dataset.when = K.rungLabel(it) + ' · ' + shortDate(spanOf(it).start) + ' → ' + shortDate(spanOf(it).end);
+
+      b.innerHTML =
+        '<span class="wband__tag">' + (it.rung === 'month' ? (+it.date.slice(5, 7)) + '月' : '本周') + '</span>' +
+        '<span class="wband__title"></span>' +
+        '<span class="wband__meta">' + (passed ? '未完成' : shortDate(spanOf(it).start) + ' – ' + shortDate(spanOf(it).end)) + '</span>' +
+        '<span class="wband__ticks" aria-hidden="true"></span>';
+      b.querySelector('.wband__title').textContent = it.title;
+      var ticks = b.querySelector('.wband__ticks');
+      for (var k = sp.a + 1; k < sp.b; k++) {
+        var t = document.createElement('i');
+        t.style.left = ((k - sp.a) * 100 / (sp.b - sp.a)) + '%';
+        ticks.appendChild(t);
+      }
+      b.addEventListener('click', function (e) { e.stopPropagation(); openItem(b); });
+      slots[idx].appendChild(b);
+    });
+  }
+  function spanOf(it) { return spanRange(it); }
+
+  /* ---------------- 时间网格 ---------------- */
+  function renderHours() {
+    var hours = document.getElementById('hours');
+    hours.innerHTML = '';
+    for (var h = 6; h <= 24; h++) {
+      var t = document.createElement('span');
+      t.className = 'hours__tick';
+      t.style.top = yOf(h * 60) + 'px';
+      t.textContent = h === 24 ? '24:00' : fmtTime(h * 60);
+      hours.appendChild(t);
+    }
+  }
+
+  /* 重叠时间块分列 */
+  function laneLayout(list) {
+    var sorted = list.slice().sort(function (a, b) { return a.start - b.start || a.dur - b.dur; });
+    var groups = [], cur = [], curEnd = -1;
+    sorted.forEach(function (b) {
+      if (cur.length && b.start >= curEnd) { groups.push(cur); cur = []; curEnd = -1; }
+      cur.push(b);
+      curEnd = Math.max(curEnd, b.start + b.dur);
+    });
+    if (cur.length) groups.push(cur);
+    groups.forEach(function (g) {
+      var laneEnds = [];
+      g.forEach(function (b) {
+        var placed = false;
+        for (var i = 0; i < laneEnds.length; i++) {
+          if (laneEnds[i] <= b.start) { laneEnds[i] = b.start + b.dur; b.lane = i; placed = true; break; }
+        }
+        if (!placed) { laneEnds.push(b.start + b.dur); b.lane = laneEnds.length - 1; }
+      });
+      g.forEach(function (b) { b.lanes = laneEnds.length; });
+    });
+  }
+
+  function renderCols() {
+    colsBox.innerHTML = '';
+    var height = (DAY_END - DAY_START) / 60 * HOUR;
+    DAYS.forEach(function (d, i) {
+      var col = document.createElement('div');
+      col.className = 'daycol';
+      col.dataset.date = d;
+      if (d === K.TODAY) col.classList.add('is-today');
+      if (i >= 5) col.classList.add('is-weekend');
+      col.style.blockSize = height + 'px';
+
+      for (var h = 6; h <= 24; h++) {
+        var line = document.createElement('span');
+        line.className = 'hrule';
+        line.style.top = yOf(h * 60) + 'px';
+        col.appendChild(line);
+      }
+      for (var hh = 6; hh < 24; hh++) {
+        var slot = document.createElement('button');
+        slot.type = 'button';
+        slot.className = 'slot';
+        slot.style.top = yOf(hh * 60) + 'px';
+        slot.style.blockSize = HOUR + 'px';
+        slot.dataset.hour = hh;
+        slot.setAttribute('aria-label', DOW[i] + ' ' + fmtTime(hh * 60) + ' 新建事情');
+        col.appendChild(slot);
+      }
+
+      var dayBlocks = blocks.filter(function (b) { return b.date === d; });
+      laneLayout(dayBlocks);
+      dayBlocks.forEach(function (b) { col.appendChild(blockEl(b)); });
+
+      colsBox.appendChild(col);
+    });
+  }
+
+  function blockEl(b) {
+    var list = LIST[b.list] || K.LISTS[0];
+    var top = yOf(b.start);
+    var h = Math.max(yOf(b.start + b.dur) - top, 18);
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'tblock' + (b.late ? ' tblock--late' : '') + (h < 44 ? ' tblock--short' : '');
+    el.style.setProperty('--chip', b.late ? 'var(--danger)' : list.color);
+    el.style.top = top + 'px';
+    el.style.blockSize = (h - 2) + 'px';
+    var lanes = b.lanes || 1;
+    var laneW = 100 / lanes;
+    el.style.insetInlineStart = 'calc(' + (b.lane || 0) * laneW + '% + 2px)';
+    el.style.inlineSize = 'calc(' + laneW + '% - 4px)';
+    el.dataset.id = b.id;
+    el.dataset.title = b.title;
+    el.dataset.q = b.q || 4;
+    el.dataset.list = list.name;
+    el.dataset.lcolor = list.color;
+    el.dataset.when = shortDate(b.date) + ' · ' + fmtTime(b.start) + '–' + fmtTime(b.start + b.dur);
+    if (b.late) el.dataset.late = 'danger';
+
+    el.innerHTML =
+      '<span class="tblock__time">' + fmtTime(b.start) + '–' + fmtTime(b.start + b.dur) + '</span>' +
+      '<span class="tblock__title"></span>' +
+      (b.late ? '<span class="tblock__flag">已过</span>' : '');
+    el.querySelector('.tblock__title').textContent = b.title;
+
+    el.addEventListener('click', function (e) {
+      if (el.dataset.dragged === '1') { el.dataset.dragged = '0'; return; }
+      e.stopPropagation();
+      openItem(el);
+    });
+    el.addEventListener('pointerdown', startDrag);
+    return el;
+  }
+
+  function renderNow() {
+    var idx = DAYS.indexOf(K.TODAY);
+    var y = yOf(K.NOW_MIN);
+    var line = document.getElementById('nowline');
+    line.style.top = y + 'px';
+    var oneCol = '((100% - ' + GUTTER + 'px) / 7)';
+    var xPos = 'calc(' + GUTTER + 'px + ' + idx + ' * ' + oneCol + ')';
+    document.getElementById('nowDot').style.insetInlineStart = 'calc(' + xPos + ' - 5px)';
+    var label = document.getElementById('nowLabel');
+    label.textContent = fmtTime(K.NOW_MIN);
+    label.style.insetInlineStart = 'calc(' + xPos + ' + 4px)';
+  }
+
+  function scrollToNow() {
+    var y = yOf(K.NOW_MIN);
+    wbody.scrollTop = Math.max(0, y - wbody.clientHeight * 0.42);
+  }
+
+  function renderAll() {
+    renderHead();
+    renderAllDay();
+    renderBands();
+    renderHours();
+    renderCols();
+    renderNow();
+    scrollToNow();
+  }
+
+  /* ---------------- 点击空白槽：内联捕获 ---------------- */
+  function openCapture(col, hour) {
+    hidePop();
+    capCtx = { date: col.dataset.date, start: hour * 60, dur: currentDur };
+    document.getElementById('capInput').value = '';
+    updateCapWhen();
+    var r = col.getBoundingClientRect();
+    var yTop = window.scrollY + r.top + yOf(hour * 60) - wbody.scrollTop + 2;
+    var x = Math.min(r.left + 8, window.innerWidth - 296);
+    clampPlace(cap, x, Math.min(Math.max(70, yTop), window.innerHeight - 220));
+    setTimeout(function () { document.getElementById('capInput').focus(); }, 20);
+  }
+  function updateCapWhen() {
+    if (!capCtx) return;
+    document.getElementById('capWhen').textContent =
+      shortDate(capCtx.date) + ' ' + fmtTime(capCtx.start) + '–' + fmtTime(Math.min(capCtx.start + capCtx.dur, 24 * 60));
+  }
+
+  grid.addEventListener('click', function (e) {
+    var slot = e.target.closest('.slot');
+    if (slot) {
+      openCapture(slot.closest('.daycol'), +slot.dataset.hour);
+      return;
+    }
+    if (!e.target.closest('.tblock, .cap')) hidePop();
+  });
+
+  document.querySelectorAll('#cap [data-dur]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#cap [data-dur]').forEach(function (x) { x.setAttribute('aria-checked', 'false'); });
+      b.setAttribute('aria-checked', 'true');
+      currentDur = +b.dataset.dur;
+      if (capCtx) { capCtx.dur = currentDur; updateCapWhen(); }
+    });
+  });
+
+  function closeCap() { cap.hidden = true; capCtx = null; }
+  document.getElementById('capCancel').addEventListener('click', closeCap);
+  document.getElementById('capSave').addEventListener('click', saveCap);
+  document.getElementById('capInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); saveCap(); }
+    if (e.key === 'Escape') { e.preventDefault(); closeCap(); }
+  });
+  function saveCap() {
+    if (!capCtx) return;
+    var title = document.getElementById('capInput').value.trim() || '新事情';
+    var ctx = capCtx;
+    blocks.push({
+      id: nextId++, title: title, date: ctx.date, start: ctx.start, dur: ctx.dur,
+      list: 'inbox', q: 4
+    });
+    closeCap();
+    renderHead();
+    renderCols();
+    renderNow();
+    toastMsg('已新建「' + title + '」· ' + shortDate(ctx.date) + ' ' + fmtTime(ctx.start) + '–' + fmtTime(ctx.start + ctx.dur));
+  }
+
+  /* ---------------- 拖动：换时间 / 换天 ---------------- */
+  var drag = null;
+  /** 以「天列」的几何为准换算列下标 —— 不能用被拖块的列做原点，那样原地放下会算成周一。 */
+  function colIndexAt(rects, clientX) {
+    for (var i = 0; i < rects.length; i++) {
+      if (clientX >= rects[i].left && clientX < rects[i].right) return i;
+    }
+    return clientX < rects[0].left ? 0 : rects.length - 1;
+  }
+  function startDrag(e) {
+    if (e.button != null && e.button !== 0) return;
+    var el = e.currentTarget;
+    var b = blocks.find(function (x) { return x.id === +el.dataset.id; });
+    if (!b) return;
+    drag = {
+      el: el, b: b, startY: e.clientY, startX: e.clientX,
+      origStart: b.start,
+      rects: Array.prototype.map.call(document.querySelectorAll('.daycol'), function (c) {
+        return c.getBoundingClientRect();
+      }),
+      moved: false
+    };
+    el.setPointerCapture(e.pointerId);
+    el.classList.add('is-dragging');
+    el.addEventListener('pointermove', onDrag);
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+    e.preventDefault();
+    hidePop();
+  }
+  function dragTarget(e) {
+    var dy = e.clientY - drag.startY;
+    var deltaMin = Math.round((dy / (HOUR / 60)) / 15) * 15;
+    var newStart = Math.max(DAY_START, Math.min(DAY_END - drag.b.dur, drag.origStart + deltaMin));
+    var colIdx = colIndexAt(drag.rects, e.clientX);
+    return { dy: dy, start: newStart, col: colIdx };
+  }
+  function onDrag(e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.startX, dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.abs(dy) < 4 && Math.abs(dx) < 4) return;
+    drag.moved = true;
+    var t = dragTarget(e);
+    drag.el.style.translate = (-drag.rects[DAYS.indexOf(drag.b.date)].left + drag.rects[t.col].left) + 'px ' + t.dy + 'px';
+
+    dragtip.hidden = false;
+    dragtip.textContent = DOW[t.col] + ' ' + fmtTime(t.start) + '–' + fmtTime(t.start + drag.b.dur);
+    dragtip.style.left = (e.clientX + 14) + 'px';
+    dragtip.style.top = (e.clientY + 10) + 'px';
+  }
+  function endDrag(e) {
+    if (!drag) return;
+    var el = drag.el, b = drag.b;
+    el.removeEventListener('pointermove', onDrag);
+    el.removeEventListener('pointerup', endDrag);
+    el.removeEventListener('pointercancel', endDrag);
+    el.classList.remove('is-dragging');
+    el.style.translate = '';
+    dragtip.hidden = true;
+
+    if (drag.moved) {
+      var t = dragTarget(e);
+      b.start = t.start;
+      b.date = DAYS[t.col];
+      el.dataset.dragged = '1';
+      renderHead(); renderCols(); renderNow();
+      toastMsg('已移到 ' + DOW[t.col] + ' ' + fmtTime(b.start) + '–' + fmtTime(b.start + b.dur));
+      // 让 click 不要紧接着打开弹层
+      setTimeout(function () { el.dataset.dragged = '0'; }, 0);
+    }
+    drag = null;
+  }
+
+  /* ---------------- 条目弹层 ---------------- */
+  function openItem(el) {
+    activeBlock = el;
+    activeTitle = el.dataset.title;
+    document.getElementById('popTitle').textContent = el.dataset.title;
+    var when = document.getElementById('popWhen');
+    when.textContent = el.dataset.when;
+    when.className = 'pop__when' + (el.dataset.late === 'soft' ? ' is-late-soft' : el.dataset.late === 'danger' ? ' is-late' : '');
+    document.getElementById('popQ').innerHTML = '<i class="qdot qdot--' + el.dataset.q + '"></i><span>' + K.QUADRANTS[el.dataset.q].name + '</span>';
+    document.getElementById('popList').innerHTML = '<i style="background:' + el.dataset.lcolor + '"></i><span>' + el.dataset.list + '</span>';
+    var note = document.getElementById('popNote');
+    if (el.dataset.band) {
+      note.hidden = false;
+      note.textContent = '「本周」是一段从周一指向下周一的连续时间。它横跨这 7 天，但只是一件事。';
+    } else note.hidden = true;
+    var r = el.getBoundingClientRect();
+    clampPlace(pop, r.right + 8, r.top);
+    closeCap();
+  }
+  function hidePop() { pop.hidden = true; activeBlock = null; activeTitle = ''; }
+
+  document.getElementById('popDone').addEventListener('click', function () {
+    if (!activeBlock) return;
+    var el = activeBlock, id = el.dataset.id, band = el.dataset.band, title = activeTitle;
+    hidePop();
+    if (band) {
+      document.querySelectorAll('.wband[data-id="' + id + '"]').forEach(function (n) { n.parentNode.removeChild(n); });
+      renderBands();
+    } else if (el.classList.contains('tblock')) {
+      blocks = blocks.filter(function (x) { return x.id !== +id; });
+      renderHead(); renderCols();
+    } else {
+      if (el.parentNode) el.parentNode.removeChild(el);
+      renderHead();
+    }
+    toastMsg('已完成「' + title + '」，它离开了日历');
+  });
+  document.getElementById('popOpen').addEventListener('click', function () {
+    if (!activeBlock) return;
+    toastMsg('演示：打开唯一的详情面板（日历 / 清单 / 象限共用）');
+  });
+
+  document.getElementById('newBtn').addEventListener('click', function () { toastMsg('演示：打开唯一的新建事情面板'); });
+  document.getElementById('newBtn2').addEventListener('click', function () { toastMsg('演示：打开唯一的新建事情面板'); });
+  document.getElementById('todayBtn').addEventListener('click', function () { scrollToNow(); toastMsg('这是本周'); });
+  document.getElementById('prevW').addEventListener('click', function () { toastMsg('演示稿只提供 11月23日 – 29日 这一周'); });
+  document.getElementById('nextW').addEventListener('click', function () { toastMsg('演示稿只提供 11月23日 – 29日 这一周'); });
+
+  document.querySelectorAll('.vpill__item').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.vpill__item').forEach(function (x) { x.setAttribute('aria-pressed', 'false'); });
+      b.setAttribute('aria-pressed', 'true');
+      hidePop(); closeCap();
+    });
+  });
+
+  document.addEventListener('pointerdown', function (e) {
+    if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('.tblock, .achip, .wband')) hidePop();
+    if (!cap.hidden && !cap.contains(e.target) && !e.target.closest('.slot')) closeCap();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { hidePop(); closeCap(); }
+  });
+
+  renderAll();
+  window.addEventListener('resize', renderNow);
+});
+</script>
+</body>
+</html>

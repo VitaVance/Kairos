@@ -1,0 +1,77 @@
+/* ============================================================================
+   Kairos v2 — 页面片段共用的演示脚手架
+   每个片段：<body data-skin="refined" data-theme="light"> + 引入 shared.css/base.js
+   ========================================================================== */
+
+/* 片段页：整个视口就是应用 */
+html, body { block-size: 100%; }
+
+/* 演示控制条（只在片段页出现，不进入实际应用） */
+.demo-bar {
+  position: fixed; inset-block-start: .5rem; inset-inline-end: .5rem;
+  z-index: 900;
+  display: flex; gap: .25rem; align-items: center;
+  padding: .25rem;
+  border: 1px solid rgba(128,128,128,.35);
+  border-radius: 8px;
+  background: rgba(20,20,24,.82);
+  backdrop-filter: blur(8px);
+  color: #e8e8ee;
+  font: .7rem/1.4 var(--font-sans);
+  opacity: .35;
+  transition: opacity 160ms ease;
+}
+.demo-bar:hover, .demo-bar:focus-within { opacity: 1; }
+.demo-bar button {
+  appearance: none; border: 0; cursor: pointer;
+  padding: .25rem .5rem; border-radius: 5px;
+  background: transparent; color: inherit; font: inherit;
+}
+.demo-bar button:hover { background: rgba(255,255,255,.12); }
+.demo-bar button[aria-pressed="true"] { background: rgba(255,255,255,.2); }
+
+/* 可选：给「这一段在演示什么」加一条细说明 */
+.note {
+  position: fixed; inset-block-end: .5rem; inset-inline-start: .5rem;
+  z-index: 900;
+  max-inline-size: 34rem;
+  padding: .5rem .75rem;
+  border-radius: 8px;
+  background: rgba(20,20,24,.82);
+  color: #e8e8ee; font: .72rem/1.5 var(--font-sans);
+  opacity: .0; transition: opacity 160ms ease;
+}
+.note[data-on] { opacity: 1; }
+.note b { color: #fff; }
+
+/* ----------------------------------------------------------------------------
+   底部视图切换胶囊 —— 让 17 个孤立片段能互相跳转，模拟真实应用里的视图切换。
+   只在片段页出现；不属于应用本身（真实应用里它是 .tl-pill）。
+   -------------------------------------------------------------------------- */
+.v2-nav {
+  position: fixed; inset-block-end: .75rem; inset-inline-start: 50%;
+  translate: -50% 0; z-index: 880;
+  display: flex; align-items: center; gap: 2px;
+  padding: 4px;
+  border: 1px solid rgba(128,128,128,.3);
+  border-radius: 999px;
+  background: rgba(20,20,24,.86);
+  backdrop-filter: blur(10px);
+  color: #d8d8e0;
+  font: .72rem/1 var(--font-sans);
+  max-inline-size: calc(100vw - 2rem);
+  overflow-x: auto; scrollbar-width: none;
+}
+.v2-nav::-webkit-scrollbar { display: none; }
+.v2-nav a {
+  padding: .375rem .625rem; border-radius: 999px;
+  color: inherit; text-decoration: none; white-space: nowrap;
+}
+.v2-nav a:hover { background: rgba(255,255,255,.1); }
+.v2-nav a[aria-current="page"] { background: rgba(255,255,255,.18); color: #fff; font-weight: 600; }
+.v2-nav__sep { inline-size: 1px; block-size: 14px; background: rgba(255,255,255,.2); margin-inline: .25rem; flex: none; }
+
+/* 固定底的演示条会盖住滚动到最底的内容；给滚动容器留出让位。
+   (form-factor-adaptation: scroll-padding-bottom ≥ bar height,
+    WCAG 2.4.11 Focus Not Obscured) */
+.content { scroll-padding-block-end: 3.5rem; }

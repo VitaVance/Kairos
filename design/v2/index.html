@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kairos v2 · 设计稿总览</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #111114; --panel: #17171b; --line: #26262c;
+    --fg: #f2f2f4; --muted: #8b8b95; --dim: #5a5a63;
+    --accent: #6ba0f9; --good: #4ec9a0; --warn: #e0a44a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: .875rem/1.6 "Inter", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  header { padding: 2.5rem 2rem 1.5rem; border-block-end: 1px solid var(--line); }
+  h1 { margin: 0 0 .5rem; font-size: 1.5rem; letter-spacing: -.01em; }
+  .lede { margin: 0; max-inline-size: 62rem; color: var(--muted); }
+  .lede b { color: var(--fg); }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 1.25rem;
+    margin-block-start: 1rem; font-size: .8rem; color: var(--dim);
+  }
+  .meta code { color: var(--muted); background: #1f1f26; padding: .0625rem .35rem; border-radius: 4px; }
+
+  main { padding: 1.5rem 2rem 4rem; }
+  h2 {
+    margin: 2.25rem 0 .875rem; font-size: .78rem; font-weight: 600;
+    letter-spacing: .04em; text-transform: uppercase; color: var(--dim);
+  }
+  h2:first-of-type { margin-block-start: 0; }
+
+  .grid { display: grid; gap: .75rem; grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr)); }
+  .card {
+    display: flex; flex-direction: column; gap: .375rem;
+    padding: .875rem 1rem; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); text-decoration: none; color: inherit;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .card:hover { border-color: #45454f; background: #1c1c21; }
+  .card__top { display: flex; align-items: baseline; gap: .5rem; }
+  .card__num { color: var(--dim); font-size: .72rem; font-variant-numeric: tabular-nums; }
+  .card__name { font-weight: 600; font-size: .9rem; }
+  .card__desc { color: var(--muted); font-size: .8rem; }
+  .card__tags { display: flex; gap: .25rem; margin-block-start: .125rem; }
+  .tag {
+    font-size: .68rem; padding: .0625rem .375rem; border-radius: 4px;
+    background: #23232a; color: var(--dim);
+  }
+  .tag--rule { background: #2a2118; color: var(--warn); }
+
+  .missing { border-style: dashed; opacity: .55; }
+
+  footer {
+    padding: 1.5rem 2rem 3rem; border-block-start: 1px solid var(--line);
+    color: var(--dim); font-size: .78rem;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Kairos v2 · 设计稿总览</h1>
+  <p class="lede">
+    <b>一个概念，六档时间。</b>没有任务/日程之分——所有事情只在「时间说到多细」上不同。
+    这份稿子按 <code>docs/adr/0004-one-concept-time-ladder.md</code> 画，
+    覆盖应用的每一个页面、视图、弹窗与组件。
+  </p>
+  <div class="meta">
+    <span>今天 = <code>2026-11-26 周四</code></span>
+    <span>本周一 = <code>2026-11-23</code></span>
+    <span>20 条示例事情 · 4 个清单</span>
+    <span>三套皮肤 × 两套主题 · 右上角切换</span>
+  </div>
+</header>
+
+<main>
+  <h2>核心视图</h2>
+  <div class="grid" id="g-core"></div>
+
+  <h2>日历与时间</h2>
+  <div class="grid" id="g-cal"></div>
+
+  <h2>交互与面板</h2>
+  <div class="grid" id="g-panel"></div>
+
+  <h2>系统</h2>
+  <div class="grid" id="g-sys"></div>
+
+  <h2>组件库</h2>
+  <div class="grid" id="g-lib"></div>
+</main>
+
+<footer>
+  令牌与基础样式见 <a href="shared.css">shared.css</a>，示例数据见 <a href="data.js">data.js</a>。
+  每个片段都可以单独打开、单独评审；右上角的切换条在六个组合间切换，所有片段共用同一选择。
+</footer>
+
+<script>
+  const PAGES = [
+    { group: 'core', num: '01', file: '01-quadrant.html',  name: '四象限板',      desc: '默认首页。四张卡，按重要 × 紧急分。',        tags: ['视图', '核心'] },
+    { group: 'core', num: '02', file: '02-list.html',      name: '平铺清单',      desc: '按时间阶梯分组，或按清单分组。',             tags: ['视图', '分组'] },
+
+    { group: 'cal', num: '03', file: '03-calendar-month.html', name: '月视图',    desc: '整月一格一格，芯片按时间精度落位。',          tags: ['视图', '日历'] },
+    { group: 'cal', num: '04', file: '04-calendar-week.html',  name: '周视图',    desc: '七天时间轴。「这周」的事横跨七列。',          tags: ['视图', '日历', '难点'] },
+    { group: 'cal', num: '05', file: '05-agenda.html',         name: '日程视图',  desc: '按时间先后排的清单，末尾是「不限」。',        tags: ['视图'] },
+    { group: 'cal', num: '13', file: '13-year.html',           name: '年视图',    desc: '十二个月的热力密度，回答「哪天忙过」。',      tags: ['视图', '热力'] },
+    { group: 'cal', num: '14', file: '14-multi-day.html',      name: '多日视图',  desc: '三 / 五 / 七天并列的时间轴。',                tags: ['视图'] },
+    { group: 'cal', num: '15', file: '15-day.html',            name: '日视图',    desc: '一整天，精确到分钟。',                        tags: ['视图'] },
+
+    { group: 'panel', num: '06', file: '06-detail.html',   name: '详情面板',      desc: '唯一的编辑器。右侧 380px，字段即存。',        tags: ['面板', '核心'] },
+    { group: 'panel', num: '07', file: '07-capture.html',  name: '捕获条',        desc: 'Ctrl+N。三种状态：默认 / 时间展开 / 失败。',  tags: ['弹层', '核心'] },
+    { group: 'panel', num: '08', file: '08-time-picker.html', name: '时间选择器', desc: '六档时间的完整交互，全应用同一套。',          tags: ['控件', '核心'] },
+
+    { group: 'sys', num: '09', file: '09-search.html',        name: '搜索',       desc: '一个搜索框，搜得到所有事情，包括没日期的。',   tags: ['弹层'] },
+    { group: 'sys', num: '10', file: '10-settings.html',      name: '设置',       desc: '外观 / 数据 / 关于。导出说清楚到底导了什么。', tags: ['弹层'] },
+    { group: 'sys', num: '11', file: '11-dialogs.html',       name: '弹窗与确认', desc: '破坏性确认、删除、快捷键、导出状态。',         tags: ['弹层', '破坏性'] },
+    { group: 'sys', num: '12', file: '12-empty-states.html',  name: '空状态',     desc: '六种空的状态，每种都说清为什么空。',           tags: ['边缘'] },
+
+    { group: 'lib', num: '16', file: '16-components.html', name: '组件总表',     desc: '按钮 / 输入 / 复选 / 分段 / 阶梯标签 / 行对象。', tags: ['组件'] },
+    { group: 'lib', num: '17', file: '17-icons.html',      name: '图标总表',     desc: '整套 SVG 图标、描边规则、对比度实测。',        tags: ['组件'] },
+  ];
+
+  const groups = { core: 'g-core', cal: 'g-cal', panel: 'g-panel', sys: 'g-sys', lib: 'g-lib' };
+
+  for (const p of PAGES) {
+    const host = document.getElementById(groups[p.group]);
+    if (!host) continue;
+    const a = document.createElement('a');
+    a.className = 'card';
+    a.href = p.file;
+    a.dataset.file = p.file;
+    a.innerHTML =
+      '<div class="card__top">' +
+        '<span class="card__num">' + p.num + '</span>' +
+        '<span class="card__name">' + p.name + '</span>' +
+      '</div>' +
+      '<div class="card__desc">' + p.desc + '</div>' +
+      '<div class="card__tags">' +
+        p.tags.map(function (t) {
+          return '<span class="tag' + (t === '难点' ? ' tag--rule' : '') + '">' + t + '</span>';
+        }).join('') +
+      '</div>';
+    host.appendChild(a);
+  }
+
+  // 标出还没生成的文件（用 fetch 探测，file:// 下失败就当作存在）
+  (async function markMissing() {
+    for (const a of document.querySelectorAll('.card')) {
+      try {
+        const res = await fetch(a.dataset.file, { method: 'HEAD' });
+        if (res.ok) continue;
+      } catch (e) {
+        // file:// 不支持 HEAD；用 XHR 兜底
+        const ok = await new Promise(function (resolve) {
+          const xhr = new XMLHttpRequest();
+          xhr.open('GET', a.dataset.file, true);
+          xhr.onload = function () { resolve(true); };
+          xhr.onerror = function () { resolve(false); };
+          xhr.send();
+        });
+        if (ok) continue;
+      }
+      a.classList.add('missing');
+      a.querySelector('.card__desc').textContent = '尚未生成';
+    }
+  })();
+</script>
+</body>
+</html>
