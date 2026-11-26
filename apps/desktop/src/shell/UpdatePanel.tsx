@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { MouseEvent as ReactMouseEvent } from 'react';
-import { Button, TextField, useTranslation } from '@todolist/ui';
+import { Button, useTranslation } from '@todolist/ui';
 import { evaluateUpdate } from '@todolist/features';
 import type { UpdateChecker, UpdateFetchStatus, UpdateSource } from '@todolist/features';
 import './update-panel.css';
@@ -60,12 +60,8 @@ type Phase =
       releaseUrl?: string;
     };
 
-type Mode = 'online' | 'offline';
-
 export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePanelProps) {
   const { t } = useTranslation('shell');
-  const [mode, setMode] = useState<Mode>(endpoint.length > 0 ? 'online' : 'offline');
-  const [path, setPath] = useState('');
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const titleId = useId();
@@ -93,8 +89,7 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
     }
     setPhase({ kind: 'checking' });
 
-    const source: UpdateSource =
-      mode === 'online' ? { kind: 'endpoint', url: endpoint } : { kind: 'file', path };
+    const source: UpdateSource = { kind: 'endpoint', url: endpoint };
 
     try {
       const currentVersion = await checker.currentVersion();
@@ -122,29 +117,23 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
       console.warn('[update] 检查更新失败', error);
       setPhase({ kind: 'failed', reason: 'unreachable' });
     }
-  }, [checker, path, mode, endpoint]);
+  }, [checker, endpoint]);
 
   const onlineConfigured = endpoint.length > 0;
-  const canCheck =
-    checker !== null &&
-    phase.kind !== 'checking' &&
-    (mode === 'offline' || onlineConfigured) &&
-    (mode === 'online' || path.trim().length > 0);
+  const canCheck = checker !== null && phase.kind !== 'checking' && onlineConfigured;
 
   // Why the check button is unavailable. `title` is neither keyboard-reachable
   // nor reliably announced, and a `disabled` button cannot be focused to
   // surface it, so the reason renders as visible text beside the button and is
   // wired to it with `aria-describedby`.
-  const blocked: 'unavailable' | 'not-configured' | 'path-required' | null =
+  const blocked: 'unavailable' | 'not-configured' | null =
     phase.kind === 'checking'
       ? null
       : checker === null
         ? 'unavailable'
-        : mode === 'online' && !onlineConfigured
+        : !onlineConfigured
           ? 'not-configured'
-          : mode === 'offline' && path.trim().length === 0
-            ? 'path-required'
-            : null;
+          : null;
 
   // A click on the dialog element itself (not a descendant) is the backdrop.
   const onClick = (event: ReactMouseEvent<HTMLDialogElement>) => {
@@ -173,47 +162,13 @@ export function UpdatePanel({ open, onClose, checker, endpoint = '' }: UpdatePan
         </header>
 
         <div className="up__body">
-          <div className="up__modes" role="group" aria-label={t('update.source.label')}>
-            <button
-              type="button"
-              className={`up__mode${mode === 'online' ? ' is-active' : ''}`}
-              aria-pressed={mode === 'online'}
-              onClick={() => setMode('online')}
-            >
-              {t('update.source.online')}
-            </button>
-            <button
-              type="button"
-              className={`up__mode${mode === 'offline' ? ' is-active' : ''}`}
-              aria-pressed={mode === 'offline'}
-              onClick={() => setMode('offline')}
-            >
-              {t('update.source.offline')}
-            </button>
-          </div>
-
-          {mode === 'online' ? (
-            endpoint.length > 0 ? (
-              <p className="up__intro">
-                {t('update.online.intro')} <strong>{t('update.online.privacy')}</strong>
-              </p>
-            ) : (
-              <p className="up__error">{t('update.online.notConfigured')}</p>
-            )
-          ) : (
-            <>
-              <p className="up__intro">{t('update.offline.intro')}</p>
-              <label className="up__field">
-                <span className="up__label">{t('update.offline.pathLabel')}</span>
-                <TextField
-                  value={path}
-                  onChange={setPath}
-                  placeholder={t('update.offline.pathPlaceholder')}
-                  label={t('update.offline.pathLabel')}
-                />
-              </label>
-            </>
-          )}
+          {/* One source, no picker. The endpoint is whatever the build
+              configured in tauri.conf.json; a user-facing "online / offline"
+              toggle only existed to support air-gapped installs and leaked a
+              developer concern into the product. */}
+          <p className="up__intro">
+            {t('update.online.intro')} <strong>{t('update.online.privacy')}</strong>
+          </p>
 
           <div className="up__actions">
             <Button

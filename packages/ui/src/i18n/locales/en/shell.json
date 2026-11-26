@@ -98,9 +98,9 @@
       "offline": "Offline (local file)"
     },
     "online": {
-      "intro": "Reads version information from the project release page. Only the version manifest is downloaded.",
-      "privacy": "Your task data never leaves this machine.",
-      "notConfigured": "This build has no update source configured. Set plugins.updater.endpoints in tauri.conf.json to your GitHub Releases URL."
+      "intro": "Kairos checks its release page for a newer version.",
+      "privacy": "Only the version manifest is downloaded — your tasks never leave this machine.",
+      "notConfigured": "Updates are unavailable in this build."
     },
     "offline": {
       "intro": "For offline machines, download latest.json from the release page first, then paste its full path below.",
@@ -114,7 +114,7 @@
       "invalidManifest": "The update source did not return a valid update manifest"
     },
     "reason": {
-      "notConfigured": "This build has no update source configured",
+      "notConfigured": "Updates are unavailable in this build",
       "pathRequired": "Enter the manifest file path first",
       "unavailable": "Update checks are only available in the desktop app"
     },

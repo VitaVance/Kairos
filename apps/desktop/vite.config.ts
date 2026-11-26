@@ -27,11 +27,26 @@ const TAURI_DIR = fileURLToPath(new URL('./src-tauri/', import.meta.url));
  */
 const tauriConfig = JSON.parse(
   readFileSync(fileURLToPath(new URL('./src-tauri/tauri.conf.json', import.meta.url)), 'utf8'),
-) as { version: string };
+) as { version: string; plugins?: { updater?: { endpoints?: string | string[] } } };
 
 const APP_VERSION = resolveAppVersion(tauriConfig.version, (path) =>
   readFileSync(resolve(TAURI_DIR, path), 'utf8'),
 );
+
+/**
+ * The release feed the update panel checks.
+ *
+ * Read from `plugins.updater.endpoints` — the same value the Tauri updater
+ * plugin itself uses — rather than from an env var the build never set. That
+ * mismatch is why a shipped build told users "尚未配置更新源" and then printed
+ * a tauri.conf.json key path at them: the endpoint was configured, but the
+ * frontend never saw it.
+ */
+const UPDATE_ENDPOINT = (() => {
+  const endpoints = tauriConfig.plugins?.updater?.endpoints;
+  const first = Array.isArray(endpoints) ? endpoints[0] : endpoints;
+  return typeof first === 'string' ? first : '';
+})();
 
 // Tauri expects a fixed port and a relative base for the packaged webview.
 export default defineConfig({
@@ -41,6 +56,7 @@ export default defineConfig({
   envPrefix: ['VITE_', 'TAURI_'],
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION),
+    'import.meta.env.VITE_UPDATE_ENDPOINT': JSON.stringify(UPDATE_ENDPOINT),
   },
   build: { target: 'es2022', sourcemap: true },
 });

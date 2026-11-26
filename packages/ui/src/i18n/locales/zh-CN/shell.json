@@ -98,9 +98,9 @@
       "offline": "离线（本地文件）"
     },
     "online": {
-      "intro": "将从项目的发布页读取版本信息。只有版本清单会被下载。",
-      "privacy": "你的任务数据不会离开这台电脑。",
-      "notConfigured": "此构建尚未配置更新源。请在 tauri.conf.json 的 plugins.updater.endpoints 填入你的 GitHub Releases 地址。"
+      "intro": "Kairos 会到发布页检查是否有新版本。",
+      "privacy": "只下载版本信息，你的任务数据不会离开这台电脑。",
+      "notConfigured": "此版本暂不支持检查更新。"
     },
     "offline": {
       "intro": "如果你在离线环境，请先手动下载发布页提供的 latest.json，把它的完整路径填在下面。",
@@ -114,7 +114,7 @@
       "invalidManifest": "更新源返回的内容不是有效的更新清单"
     },
     "reason": {
-      "notConfigured": "此构建未配置更新源",
+      "notConfigured": "此版本暂不支持检查更新",
       "pathRequired": "请填写清单文件路径",
       "unavailable": "更新检查仅在桌面应用中可用"
     },
