@@ -88,6 +88,13 @@
   .agroup__tag--muted { background: var(--bg-sunken); color: var(--ink-2); }
   .agroup__tag--warn { background: transparent; color: var(--warning-ink); font-weight: 600; }
   .agroup__count { margin-inline-start: auto; font-size: var(--text-xs); color: var(--ink-quiet); font-variant-numeric: tabular-nums; }
+  /* 今天这一组：「已过 3 · 还剩 2」，从时钟读 */
+  .agroup__progress {
+    font-size: var(--text-xs); font-weight: 600; color: var(--ink-2);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+    padding: 0 6px; border-radius: var(--radius-full);
+    background: var(--bg-sunken);
+  }
   .agroup.is-today .agroup__dow { color: var(--accent-ink); }
 
   /* 行 */
@@ -217,6 +224,26 @@
   }
   .toast[hidden] { display: none; }
   .toast svg { color: var(--success-ink); flex: none; }
+
+  /* ---- 900px 以下：侧栏收窄，行让出时间列的固定宽度 ----------------------
+     行的四列是 76px / 18px / 1fr / auto。窄屏上 76px 的时间列和标题抢地方，
+     先把时间列收到 56px（「今天 15:00」「11/23 – 11/29」仍放得下），
+     再在 560px 以下把「一段的起止」藏掉——分组头已经说了这是哪一周。 */
+  @media (max-width: 900px) {
+    .arow-item { grid-template-columns: 58px 14px minmax(0, 1fr) auto; gap: var(--sp-2); }
+    .agenda { padding-inline: var(--sp-3); }
+    .agroup__head { margin-inline: calc(var(--sp-3) * -1); padding-inline: var(--sp-3); }
+    .topbar__actions { padding-inline-end: 0; }
+  }
+  @media (max-width: 720px) {
+    /* 侧栏已在 shared.css 收起；顶栏把标题与计数堆起来，让「新建」留在第一行。 */
+    .topbar__title { flex-wrap: wrap; row-gap: 2px; }
+  }
+  @media (max-width: 560px) {
+    .arow-item { grid-template-columns: 52px 12px minmax(0, 1fr) auto; }
+    .arow-item__span { display: none; }
+    .agroup__progress { display: none; }
+  }
 </style>
 </head>
 <body data-skin="refined" data-theme="light">
@@ -252,20 +279,23 @@
   </nav>
 
   <!-- ======================= 清单侧栏 ======================= -->
+  <!-- 数字全部由 data.js 的 counts() 填：这里只写空壳 + data-* 钩子。
+       原来写死 5/8/20 与 3/9/1/6，同一份数据在 01 是 7/12/20 与 2/9/3/6，
+       两页侧栏当场打架（评审 §F）。 -->
   <aside class="sidebar" aria-label="清单">
     <div class="sidebar__head"><span>快捷</span></div>
     <div class="sidebar__group">
-      <button class="sidebar__row" type="button">
+      <button class="sidebar__row" type="button" data-smart="today">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 2v4M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-        <span class="sidebar__label">今天</span><span class="sidebar__count">5</span>
+        <span class="sidebar__label">今天</span><span class="sidebar__count" data-count="today"></span>
       </button>
-      <button class="sidebar__row" type="button">
+      <button class="sidebar__row" type="button" data-smart="recent">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <span class="sidebar__label">最近</span><span class="sidebar__count">8</span>
+        <span class="sidebar__label">最近</span><span class="sidebar__count" data-count="recent"></span>
       </button>
-      <button class="sidebar__row" type="button">
+      <button class="sidebar__row" type="button" data-smart="all">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
-        <span class="sidebar__label">全部</span><span class="sidebar__count">20</span>
+        <span class="sidebar__label">全部</span><span class="sidebar__count" data-count="all"></span>
       </button>
     </div>
 
@@ -275,18 +305,13 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg>
       </button>
     </div>
-    <div class="sidebar__group">
-      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#5b8def"></span><span class="sidebar__label">收集箱</span><span class="sidebar__count">3</span></button>
-      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#3aa88b"></span><span class="sidebar__label">工作</span><span class="sidebar__count">9</span></button>
-      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#8b79c9"></span><span class="sidebar__label">学习</span><span class="sidebar__count">1</span></button>
-      <button class="sidebar__row" type="button"><span class="sidebar__dot" style="background:#d99a3d"></span><span class="sidebar__label">生活</span><span class="sidebar__count">6</span></button>
-    </div>
+    <div class="sidebar__group" id="listFilters"></div>
 
     <div class="sidebar__head" style="margin-block-start:auto"><span>状态</span></div>
     <div class="sidebar__group">
-      <button class="sidebar__row" type="button">
+      <button class="sidebar__row" type="button" data-smart="done">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-        <span class="sidebar__label">已完成</span><span class="sidebar__count">1</span>
+        <span class="sidebar__label">已完成</span><span class="sidebar__count" data-count="done"></span>
       </button>
     </div>
   </aside>
@@ -295,7 +320,7 @@
   <div class="main">
     <header class="topbar">
       <h1 class="topbar__title"><span>日程</span>
-        <span class="sub">按时间顺序 · 20 件未完成</span>
+        <span class="sub" id="openLine">按时间顺序 · — 件未完成</span>
       </h1>
       <div class="topbar__actions">
         <button class="icon-btn" type="button" aria-label="搜索" title="搜索">
@@ -374,6 +399,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var activeBtn = null;
   var toastTimer = 0;
 
+  /* 侧栏筛选：点了真的改变渲染（评审 §F 的「点了不动」）。
+     null = 全部；smart 是 today / recent / done；list 是清单 id。 */
+  var state = { smart: null, list: null };
+
   function toastMsg(text) {
     document.getElementById('toastText').textContent = text;
     toast.hidden = false;
@@ -396,7 +425,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ---------------- 分组 ----------------
-     今天 → 明天 → 本周 → 下周 → 更远 → 不限
+     今天 → 明天 → 这周 → 下周 → 更远 → 不限
      week/month 归到它们窗口的起点所在的那一组；
      排序遵循 ADR 0004：粗窗口在前（month → week → day → period → time）。 */
   var RUNG_ORDER = { month: 0, week: 1, day: 2, period: 3, time: 4, none: 5 };
@@ -429,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function () {
        所以 month 一律进「更远」，与它真正覆盖的那一个月一起被看待。 */
     if (it.rung === 'month') return 'later';
     var s = startDateOf(it);
-    var today = K.TODAY;
+    var today = K.now().today;
     if (s === today) return 'today';
     if (s === K.addDays(today, 1)) return 'tomorrow';
     var thisWk = K.weekStartOf(today);
@@ -439,14 +468,14 @@ document.addEventListener('DOMContentLoaded', function () {
     return 'later';
   }
 
-  /* 顺序按 SPEC：今天 → 明天 → 本周 → 下周 → 更远 → 不限。
+  /* 顺序按 SPEC：今天 → 明天 → 这周 → 下周 → 更远 → 不限。
      「已过窗口」是唯一新增的一组，插在明天之后：它是上周没做完的窗口，
      既不属于「本周」，也不该被埋到最下面 —— 那正是 ADR 0004 §3 要让它被看见的东西。 */
   var GROUPS = [
     { id: 'today',    title: '今天',     tag: '今天',   tagCls: '' },
     { id: 'tomorrow', title: '明天',     tag: '',       tagCls: '' },
     { id: 'overdue',  title: '已过窗口', tag: '未完成', tagCls: 'agroup__tag--warn' },
-    { id: 'thisweek', title: '本周',     tag: '',       tagCls: '' },
+    { id: 'thisweek', title: '这周',     tag: '',       tagCls: '' },
     { id: 'nextweek', title: '下周',     tag: '',       tagCls: '' },
     { id: 'later',    title: '更远',     tag: '',       tagCls: '' },
     { id: 'none',     title: '不限',     tag: '没有日期', tagCls: 'agroup__tag--muted' }
@@ -455,7 +484,64 @@ document.addEventListener('DOMContentLoaded', function () {
   /* 窗口已过的 week 归到「已过窗口」之后仍按日期顺排；
      这里把「上周」放在「本周」之前，因为它是 11-16，日期上确实更早。 */
 
-  var items = K.ITEMS.filter(function (it) { return !it.done; });
+  /* 日程默认只排未完成的事；「已完成」这一个筛选是唯一的例外，
+     所以源用全量，由 passes() 决定。 */
+  var items = K.ITEMS.slice();
+
+  /* ---------------- 筛选 ----------------
+     侧栏现在真的会过滤（原来点了不动）。三个快捷口径与 01/02 共用同一套
+     data.js 函数：coversToday / isLate / isWindowPassed —— 不许在这里再写一遍。
+     「最近」= 这一周内要操心的事（与 02 的「最近 7 天」同义）。 */
+  function inRecent(it) {
+    if (it.rung === 'none') return false;
+    if (K.isLate(it) || K.isWindowPassed(it)) return true;
+    if (it.rung === 'month') return K.monthStartOf(it.date) === K.monthStartOf(K.now().today);
+    if (it.rung === 'week') {
+      var ws = K.weekStartOf(it.date);
+      var t = K.now().today;
+      return ws >= t && ws <= K.addDays(t, 6);
+    }
+    return it.date >= K.now().today && it.date <= K.addDays(K.now().today, 6);
+  }
+  function passes(it) {
+    if (state.list) return it.list === state.list && !it.done;
+    if (state.smart === 'today') return !it.done && K.coversToday(it);
+    if (state.smart === 'recent') return !it.done && inRecent(it);
+    if (state.smart === 'done') return it.done;
+    return !it.done;
+  }
+
+  /* 侧栏数字：唯一来源是 K.counts()；「最近」这一个没有对应字段，用同一个
+     inRecent() 算，保证数字与点进去看到的行数永远一致。 */
+  function paintSidebar() {
+    var c = K.counts();
+    var nums = {
+      today: c.todayWindow,
+      recent: K.ITEMS.filter(function (it) { return !it.done && inRecent(it); }).length,
+      all: c.open,
+      done: c.done
+    };
+    Object.keys(nums).forEach(function (k) {
+      var el = document.querySelector('[data-count="' + k + '"]');
+      if (el) el.textContent = String(nums[k]);
+    });
+    var box = document.getElementById('listFilters');
+    box.innerHTML = K.LISTS.map(function (l) {
+      var cur = state.list === l.id;
+      return '<button class="sidebar__row" type="button" data-list="' + l.id + '"' +
+        (cur ? ' aria-current="true"' : '') + '>' +
+        '<span class="sidebar__dot" style="background:' + l.color + '"></span>' +
+        '<span class="sidebar__label">' + l.name + '</span>' +
+        '<span class="sidebar__count">' + c.byList[l.id] + '</span></button>';
+    }).join('');
+    // 快捷项与清单项只能有一个当前态
+    document.querySelectorAll('.sidebar [data-smart]').forEach(function (b) {
+      b.setAttribute('aria-current', String(!state.list && state.smart === b.dataset.smart && b.dataset.smart !== 'all'));
+    });
+    document.querySelectorAll('.sidebar [data-smart="all"]').forEach(function (b) {
+      b.setAttribute('aria-current', String(!state.list && !state.smart));
+    });
+  }
 
   /* ---------------- 渲染 ---------------- */
   /* 日程表是「按时间排」的列表，一段（这周 / 下个月）当然只出现一次 ——
@@ -599,15 +685,15 @@ document.addEventListener('DOMContentLoaded', function () {
       html = '<span class="agroup__dow">' + dowOf(d) + '</span>' +
              '<span class="agroup__num">' + md(d) + '</span>';
     } else if (g.id === 'thisweek') {
-      var ws = K.weekStartOf(K.TODAY);
-      html = '<span class="agroup__dow">本周</span>' +
+      var ws = K.weekStartOf(K.now().today);
+      html = '<span class="agroup__dow">这周</span>' +
              '<span class="agroup__num">' + rangeOf(ws) + '</span>';
     } else if (g.id === 'nextweek') {
-      var ns = K.addDays(K.weekStartOf(K.TODAY), 7);
+      var ns = K.addDays(K.weekStartOf(K.now().today), 7);
       html = '<span class="agroup__dow">下周</span>' +
              '<span class="agroup__num">' + rangeOf(ns) + '</span>';
     } else if (g.id === 'overdue') {
-      var ow = K.addDays(K.weekStartOf(K.TODAY), -7);
+      var ow = K.addDays(K.weekStartOf(K.now().today), -7);
       html = '<span class="agroup__dow">上周</span>' +
              '<span class="agroup__num">' + rangeOf(ow) + '</span>';
     } else {
@@ -617,8 +703,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     head.innerHTML = html +
       (g.tag ? '<span class="agroup__tag ' + g.tagCls + '">' + g.tag + '</span>' : '') +
-      '<span class="agroup__count">' + list.length + ' 件</span>';
+      '<span class="agroup__count">' + list.length + ' 件</span>' +
+      (g.id === 'today' ? todayProgress(list) : '');
     return head;
+  }
+
+  /* 今天这一组：「已过 3 · 还剩 2」——从当前时刻读，不写字面量。
+     一件「已过」= 它的时刻已经过去（isLate 用的就是 K.now() 的时钟）；
+     剩下的（含还没到点的、以及没有具体时刻的 day/period）算「还剩」。 */
+  function todayProgress(list) {
+    var now = K.now();
+    var past = 0;
+    list.forEach(function (it) { if (K.isLate(it, now.nowMin)) past++; });
+    var left = list.length - past;
+    return '<span class="agroup__progress">已过 ' + past + ' · 还剩 ' + left + '</span>';
   }
   /** 一周的起止写作「11/23 – 11/29」 */
   function rangeOf(start) {
@@ -627,9 +725,21 @@ document.addEventListener('DOMContentLoaded', function () {
   function shortDate(d) { var p = d.split('-'); return (+p[1]) + '/' + (+p[2]); }
 
   function render() {
+    paintSidebar();
+    var scroller = document.querySelector('.content--agenda');
+    var scrollKeep = scroller ? scroller.scrollTop : 0;
     agenda.innerHTML = '';
-    GROUPS.forEach(function (g) {
-      var list = items.filter(function (it) { return bucketOf(it) === g.id; })
+    /* 顶栏的件数必须等于实际渲染的行数（评审 §F：原来写「20 件未完成」，
+       屏幕上只有 19 行，第 20 条是已完成的「家长会」）。现在先算好行，
+       再从渲染结果里数。 */
+    var shown = items.filter(passes);
+    /* 「已完成」不是一个时间桶，而是一个状态：它不能落进「已过窗口」，
+       那些分组头会写「未完成」——已完成的事被标成未完成是说谎。 */
+    if (state.smart === 'done') {
+      renderDone(shown);
+    } else {
+      GROUPS.forEach(function (g) {
+      var list = shown.filter(function (it) { return bucketOf(it) === g.id; })
         .sort(sortItems);
       if (!list.length) return;
 
@@ -654,11 +764,48 @@ document.addEventListener('DOMContentLoaded', function () {
       group.appendChild(rows);
 
       agenda.appendChild(group);
-    });
+      });
+    }
+    if (!agenda.querySelector('.arow-item')) {
+      var empty = document.createElement('p');
+      empty.className = 'agroup__empty';
+      empty.textContent = state.list ? '这个清单在日程里没有未完成的事' : '这个筛选下没有事';
+      agenda.appendChild(empty);
+    }
+    if (scroller) scroller.scrollTop = scrollKeep;
+    /* 顶栏读的是**实际渲染的行数**，不是某个常量，也不是一个独立口径。 */
+    var open = document.getElementById('openLine');
+    if (open) {
+      var n = agenda.querySelectorAll('.arow-item').length;
+      open.textContent = '按时间顺序 · ' + n + (state.smart === 'done' ? ' 件已完成' : ' 件未完成');
+    }
   }
 
-  /* ---------------- 勾完成 ---------------- */
-  function finish(it, btn, done) {
+  /* 「已完成」筛选：只有一组，按完成日期倒排。
+     它不该进 GROUPS —— 那些分组头会写「未完成 / 已过窗口」，而这里全是完成的事。 */
+  function renderDone(list) {
+    if (!list.length) return;
+    var sorted = list.slice().sort(function (a, b) {
+      var ad = a.date || '', bd = b.date || '';
+      return ad < bd ? 1 : ad > bd ? -1 : 0;
+    });
+    var group = document.createElement('section');
+    group.className = 'agroup';
+    group.setAttribute('aria-label', '已完成');
+    var head = document.createElement('div');
+    head.className = 'agroup__head';
+    head.innerHTML = '<span class="agroup__dow">已完成</span>' +
+      '<span class="agroup__tag agroup__tag--muted">不在日程上</span>' +
+      '<span class="agroup__count">' + sorted.length + ' 件</span>';
+    group.appendChild(head);
+    var rows = document.createElement('div');
+    rows.className = 'arows';
+    sorted.forEach(function (it) { rows.appendChild(rowEl(it)); });
+    group.appendChild(rows);
+    agenda.appendChild(group);
+  }
+
+  /* ---------------- 勾完成 ---------------- */  function finish(it, btn, done) {
     if (!done) return;
     btn.classList.add('is-done');
     var title = it.title;
@@ -722,7 +869,33 @@ document.addEventListener('DOMContentLoaded', function () {
     if (e.key === 'Escape') closePop();
   });
 
+  /* 侧栏：点了真的过滤。同一个筛选项再点一次 = 取消，回到全部。 */
+  document.querySelector('.sidebar').addEventListener('click', function (e) {
+    var smart = e.target.closest('[data-smart]');
+    if (smart) {
+      var id = smart.dataset.smart;
+      state.list = null;
+      state.smart = (id === 'all' || state.smart === id) ? null : id;
+      render();
+      return;
+    }
+    var list = e.target.closest('[data-list]');
+    if (list) {
+      var lid = list.dataset.list;
+      state.smart = null;
+      state.list = state.list === lid ? null : lid;
+      render();
+    }
+  });
+
   render();
+
+  /* 时钟：每分钟推一分钟并重渲染，「今天」组里哪些已过、哪些还剩就跟着变。 */
+  setInterval(function () {
+    var n = K.now();
+    K.setNow(n.nowMin + 1, n.today);
+    render();
+  }, 60000);
 });
 </script>
 </body>

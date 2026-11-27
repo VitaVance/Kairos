@@ -100,23 +100,33 @@
 .qbody-wrap { position: relative; flex: 1; min-block-size: 0; display: flex; }
 .qbody { flex: 1; min-block-size: 0; overflow-y: auto; padding: 0 0 var(--sp-2); }
 /* 卡等高时内容会被裁在滚动区里；没有提示就是「静默裁切」——
-   用户以为看全了。底部渐隐 + 角标告诉他下面还有。 */
+   用户以为看全了。底部渐隐 + 角标告诉他下面还有。
+
+   角标原来是 absolute 定位、压在滚动区的最后一行上：窄窗实测它正好盖住
+   「交房租」，被盖住的那一行读不出来，也点不到。现在角标占据自己的
+   一个 22px 条带（grid 的第二行），永远不重叠任何行；条带始终保留，
+   所以「有角标 / 没角标」不会改变卡内几何 —— 否则会出现
+   「出现角标 → 内容更少 → 角标消失 → 内容更多」的来回抖动。 */
+.qbody-wrap {
+  position: relative; flex: 1; min-block-size: 0;
+  display: grid; grid-template-rows: minmax(0, 1fr) 22px;
+}
+.qbody { min-block-size: 0; overflow-y: auto; padding: 0 0 var(--sp-2); }
 .qbody-wrap::after {
-  content: ''; position: absolute; inset-inline: 0; inset-block-end: 0;
-  block-size: 28px; pointer-events: none;
-  background: linear-gradient(to top, var(--bg-surface), transparent);
+  content: ''; position: absolute; inset-inline: 0; inset-block-end: 22px;
+  block-size: 22px; pointer-events: none;
+  background: linear-gradient(to top, var(--bg-surface) 30%, transparent);
   opacity: 0; transition: opacity var(--dur-fast) var(--ease);
 }
 .qbody-wrap[data-more]::after { opacity: 1; }
 .qmore {
-  position: absolute; inset-block-end: 4px; inset-inline-start: 50%;
-  translate: -50% 0;
-  display: none;
+  grid-row: 2; justify-self: center; align-self: center;
   padding: 1px 8px; border-radius: var(--radius-full);
   background: var(--bg-surface); border: 1px solid var(--hairline-strong);
   font-size: var(--text-xs); color: var(--ink-2);
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
+.qmore { display: none; }
 .qbody-wrap[data-more] .qmore { display: block; }
 
 .qrows { list-style: none; margin: 0; padding: 0; }
@@ -125,9 +135,12 @@
   position: relative;
   display: flex; align-items: center; gap: var(--sp-2);
   min-block-size: 34px; padding: 1px var(--sp-3) 1px 3px;
+  /* 行是一个可打开的对象：光标要说这件事，键盘也要够得到（tabindex 在 rowHTML 里）。 */
+  cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }
 .qrow:hover, .qrow:focus-within { background: var(--bg-hover); }
+.qrow:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 .qrow__grip {
   flex: none; inline-size: 12px; block-size: 18px;
@@ -275,6 +288,121 @@
   color: var(--warning-ink);
   background: var(--bg-surface);
 }
+/* 用户亲手标了紧急。这条信息原来只活在「它为什么在 Q1」里，
+   行上一点痕迹都没有——于是「我标过它」这件事不可见。 */
+.sig--flag {
+  border-color: var(--ink-3);
+  color: var(--ink-2);
+  background: var(--bg-surface);
+}
+/* 同一天里两段时间相交。这是中性的提醒，不是迟到，所以不用 danger。 */
+.sig--clash {
+  border-color: var(--warning-ink);
+  color: var(--warning-ink);
+  background: var(--bg-surface);
+  gap: 3px;
+}
+
+/* ---- 顶部：今天 / 下一件进 Q1 --------------------------------------------- */
+.boardhead {
+  display: flex; align-items: center; gap: var(--sp-2);
+  flex: none; padding-inline: var(--sp-1);
+  min-inline-size: 0;
+}
+.boardhead__seg { flex: none; }
+.boardhead__seg .seg__item { gap: 5px; }
+.boardhead__seg .seg__item b { font-variant-numeric: tabular-nums; font-weight: 600; }
+.boardhead__next {
+  display: flex; align-items: center; gap: var(--sp-2);
+  margin-inline-start: auto;
+  min-inline-size: 0;
+  padding: 0 var(--sp-2);
+  block-size: 28px;
+  border-radius: var(--radius-full);
+  background: var(--q1-t);
+  color: var(--q1-i);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+.boardhead__next b { font-weight: 600; }
+.boardhead__next .tnum { font-variant-numeric: tabular-nums; }
+.boardhead__next--none {
+  background: var(--bg-sunken);
+  color: var(--ink-2);
+}
+.boardhead__next svg { flex: none; }
+
+/* ---- 轻量详情面板 ---------------------------------------------------------
+   不是破坏性操作，所以不用 11 那一套「安全动作优先 + 600ms 迟滞」；
+   但它是模态的：背后是棋盘，点它就该回到那件事上。原生 <dialog> + showModal()
+   把焦点陷阱、Esc、backdrop 都交给平台，比手写一个 div 遮罩可靠。 */
+body {
+  --scrim: color-mix(in oklab, var(--ink-1) 32%, transparent);
+}
+body[data-theme="dark"] {
+  --scrim: color-mix(in oklab, var(--bg-sunken) 74%, transparent);
+}
+.qpanel {
+  padding: 0; border: 0; background: transparent;
+  inline-size: min(420px, calc(100vw - var(--sp-8)));
+  max-block-size: none;
+  margin: auto;
+  overflow: visible;
+  color: var(--ink-1);
+}
+.qpanel::backdrop { background: var(--scrim); }
+.qpanel__box {
+  padding: var(--sp-4);
+  border: 1px solid var(--hairline-strong);
+  border-radius: var(--radius-xl);
+  background: var(--bg-surface);
+  box-shadow: var(--shadow-lg);
+}
+.qpanel__head {
+  display: flex; align-items: flex-start; gap: var(--sp-2);
+  margin-block-end: var(--sp-3);
+}
+.qpanel__title {
+  flex: 1; min-inline-size: 0; margin: 0;
+  font-size: var(--text-lg); font-weight: 600;
+  text-wrap: balance;
+}
+.qpanel__close {
+  appearance: none; border: 0; background: transparent; cursor: pointer;
+  flex: none; inline-size: 24px; block-size: 24px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+}
+.qpanel__close:hover { background: var(--bg-hover); color: var(--ink-1); }
+.qpanel__close:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.qpanel__dl {
+  display: grid; grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  font-size: var(--text-body);
+}
+.qpanel__dl dt { color: var(--ink-2); white-space: nowrap; }
+.qpanel__dl dd { margin: 0; color: var(--ink-1); }
+.qpanel__dl dd .tnum { font-variant-numeric: tabular-nums; }
+.qpanel__tag {
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+}
+.qpanel__acts { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+.qpanel__acts .btn { text-decoration: none; }
+.qpanel__hint {
+  margin: 0 0 var(--sp-3);
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+/* ---- 时钟 ---------------------------------------------------------------- */
+.boardhead__clock {
+  flex: none;
+  color: var(--ink-quiet);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ---- ⋯ 菜单 --------------------------------------------------------------- */
 .qmenu {
@@ -297,6 +425,33 @@
 
 @media (prefers-reduced-motion: reduce) {
   .qrow, .qrow__grip, .qrow__more, .qcard__donebtn svg { transition: none; }
+}
+
+/* ---------- 窄屏 ----------
+   2×2 板在 375 下每张卡只有 141px：标题被挤成 0 宽、阶梯标签顶出卡外。
+   板上「哪个象限」靠方位表达，不需要四张并排才成立；窄屏改成竖排 1 列，
+   每个象限一整行，标题与阶梯都拿得回宽度。900 下侧栏已由 shared.css 收窄，
+   这里只处理板本身。 */
+@media (max-width: 900px) {
+  /* .content--board 既是 flex 容器又是滚动容器；190 那行 `overflow:hidden`
+     + 内容宽度让它不被主区夹住。窄屏只需要它自己滚。 */
+  .content--board { display: block; overflow: auto; min-inline-size: 0; padding-inline: var(--sp-3); }
+  /* 竖排之后不再需要「四张等高」（等高是 2×2 方位隐喻的要求）；
+     卡按内容长，否则 375 下固定 12rem 会再裁掉几行。 */
+  .qboard { display: block; inline-size: auto; min-inline-size: 0; }
+  .qcard { min-block-size: 0; margin-block-end: var(--sp-3); }
+  .qbody-wrap { display: block; }
+  .qbody { max-block-size: 22rem; overflow-y: auto; }
+  .qbody-wrap::after, .qmore { display: none !important; }
+  .boardhead { flex-wrap: wrap; row-gap: var(--sp-1); padding-inline: var(--sp-1); }
+  .boardhead__next { margin-inline-start: 0; }
+}
+@media (max-width: 560px) {
+  .qcard__donebtn { display: none; }
+  /* 行挤在一张 300px 的卡里：隐藏的 ⋯ 与抓手会吃掉标题的位置，先让位。 */
+  .qrow__grip, .qrow__more { display: none; }
+  .qrow { gap: var(--sp-1); padding-inline-end: var(--sp-1); }
+  .lad__pre { display: none; }
 }
 </style>
 </head>
@@ -351,8 +506,9 @@
 
   <div class="main">
     <header class="topbar">
-      <h1 class="topbar__title">四象限</h1>
+      <h1 class="topbar__title" id="boardTitle">四象限</h1>
       <span class="topbar__sub" id="todayLine"></span>
+      <span class="topbar__sub boardhead__clock" id="clockLine"></span>
       <span class="topbar__sub" id="openLine"></span>
       <div class="topbar__actions">
         <button type="button" class="btn btn--primary" id="newBtn">
@@ -361,11 +517,17 @@
         </button>
       </div>
     </header>
+    <div class="boardhead">
+      <div class="seg boardhead__seg" id="scopeSeg" role="radiogroup" aria-label="板的范围"></div>
+      <span class="boardhead__next" id="nextQ1"></span>
+    </div>
     <div class="content content--board">
       <div class="qboard" id="board"></div>
     </div>
   </div>
 </div>
+
+<dialog class="qpanel" id="rowPanel" aria-labelledby="rowPanelTitle"></dialog>
 
 <script>
 (function () {
@@ -392,7 +554,12 @@
     day: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>',
     period: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z" fill="currentColor" stroke="none"/>',
     time: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
-    none: '<path d="M6 12h12"/>'
+    none: '<path d="M6 12h12"/>',
+    flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V4s-1 1-4 1-5-2-8-2-4 1-4 1z"/><path d="M4 22v-7"/>',
+    clash: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    arrow: '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
+    x: '<path d="M18 6 6 18M6 6l12 12"/>',
+    list: '<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/>'
   };
   var GLYPH = { month: P.month, week: P.week, day: P.day, period: P.period, time: P.time, none: P.none };
 
@@ -409,12 +576,18 @@
     var board = document.getElementById('board');
     var smartBox = document.getElementById('smartFilters');
     var listBox = document.getElementById('listFilters');
+    var scopeSeg = document.getElementById('scopeSeg');
 
+    // 首屏是「今天」：板回答的问题是「我现在要操心哪几件」，
+    // 而不是「我攒了多少件」。全部仍然一键可切。
     // 卡 2 一开始就把「已完成」展开：它的第 7 件事（家长会）在这里，
     // 让「重要不紧急」在板上看得见地比其它卡更长——这正是数据里的分布。
-    var state = { filter: 'all', list: null, openDone: { 2: true } };
-    var RANK = { month: 0, week: 1, day: 2, period: 3, time: 4, none: 5 };
+    var state = { filter: 'today', list: null, openDone: { 2: true }, reveal: null };
+    // 粗窗口在前（ADR 0004）：这是**清单**的排序表，不是板的。
+    // 板见 cmpBoard：它只在最后同起点同分钟时用它收口，不拿它当主轴。
+    var RANK = { month: 0, week: 1, range: 2, day: 3, period: 4, time: 5, none: 6 };
     var PERIOD_RANK = { morning: 0, afternoon: 1, evening: 2 };
+    var lastFocus = null;   // 打开面板的那一行，Esc / 关闭后焦点回到这里
 
     /* ---- 查询工具 ---------------------------------------------------------- */
     function listOf(id) {
@@ -432,28 +605,23 @@
 
     function passes(it) {
       if (state.list && it.list !== state.list) { return false; }
-      if (state.filter === 'today') { return coversToday(it); }
-      if (state.filter === 'recent') { return inRecent(it); }
+      if (state.filter === 'today') { return K.coversToday(it) || it.id === state.reveal; }
+      if (state.filter === 'recent') { return inRecent(it) || it.id === state.reveal; }
       return true;
-    }
-    function coversToday(it) {
-      if (it.rung === 'none') { return false; }
-      if (it.rung === 'week') { return K.weekStartOf(it.date) === K.weekStartOf(K.TODAY); }
-      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.TODAY); }
-      return it.date === K.TODAY;
     }
     function inRecent(it) {
       if (it.rung === 'none') { return false; }
       if (K.isLate(it) || K.isWindowPassed(it)) { return true; }
-      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.TODAY); }
+      if (it.rung === 'month') { return K.monthStartOf(it.date) === K.monthStartOf(K.now().today); }
       if (it.rung === 'week') {
         var ws = K.weekStartOf(it.date);
-        return ws >= K.TODAY && ws <= K.addDays(K.TODAY, 6);
+        return ws >= K.now().today && ws <= K.addDays(K.now().today, 6);
       }
-      return it.date >= K.TODAY && it.date <= K.addDays(K.TODAY, 6);
+      return it.date >= K.now().today && it.date <= K.addDays(K.now().today, 6);
     }
 
-    /* 时间阶梯排序：粗窗口在前（ADR 0004）。同档按日期升序。 */
+    /* 时间阶梯排序：粗窗口在前（ADR 0004）。同档按日期升序。
+       这是清单（02）的规则；板用下面的 cmpBoard。 */
     function cmp(a, b) {
       var r = RANK[a.rung] - RANK[b.rung];
       if (r) { return r; }
@@ -467,7 +635,41 @@
       return 0;
     }
 
-    /* ---- 时间阶梯标签 ------------------------------------------------------ */
+    /*
+     * 板自己的比较器。KEEP §F2 说了两条排序相反是对的——但那是「清单 vs 日程」。
+     * 板回答的是第三个问题：「四格里各自先看哪一件」。粗窗口在前放在这里会
+     * 把「下个月」推到 Q2 最上面，而板的主张是紧急度随时间变化（ADR §4）。
+     * 所以板内是：今天的事优先，同为今天再按时刻；跨今天的窗口按起点；
+     * 其余按日期。RANK 不动，清单继续用它。
+     */
+    function todayFirst(it) {
+      if (K.coversToday(it)) { return 0; }
+      if (K.startOf(it) > K.now().today) { return 1; }
+      return 2;   // 没有日期，或窗口/区间已经过去
+    }
+    /** 同一天内的分钟读数；没有时刻的形状用自己的顺序。 */
+    function minuteOf(it) {
+      if (it.rung === 'time') { return +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5); }
+      if (it.rung === 'period') { return (PERIOD_RANK[it.period] == null ? 0 : PERIOD_RANK[it.period]) * 360 + 1; }
+      if (it.rung === 'day' || it.rung === 'range' || it.rung === 'week' || it.rung === 'month') { return -1; }
+      return 9999;
+    }
+    function cmpBoard(a, b) {
+      var r = todayFirst(a) - todayFirst(b);
+      if (r) { return r; }
+      var as = K.startOf(a), bs = K.startOf(b);
+      if (as !== bs) { return as < bs ? -1 : 1; }
+      var am = minuteOf(a), bm = minuteOf(b);
+      if (am !== bm) { return am - bm; }
+      // 同一分钟：先列已经逾期的（它更该被看见）
+      if (K.isLate(a) !== K.isLate(b)) { return K.isLate(a) ? -1 : 1; }
+      return a.id - b.id;
+    }
+
+    /* ---- 时间阶梯标签 ------------------------------------------------------
+       `end` 是 data.js 里已有的字段。行上要把区间说全：只写起点的话，
+       「15:00 产品评审会」看起来和「15:30 接孩子」不冲突，而它们其实叠着。
+       区间只改「时刻」这一档的呈现，六档的形状不受影响。 */
     function ladHTML(it, showListName) {
       var label = K.rungLabel(it);
       var cls = 'lad lad--' + it.rung;
@@ -485,6 +687,7 @@
         var sp = label.lastIndexOf(' ');
         var pre = sp > 0 ? label.slice(0, sp) : '';
         var main = sp > 0 ? label.slice(sp + 1) : label;
+        if (it.end) { main += '–' + it.end; }
         inner = (pre ? '<span class="lad__pre">' + esc(pre) + '</span>' : '') + '<span>' + esc(main) + '</span>';
       } else if (it.rung === 'period') {
         var p = K.PERIOD_LABEL[it.period];
@@ -497,29 +700,63 @@
     }
 
     /* ---- 行上信号 ---------------------------------------------------------- */
+    /* 时间重叠：同一天、两段都有明确读数、区间相交。
+       只对 time 档成立——period 只有半天精度，说「下午和下午 3 点冲突」
+       是把粗糙度当成冲突。 */
+    function minuteSpan(it) {
+      if (it.rung !== 'time' || !it.date) { return null; }
+      var s = +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5);
+      var e = it.end ? +it.end.slice(0, 2) * 60 + +it.end.slice(3, 5) : s + 1;
+      return { start: s, end: Math.max(e, s + 1), date: it.date };
+    }
+    function clashesWith(it) {
+      var a = minuteSpan(it);
+      if (!a) { return []; }
+      var out = [];
+      for (var i = 0; i < K.ITEMS.length; i++) {
+        var b = K.ITEMS[i];
+        if (b === it || b.done) { continue; }
+        var s = minuteSpan(b);
+        if (!s || s.date !== a.date) { continue; }
+        if (a.start < s.end && s.start < a.end) { out.push(b); }
+      }
+      return out;
+    }
+
     function sigHTML(it) {
+      var sigs = '';
       if (K.isLate(it)) {
-        return '<span class="sig sig--danger">已过</span>';
+        sigs += '<span class="sig sig--danger">已过</span>';
+      } else if (K.isWindowPassed(it)) {
+        sigs += '<span class="sig sig--warn">未完成</span>';
+      } else if (K.urgencyOf(it) === 'near' && !it.urgent) {
+        // ADR 0004 §4：near 必须给信号；用户自己标了紧急的就不再重复喊。
+        sigs += '<span class="sig sig--warn">马上到期</span>';
       }
-      if (K.isWindowPassed(it)) {
-        return '<span class="sig sig--warn">未完成</span>';
+      /* 「它为什么在 Q1」原来只活在归属里。用户亲手标的紧急要说出来：
+         不是时间的判决，是用户的判决。 */
+      if (it.urgent && !K.isLate(it)) {
+        sigs += '<span class="sig sig--flag">' + svg(11, P.flag) + '你标的紧急</span>';
       }
-      // ADR 0004 §4：near 必须给信号；用户自己标了紧急的就不再重复喊。
-      if (K.urgencyOf(it) === 'near' && !it.urgent) {
-        return '<span class="sig sig--warn">马上到期</span>';
+      var clash = clashesWith(it);
+      if (clash.length) {
+        var names = clash.map(function (c) { return '「' + c.title + '」'; }).join('、');
+        sigs += '<span class="sig sig--clash" title="与' + esc(names) + '时间重叠" aria-label="与' + esc(names) + '时间重叠">' +
+          svg(11, P.clash) + '冲突</span>';
       }
-      return '';
+      return sigs;
     }
 
     function rowHTML(it) {
-      return '<li class="qrow' + (it.done ? ' is-done' : '') + '" data-id="' + it.id + '">' +
+      return '<li class="qrow' + (it.done ? ' is-done' : '') + '" data-id="' + it.id + '" tabindex="0"' +
+        ' aria-haspopup="dialog">' +
         '<span class="qrow__grip" aria-hidden="true">' + svg(14, P.grip) + '</span>' +
         '<input type="checkbox" class="check"' + (it.done ? ' checked' : '') +
           ' aria-label="' + (it.done ? '把「' : '把「') + esc(it.title) + '」标记为' + (it.done ? '未完成' : '已完成') + '">' +
         '<span class="qrow__title">' + esc(it.title) + '</span>' +
         sigHTML(it) +
         ladHTML(it, true) +
-        '<button type="button" class="qrow__more" aria-label="更多操作" title="更多操作">' + svg(16, P.more) + '</button>' +
+        '<button type="button" class="qrow__more" aria-label="「' + esc(it.title) + '」的更多操作" title="更多操作">' + svg(16, P.more) + '</button>' +
         '</li>';
     }
 
@@ -582,8 +819,8 @@
         // urgency comes from the clock (ADR 0004 §4). A hard-coded q put
         // 年度体检 (next month) in Q1 while its own detail said otherwise.
         var mine = K.ITEMS.filter(function (it) { return K.quadrantOf(it) === q; });
-        var open = mine.filter(function (it) { return !it.done && passes(it); }).sort(cmp);
-        var done = mine.filter(function (it) { return it.done && passes(it); }).sort(cmp);
+        var open = mine.filter(function (it) { return !it.done && passes(it); }).sort(cmpBoard);
+        var done = mine.filter(function (it) { return it.done && passes(it); }).sort(cmpBoard);
         html += cardHTML(q, open, done);
       });
       board.innerHTML = html;
@@ -600,12 +837,17 @@
         if (!body) return;
         var hidden = body.scrollHeight - body.clientHeight;
         if (hidden > 4) {
+          // 让角标占位之前先量；占位之后 body 变矮，「可见几条」要重算。
+          // 布局是同步的，所以设完 data-more 立刻读，读到的是最终几何。
           wrap.setAttribute('data-more', '');
           var rows = body.querySelectorAll('.qrow');
           var visible = 0;
-          var top = body.getBoundingClientRect().top;
+          var box = body.getBoundingClientRect();
           rows.forEach(function (r) {
-            if (r.getBoundingClientRect().bottom <= top + body.clientHeight + 2) visible++;
+            var rr = r.getBoundingClientRect();
+            // 一行只有**整行**落在滚动区里才算看见：半截被裁的那行正是
+            // 用户需要「还有它」的原因，把它算成可见会让角标少报一条。
+            if (rr.top >= box.top - 1 && rr.bottom <= box.bottom + 1) visible++;
           });
           var more = Math.max(0, rows.length - visible);
           var tag = wrap.querySelector('.qmore');
@@ -618,29 +860,31 @@
     window.addEventListener('resize', measureOverflow);
 
     /* ---- 侧栏 -------------------------------------------------------------- */
+    /*
+     * Counts come from K.counts(), not from counting locally. The board's
+     * 「今天」 is todayWindow (windows covering today included), because that is
+     * the same number the first screen shows in its title. Two names existed
+     * for this before and two surfaces disagreed on the same data.
+     */
     function renderSidebar() {
+      var c = K.counts();
       var smart = [
-        { id: 'today', label: '今天', icon: P.cal },
-        { id: 'recent', label: '最近7天', icon: P.clock },
-        { id: 'all', label: '全部', icon: P.layers }
+        { id: 'today', label: '今天', icon: P.cal, n: c.todayWindow },
+        { id: 'recent', label: '最近7天', icon: P.clock,
+          n: K.ITEMS.filter(function (it) { return !it.done && inRecent(it); }).length },
+        { id: 'all', label: '全部', icon: P.layers, n: c.open }
       ];
       smartBox.innerHTML = smart.map(function (s) {
-        var n = K.ITEMS.filter(function (it) {
-          if (it.done) { return false; }
-          if (s.id === 'today') { return coversToday(it); }
-          if (s.id === 'recent') { return inRecent(it); }
-          return true;
-        }).length;
         var cur = state.filter === s.id && !state.list;
         return '<button type="button" class="sidebar__row" data-smart="' + s.id + '"' +
           (cur ? ' aria-current="true"' : '') + '>' +
           svg(16, s.icon) +
           '<span class="sidebar__label">' + s.label + '</span>' +
-          '<span class="sidebar__count">' + n + '</span></button>';
+          '<span class="sidebar__count">' + s.n + '</span></button>';
       }).join('');
 
       listBox.innerHTML = K.LISTS.map(function (l) {
-        var n = K.ITEMS.filter(function (it) { return it.list === l.id && !it.done; }).length;
+        var n = c.byList[l.id] == null ? 0 : c.byList[l.id];
         var cur = state.list === l.id;
         return '<button type="button" class="sidebar__row" data-list="' + l.id + '"' +
           (cur ? ' aria-current="true"' : '') + '>' +
@@ -649,13 +893,89 @@
           '<span class="sidebar__count">' + n + '</span></button>';
       }).join('');
 
-      var total = K.ITEMS.filter(function (it) { return !it.done; }).length;
-      document.getElementById('listTotal').textContent = total + ' 件';
-      document.getElementById('openLine').textContent = total + ' 件未完成';
+      document.getElementById('listTotal').textContent = c.open + ' 件';
+      document.getElementById('openLine').textContent = c.open + ' 件未完成';
+    }
+
+    /* ---- 板头：今天 / 全部、时钟、下一件进 Q1 ------------------------------ */
+    function renderScope() {
+      var c = K.counts();
+      var items = [
+        { id: 'today', label: '今天', n: c.todayWindow },
+        { id: 'all', label: '全部', n: c.open }
+      ];
+      scopeSeg.innerHTML = items.map(function (s) {
+        var cur = state.filter === s.id;
+        return '<button type="button" class="seg__item" role="radio" data-scope="' + s.id + '"' +
+          ' aria-checked="' + cur + '">' + s.label +
+          ' <b>' + s.n + '</b></button>';
+      }).join('');
+      document.getElementById('boardTitle').textContent = state.filter === 'today' ? '四象限 · 今天' : '四象限';
+      // 标题区把两个数字都说出来，切过去之后仍然知道自己切走了哪一档。
+      if (window.KairosRadio) { window.KairosRadio.wireAll(scopeSeg.parentNode); }
+    }
+
+    function two(n) { return String(n).padStart(2, '0'); }
+    function minToLabel(min) { return two(Math.floor(min / 60) % 24) + ':' + two(min % 60); }
+
+    /**
+     * 「下一件进 Q1」：今天剩下的时间里，最近一次「将变成 urgent」的时刻。
+     *
+     * 这不是猜：urgent 在数据层就是 urgencyOf() 从时钟读出来的，那么它的
+     * 翻转点可以逐件算出来——time 是它的时刻，period 是那个半天的结束
+     * （上午 12:00 / 下午 19:00 / 晚上 24:00），day 是当天结束。
+     * week/month/range 永远不进 Q1（ADR 0004 §4），所以根本不参与。
+     * 已经过期的今日项不算「下一件」，它们现在就在 Q1 里。
+     */
+    function nextIntoQ1(nowMin) {
+      var today = K.now().today;
+      var best = null;
+      for (var i = 0; i < K.ITEMS.length; i++) {
+        var it = K.ITEMS[i];
+        if (it.done || it.urgent) { continue; }          // 手标紧急的已经在 Q1
+        if (it.rung === 'time') {
+          if (it.date !== today) { continue; }
+          var m = +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5);
+          if (m <= nowMin) { continue; }
+          if (!best || m < best.at) { best = { at: m, it: it }; }
+        } else if (it.rung === 'period') {
+          if (it.date !== today) { continue; }
+          var end = it.period === 'morning' ? 12 * 60 : it.period === 'afternoon' ? 19 * 60 : 24 * 60;
+          if (end <= nowMin || end >= 24 * 60) { continue; }
+          if (!best || end < best.at) { best = { at: end, it: it }; }
+        } else if (it.rung === 'day') {
+          if (it.date !== today) { continue; }
+          // 一整天的事在当天最后一分钟才真的过掉；用 23:59 作为它的翻转点。
+          var last = 24 * 60 - 1;
+          if (!best || last < best.at) { best = { at: last, it: it }; }
+        }
+      }
+      return best;
+    }
+
+    function renderNextQ1() {
+      var K2 = K.now();
+      var el = document.getElementById('nextQ1');
+      var nx = nextIntoQ1(K2.nowMin);
+      if (!nx) {
+        el.className = 'boardhead__next boardhead__next--none';
+        el.innerHTML = svg(14, P.arrow) + '<span>今天没有还会变紧急的事</span>';
+        return;
+      }
+      el.className = 'boardhead__next';
+      el.innerHTML = svg(14, P.arrow) +
+        '<span>下一件进 Q1：<b>' + esc(nx.it.title) + '</b> <span class="tnum">' +
+        minToLabel(nx.at) + '</span></span>';
+    }
+
+    function renderClock() {
+      var n = K.now();
+      document.getElementById('clockLine').textContent = minToLabel(n.nowMin);
     }
 
     function renderTopbar() {
-      var d = K.parse(K.TODAY);
+      var today = K.now().today;
+      var d = K.parse(today);
       var wd = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][d.getDay()];
       document.getElementById('todayLine').textContent =
         d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 · ' + wd;
@@ -669,6 +989,10 @@
       var it = byId(+li.dataset.id);
       if (!it) { return; }
       it.done = cb.checked;
+      // 在「今天」范围下，把「这周」的事勾掉会让它不再 coversToday，于是整行
+      // 直接消失、计数减一却没有任何「已完成」可展开 —— 用户找不到自己刚勾的东西。
+      // 完成的那一刻把它钉住，让它落进本卡的「已完成」折叠里。
+      if (cb.checked) { state.reveal = it.id; }
       render();
     });
 
@@ -684,13 +1008,40 @@
       if (showAll) {
         state.filter = 'all';
         state.list = null;
+        state.reveal = null;
         render();
         return;
       }
       var more = e.target.closest('.qrow__more');
       if (more) {
         openMenu(more);
+        return;
       }
+      // 点行 → 打开。勾选框有自己的动作，落上去不能同时把面板也叫出来。
+      var row = e.target.closest('.qrow');
+      if (row && !e.target.closest('.check')) {
+        openPanel(row);
+      }
+    });
+
+    /* 键盘：行本身是一个可打开的对象，Enter / Space 都算。
+       复选框保留自己的 Space 语义，所以先让给原生控件。 */
+    board.addEventListener('keydown', function (e) {
+      var row = e.target.closest && e.target.closest('.qrow');
+      if (!row || e.target.closest('.check, .qrow__more')) { return; }
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        openPanel(row);
+      }
+    });
+
+    scopeSeg.addEventListener('click', function (e) {
+      var s = e.target.closest('[data-scope]');
+      if (!s) { return; }
+      state.filter = s.dataset.scope;
+      state.list = null;
+      state.reveal = null;
+      render();
     });
 
     board.addEventListener('submit', function (e) {
@@ -701,15 +1052,28 @@
       var title = input.value.trim();
       if (!title) { return; }
       var q = +form.dataset.q;
+      /*
+       * 写到两个轴上，不是写一个 `q`。
+       * 原来这里写的是 `q: q` —— data.js 早就不读 `q` 了（属性不存在 →
+       * quadrantOf 走 important=false / urgent=false），于是四格里任何一格
+       * 输入的东西都落进 Q4。板自称按两个轴派生象限，输入口却还在写旧字段。
+       * Q1 = 重要 + 紧急，Q2 = 重要，Q3 = 紧急，Q4 = 都不是。
+       */
       var maxId = 0;
       K.ITEMS.forEach(function (it) { if (it.id > maxId) { maxId = it.id; } });
-      K.ITEMS.push({
-        id: maxId + 1, title: title, rung: 'none', q: q,
-        list: 'inbox', urgent: false, done: false
-      });
-      // 新加的事没有时间，在「今天」里会被筛掉；切到全部让它看得见。
-      state.filter = 'all';
-      state.list = null;
+      var made = {
+        id: maxId + 1, title: title, rung: 'none',
+        important: q === 1 || q === 2,
+        urgent: q === 1 || q === 3,
+        list: 'inbox', done: false
+      };
+      K.ITEMS.push(made);
+      /*
+       * 新加的事没有时间，所以在「今天」里会被筛掉——那就等于输入完看不见。
+       * 不切到「全部」（那是悄悄换掉用户的视图），而是允许这一条在本轮里
+       * 越过筛选；它落在哪一格由 quadrantOf 决定，就是开头那一步。
+       */
+      state.reveal = made.id;
       render();
       var again = board.querySelector('.qadd[data-q="' + q + '"] .qadd__input');
       if (again) { again.focus(); }
@@ -720,12 +1084,14 @@
       if (s) {
         state.filter = s.dataset.smart;
         state.list = null;
+        state.reveal = null;
         render();
         return;
       }
       var l = e.target.closest('[data-list]');
       if (l) {
         state.list = state.list === l.dataset.list ? null : l.dataset.list;
+        state.reveal = null;
         render();
       }
     });
@@ -767,6 +1133,7 @@
       menu.className = 'qmenu';
       menu.setAttribute('role', 'menu');
       menu.innerHTML =
+        '<button type="button" role="menuitem" data-act="open">打开</button>' +
         '<button type="button" role="menuitem" data-act="toggle">' +
           (it.done ? '标记为未完成' : '标记为已完成') + '</button>' +
         '<button type="button" role="menuitem" data-act="delete" class="qmenu__danger">删除</button>';
@@ -776,11 +1143,17 @@
       menu.addEventListener('click', function (ev) {
         var b = ev.target.closest('[data-act]');
         if (!b) { return; }
-        if (b.dataset.act === 'toggle') {
+        var act = b.dataset.act;
+        if (act === 'toggle') {
           it.done = !it.done;
-        } else {
+        } else if (act === 'delete') {
           var idx = K.ITEMS.indexOf(it);
           if (idx >= 0) { K.ITEMS.splice(idx, 1); }
+        } else if (act === 'open') {
+          closeMenu();
+          var row = board.querySelector('.qrow[data-id="' + it.id + '"]');
+          openPanel(row || null, it);
+          return;
         }
         closeMenu();
         render();
@@ -804,13 +1177,132 @@
       }, 0);
     }
 
+    /* ---- 轻量详情面板 ------------------------------------------------------
+       行可点开之后，板就不再是「只能看一眼」的。面板刻意轻：四个事实 + 一个
+       出口。它不是 06 那个编辑器——要改字段就去 06，这里只回答「这是哪件事」。
+       用原生 <dialog>.showModal()：Esc、焦点陷阱、backdrop 由平台保证。 */
+    var panel = document.getElementById('rowPanel');
+    var panelItemId = null;
+
+    /** 面板上的时间：六档各自的「说全」方式。 */
+    function spanText(it) {
+      if (it.rung === 'time') {
+        var day = K.diffDays(it.date, K.now().today);
+        var dayWord = day === 0 ? '今天' : day === 1 ? '明天'
+          : (K.parse(it.date).getMonth() + 1) + '月' + K.parse(it.date).getDate() + '日';
+        return dayWord + ' ' + it.time + (it.end ? '–' + it.end : '');
+      }
+      if (it.rung === 'period') {
+        return K.rungLabel(it) + '（' + K.PERIOD_LABEL[it.period] + '）';
+      }
+      if (it.rung === 'day') {
+        var d = K.parse(it.date);
+        return K.rungLabel(it) + ' · ' + (d.getMonth() + 1) + '月' + d.getDate() + '日';
+      }
+      if (it.rung === 'week' || it.rung === 'month') {
+        return K.rungLabel(it) + ' · ' + K.formatSpan(it.rung, it.date);
+      }
+      if (it.rung === 'range') {
+        return K.formatSpan('range', { start: it.start, end: it.end });
+      }
+      return '不限';
+    }
+
+    function openPanel(row, itOverride) {
+      var it = itOverride || (row ? byId(+row.dataset.id) : null);
+      if (!it) { return; }
+      panelItemId = it.id;
+      lastFocus = row || null;
+      var q = K.quadrantOf(it);
+      var Q = K.QUADRANTS[q];
+      var list = listOf(it.list);
+      panel.innerHTML =
+        '<div class="qpanel__box">' +
+          '<div class="qpanel__head">' +
+            '<h2 class="qpanel__title" id="rowPanelTitle">' + esc(it.title) + '</h2>' +
+            '<button type="button" class="qpanel__close" data-panel-close aria-label="关闭">' + svg(16, P.x) + '</button>' +
+          '</div>' +
+          '<dl class="qpanel__dl">' +
+            '<dt>时间</dt><dd class="tnum">' + esc(spanText(it)) + '</dd>' +
+            '<dt>象限</dt><dd><span class="qpanel__tag">' +
+              '<span class="qdot qdot--' + q + '" aria-hidden="true"></span>' + Q.name + '</span></dd>' +
+            '<dt>清单</dt><dd><span class="qpanel__tag">' +
+              '<span class="sidebar__dot" style="background:' + list.color + '" aria-hidden="true"></span>' +
+              esc(list.name) + '</span></dd>' +
+          '</dl>' +
+          '<p class="qpanel__hint">Esc 关闭，焦点回到这一行。</p>' +
+          '<div class="qpanel__acts">' +
+            '<a class="btn btn--primary" href="06-detail.html">在详情面板中打开</a>' +
+          '</div>' +
+        '</div>';
+      if (typeof panel.showModal === 'function' && !panel.open) { panel.showModal(); }
+      else { panel.setAttribute('open', ''); }
+      var close = panel.querySelector('[data-panel-close]');
+      if (close) { close.focus(); }
+    }
+
+    function closePanel() {
+      if (panel.open && typeof panel.close === 'function') { panel.close(); }
+      else { panel.removeAttribute('open'); }
+    }
+
+    panel.addEventListener('click', function (e) {
+      if (e.target === panel) { closePanel(); return; }   // 点遮罩
+      var b = e.target.closest('[data-panel-close]');
+      if (b) { closePanel(); }
+    });
+    // Esc 由 <dialog> 原生处理；close 事件是唯一的「关完了」信号，
+    // 焦点回原行放在这里，就不必在两个关闭路径里各写一遍。
+    panel.addEventListener('close', function () {
+      var row = lastFocus;
+      if (row && row.isConnected && typeof row.focus === 'function') { row.focus(); return; }
+      if (panelItemId != null) {
+        var again = board.querySelector('.qrow[data-id="' + panelItemId + '"]');
+        if (again) { again.focus(); }
+      }
+      lastFocus = null;
+      panelItemId = null;
+    });
+
     function render() {
       renderSidebar();
+      renderScope();
       renderBoard();
+      renderClock();
+      renderNextQ1();
     }
 
     renderTopbar();
+
+    /*
+     * 时钟。setNow 是 data.js 里「现在」的唯一写入口；这里只负责把它往前推。
+     * 分钟取真实时钟（这样「还有 3 小时」会真的走），但 TODAY 保持演示稿的
+     * 那一天——不要把演示的日期改成机器日期，那会让整套示例数据全部错位。
+     *
+     * 每分钟一次：先算哪些事的象限真的变了。变了就整块重渲染（行要挪格），
+     * 没变就只换顶部那两个读数，省掉一次 DOM 重建。
+     */
+    function setNowFromClock() {
+      var d = new Date();
+      K.setNow(d.getHours() * 60 + d.getMinutes());
+    }
+    function quadrantSignature() {
+      return K.ITEMS.map(function (i) { return K.quadrantOf(i); }).join(',');
+    }
+
+    setNowFromClock();
     render();
+
+    var sig = quadrantSignature();
+    var lastMin = K.now().nowMin;
+    setInterval(function () {
+      setNowFromClock();
+      if (K.now().nowMin === lastMin) { return; }
+      lastMin = K.now().nowMin;
+      var next = quadrantSignature();
+      if (next !== sig) { sig = next; render(); }
+      else { renderClock(); renderNextQ1(); }
+    }, 60000);
   }
 
   if (document.readyState === 'loading') {

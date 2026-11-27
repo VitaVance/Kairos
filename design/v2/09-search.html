@@ -78,6 +78,9 @@ body[data-theme="dark"] {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
 }
+/* 顶栏右上角原来的 19rem 是给演示条让位的；演示条已改成 pointer-events:none，
+   它只是在桌面上给画面留呼吸位，不该在窄屏继续占位。 */
+.topbar--spec { padding-inline-end: 19rem; }
 .mini-topbar__title { font-size: var(--text-lg); font-weight: 600; }
 .mini-topbar__sub { color: var(--ink-quiet); font-size: var(--text-sm); }
 .mini-topbar__actions { margin-inline-start: auto; display: flex; align-items: center; gap: var(--sp-2); }
@@ -267,6 +270,37 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
 @media (prefers-reduced-motion: reduce) {
   .search-trigger, .palette__row { transition: none; }
 }
+
+/* ---- 900px 以下 ---------------------------------------------------------
+   本页的主体是「演示画框 + 画框里的面板」。窄屏第一刀是给顶栏与画框留白，
+   第二刀是让面板不被迫缩成一条：palette 最窄 320，画框内边距随之收紧。 */
+@media (max-width: 900px) {
+  .doc { padding-inline: var(--sp-3); }
+  .mini-topbar { padding-inline-end: var(--sp-4); }
+  .spec__frame--plain { padding: var(--sp-3); }
+  .spec__frame--app { block-size: 520px; }
+  .spec__frame--app .palette { inset-block-start: 40px; }
+  .ghost { grid-template-columns: 44px minmax(0, 1fr); }
+  .ghost__side { display: none; }
+  .ghost__grid { grid-template-columns: 1fr; }
+  /* 顶栏里标题与日期各占一行（原来 padding-inline-end:19rem 是给演示条让位的，
+     演示条现在 pointer-events:none，这个死留白在窄屏只会把标题挤成每行一个字）。 */
+  .topbar, .mini-topbar { padding-inline-end: var(--sp-3); }
+  .topbar { align-items: flex-start; }
+  .topbar > div:first-child, .topbar__sub { min-inline-size: 0; }
+  .topbar__sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-inline-size: 100%; }
+  .topbar__actions { margin-inline-start: auto; }
+}
+@media (max-width: 560px) {
+  /* 顶栏的搜索按钮在手机上是图标而不是「搜索事情 ⌘K」 */
+  .search-trigger kbd, .search-trigger span { display: none; }
+  .search-trigger { padding-inline: var(--sp-2); }
+  .spec__frame--app { block-size: 460px; }
+  .palette__foot .palette__scope { flex-basis: 100%; margin-inline-start: 0; }
+  .keys-legend { gap: var(--sp-3); padding: var(--sp-3); }
+  /* 画框里的示意顶栏字号降一档，给搜索按钮让出同一行 */
+  .mini-topbar__sub { display: none; }
+}
 </style>
 <script src="data.js" defer></script>
 <script src="base.js" defer></script>
@@ -317,7 +351,7 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
   </aside>
 
   <div class="main">
-    <header class="topbar" style="padding-inline-end: 19rem">
+    <header class="topbar topbar--spec">
       <div>
         <h1 class="topbar__title">四象限</h1>
         <div class="topbar__sub">2026年11月26日 周四</div>
@@ -335,8 +369,9 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
       <div class="doc">
         <h2 class="doc__title">搜索面板</h2>
         <p class="doc__lead">
-          v2 里只有一种东西，因此只有一份索引。20 件事——有确切时间的、只有个大概窗口的、
-          以及三件「不限」——全在同一个列表里。没有分组，也没有「任务 / 日程」的类型列。
+          v2 里只有一种东西，因此只有一份索引。<span data-count="total"></span> 件事——
+          有确切时间的、只有个大概窗口的，以及 <span data-count="none"></span> 件「不限」——
+          全在同一个列表里。没有分组，也没有「任务 / 日程」的类型列。
           搜索结果按相关度排，同一屏里可以同时出现「今天 18:00」和「不限」。
         </p>
 
@@ -360,7 +395,7 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
 
         <section class="spec">
           <p class="spec__cap"><span class="spec__no">02</span>打开态 · 未输入
-            <span class="spec__hint">全部 20 件事，一个列表</span></p>
+            <span class="spec__hint">全部 <span data-count="total"></span> 件事，一个列表</span></p>
           <div class="spec__frame spec__frame--app">
             <div class="ghost" aria-hidden="true">
               <div class="ghost__rail">
@@ -518,10 +553,11 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
   }
 
   function paletteHTML(initial) {
+    var total = K.ITEMS.length;
     return '<div class="palette__input">'
       + SEARCH
       + '<label class="visually-hidden" for="' + 'q' + Math.random().toString(36).slice(2, 8) + '">搜索事情</label>'
-      + '<input type="search" placeholder="搜索全部 20 件事…" aria-label="搜索事情" value="' + esc(initial) + '" autocomplete="off">'
+      + '<input type="search" placeholder="搜索全部 ' + total + ' 件事…" aria-label="搜索事情" value="' + esc(initial) + '" autocomplete="off">'
       + '<kbd>Esc</kbd>'
       + '</div>'
       + '<div class="palette__meta"><span data-count></span><span>不分组 · 按相关度</span></div>'
@@ -530,7 +566,7 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
       + '<span><kbd>↑</kbd><kbd>↓</kbd> 选择</span>'
       + '<span><kbd>Enter</kbd> 打开</span>'
       + '<span><kbd>Esc</kbd> 关闭</span>'
-      + '<span class="palette__scope">搜索全部 ' + K.ITEMS.length + ' 件事</span>'
+      + '<span class="palette__scope">搜索全部 ' + total + ' 件事</span>'
       + '</div>';
   }
 
@@ -553,7 +589,7 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
       box.className = 'palette__empty';
       box.innerHTML = '<span class="palette__empty-icon">' + SEARCH_X + '</span>'
         + '<span class="palette__empty-title">没有找到「' + esc(q) + '」</span>'
-        + '<span class="palette__empty-sub">20 件事里没有匹配的标题或清单名。试试更短的词。</span>'
+        + '<span class="palette__empty-sub">' + K.ITEMS.length + ' 件事里没有匹配的标题或清单名。试试更短的词。</span>'
         + '<button type="button" class="btn btn--secondary" data-clear-search>清空搜索</button>';
       list.insertAdjacentElement('afterend', box);
       list.hidden = true;
@@ -603,16 +639,18 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
     if (!K2) return;
     K = K2;
 
-    // 侧栏计数：未完成的事情。
-    var open = 0;
-    K2.ITEMS.forEach(function (it) { if (!it.done) open += 1; });
+    // 侧栏计数：未完成的事情。一处 counts()，三个口径共用。
+    var c = K2.counts();
     var openEl = document.querySelector('[data-open-count]');
-    if (openEl) openEl.textContent = String(open);
+    if (openEl) openEl.textContent = String(c.open);
     K2.LISTS.forEach(function (l) {
-      var n = K2.ITEMS.filter(function (it) { return it.list === l.id && !it.done; }).length;
       var el = document.querySelector('[data-list-count="' + l.id + '"]');
-      if (el) el.textContent = String(n);
+      if (el) el.textContent = String(c.byList[l.id]);
     });
+    // 正文里的「N 件事 / M 件不限」也走同一份数，不写字面量。
+    document.querySelectorAll('[data-count="total"]').forEach(function (el) { el.textContent = String(c.total); });
+    var noneN = K2.ITEMS.filter(function (it) { return it.rung === 'none' && !it.done; }).length;
+    document.querySelectorAll('[data-count="none"]').forEach(function (el) { el.textContent = String(noneN); });
 
     document.querySelectorAll('.palette[data-palette]').forEach(function (pal) {
       mount(pal, pal.getAttribute('data-initial') || '');
