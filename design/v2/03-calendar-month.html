@@ -765,7 +765,7 @@ document.addEventListener('DOMContentLoaded', function () {
     b.style.setProperty('--row', rowIdx);
     b.dataset.id = it.id;
     b.dataset.title = it.title;
-    b.dataset.q = it.q;
+    b.dataset.q = K.quadrantOf(it);
     b.dataset.list = list.name;
     b.dataset.lcolor = list.color;
     b.dataset.when = whenLabel(it);
@@ -799,7 +799,7 @@ document.addEventListener('DOMContentLoaded', function () {
     b.style.setProperty('--chip', list.color);
     b.dataset.title = it.title;
     b.dataset.when = whenLabel(it);
-    b.dataset.q = it.q;
+    b.dataset.q = K.quadrantOf(it);
     b.dataset.list = list.name;
     b.dataset.lcolor = list.color;
     b.dataset.id = it.id;
@@ -917,7 +917,7 @@ document.addEventListener('DOMContentLoaded', function () {
     el.dataset.id = it.id;
     el.dataset.title = it.title;
     el.dataset.when = whenLabel(it);
-    el.dataset.q = it.q;
+    el.dataset.q = K.quadrantOf(it);
     el.dataset.list = list.name;
     el.dataset.lcolor = list.color;
     if (K.isLate(it)) el.dataset.late = 'danger';

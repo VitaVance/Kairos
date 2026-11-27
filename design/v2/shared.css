@@ -266,8 +266,40 @@ html, body { margin: 0; }
   padding: var(--sp-3) var(--sp-4);
   border-block-end: 1px solid var(--hairline);
   flex: none;
+  /* 顶栏在窄窗口装不下时换行，而不是把右侧控件挤出屏幕。
+     14 多日视图有两组分段控件，960 下「新建」原本超出 75px。 */
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
+  min-inline-size: 0;
 }
+.topbar > * { min-inline-size: 0; }
+.topbar__actions { flex-wrap: wrap; row-gap: var(--sp-2); }
 .topbar__title { margin: 0; font-size: var(--text-lg); font-weight: 600; }
+
+/* ---- editorial 的排版主张 ------------------------------------------------
+   这套皮肤的全部理由是「纸墨」：暖底 + 衬线标题 + 更松的行距。
+   在此之前 --editorial-serif 定义了却零引用，也就是说设置页写着
+   「衬线标题、更松的行距」，而屏幕上一条衬线都没有——文案比实现诚实。
+   这里把它真的接上：标题走衬线，正文行距放宽，字重降一档，
+   让墨迹在纸上的感觉出来。 */
+[data-skin="editorial"] .topbar__title,
+[data-skin="editorial"] h1,
+[data-skin="editorial"] h2,
+[data-skin="editorial"] h3 {
+  font-family: var(--editorial-serif);
+  font-weight: 600;
+  letter-spacing: .002em;
+}
+[data-skin="editorial"] body,
+[data-skin="editorial"] .content {
+  line-height: 1.62;
+}
+/* 数字与时间标签留在无衬线里：表格数字要对齐，衬线的数字会跳。 */
+[data-skin="editorial"] .when,
+[data-skin="editorial"] .badge__count,
+[data-skin="editorial"] .tnum {
+  font-family: var(--font-sans);
+}
 .topbar__sub { color: var(--ink-3); font-size: var(--text-sm); }
 .topbar__actions { margin-inline-start: auto; display: flex; align-items: center; gap: var(--sp-1); }
 .content { flex: 1; min-block-size: 0; overflow: auto; padding: var(--sp-4); }
@@ -436,3 +468,81 @@ body { overflow-wrap: break-word; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ============================================================================
+   时间阶梯标签 —— 这套设计最核心的视觉，必须全局共用
+   ----------------------------------------------------------------------------
+   六档不能是六种灰。这里是六种**几何形状**：
+
+     month  虚线胶囊           —— 一段还没定下来的时间
+     week   两端竖括号          —— 一个窗口（从这到那）
+     day    实线方角块          —— 某一天
+     period 实线胶囊            —— 某一天的半天
+     time   反白实心块          —— 一个确切时刻
+     none   没有容器，只剩横线   —— 没有时间
+
+   原来这套只写在 01-quadrant 和 02-list 里，其余四个片段各自用 --ink-2 画灰字，
+   于是「六档一眼可分」只在两个页面上成立。提到这里，谁都能用。
+   ========================================================================== */
+.lad {
+  display: inline-flex; align-items: center; gap: 5px;
+  flex: none;
+  block-size: 22px; padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: var(--text-sm); line-height: 1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lad > svg { inline-size: 13px; block-size: 13px; flex: none; }
+.lad__pre { color: var(--ink-quiet); font-weight: 400; }
+.lad__dot { inline-size: 6px; block-size: 6px; border-radius: 50%; flex: none; }
+
+.lad--month {
+  border: 1px dashed var(--ink-3);
+  border-radius: var(--radius-full);
+  padding-inline: 9px;
+  letter-spacing: .04em;
+  color: var(--ink-2);
+}
+.lad--week {
+  border-inline: 2px solid var(--ink-3);
+  border-radius: 0;
+  padding-inline: 7px;
+  color: var(--ink-1);
+}
+.lad--day {
+  border: 1px solid var(--ink-3);
+  background: var(--bg-subtle);
+  color: var(--ink-1);
+  font-weight: 500;
+}
+.lad--period {
+  border: 1px solid var(--ink-3);
+  border-radius: var(--radius-full);
+  background: var(--bg-subtle);
+  color: var(--ink-1);
+}
+.lad--time {
+  border-color: var(--ink-1);
+  background: var(--ink-1);
+  color: var(--bg-surface);
+  font-weight: 600;
+}
+.lad--time .lad__pre { color: inherit; opacity: .72; font-weight: 500; }
+.lad--none { color: var(--ink-quiet); padding-inline: 4px; gap: 6px; }
+.lad--none > svg { opacity: .8; }
+
+/* 逾期 / 窗口已过：两档墨色，别混用（ADR 0004 §4） */
+.lad.is-late { border-color: var(--danger-ink); color: var(--danger-ink); }
+.lad--day.is-late, .lad--period.is-late { background: var(--danger-tint); }
+.lad--time.is-late {
+  background: var(--danger-tint);
+  border-color: var(--danger-ink);
+  color: var(--danger-ink);
+}
+.lad--time.is-late .lad__pre { color: var(--danger-ink); opacity: .78; }
+.lad.is-passed { border-color: var(--warning-ink); color: var(--warning-ink); }
+.lad--week.is-passed { border-inline-color: var(--warning-ink); }

@@ -21,26 +21,26 @@
    * date/time: 该档位对应的具体值
    */
   var ITEMS = [
-    { id: 1,  title: '交报销单',        rung: 'time',   date: '2026-11-26', time: '18:00', q: 1, list: 'work',  urgent: false, done: false },
-    { id: 2,  title: '产品评审会',      rung: 'time',   date: '2026-11-26', time: '15:00', end: '16:00', q: 1, list: 'work', urgent: true,  done: false },
-    { id: 3,  title: '15:30 接孩子',    rung: 'time',   date: '2026-11-26', time: '15:30', q: 1, list: 'life',  urgent: true,  done: false },
-    { id: 4,  title: '回客户邮件',      rung: 'period', date: '2026-11-26', period: 'afternoon', q: 3, list: 'work', urgent: false, done: false },
-    { id: 5,  title: '给爸妈打电话',    rung: 'period', date: '2026-11-26', period: 'evening',   q: 2, list: 'life', urgent: false, done: false },
-    { id: 6,  title: '跟进合同签署',    rung: 'day',    date: '2026-11-27', q: 1, list: 'work',  urgent: false, done: false },
-    { id: 7,  title: '每周五复盘',      rung: 'day',    date: '2026-11-27', q: 2, list: 'work',  urgent: false, done: false, repeat: 'weekly' },
-    { id: 8,  title: '交房租',          rung: 'day',    date: '2026-11-28', q: 1, list: 'life',  urgent: false, done: false },
-    { id: 9,  title: '预约牙医',        rung: 'day',    date: '2026-11-29', q: 3, list: 'life',  urgent: false, done: false },
-    { id: 10, title: '整理相册',        rung: 'day',    date: '2026-11-30', q: 4, list: 'life',  urgent: false, done: false },
-    { id: 11, title: '写季度总结',      rung: 'week',   date: '2026-11-23', q: 2, list: 'work',  urgent: false, done: false },
-    { id: 12, title: '部门聚餐筹备',    rung: 'week',   date: '2026-11-23', q: 3, list: 'work',  urgent: false, done: false },
-    { id: 13, title: '读完《深度工作》', rung: 'week',   date: '2026-11-16', q: 2, list: 'study', urgent: false, done: false, lateWeek: true },
-    { id: 14, title: '更新简历',        rung: 'month',  date: '2026-12-01', q: 2, list: 'study', urgent: false, done: false },
-    { id: 15, title: '年度体检',        rung: 'month',  date: '2026-12-01', q: 1, list: 'life',  urgent: false, done: false },
-    { id: 16, title: '未排期：随手记',  rung: 'none',   q: 4, list: 'inbox', urgent: false, done: false },
-    { id: 17, title: '看看新出的效率工具', rung: 'none', q: 4, list: 'study', urgent: false, done: false },
-    { id: 18, title: '整理浏览器书签',  rung: 'none',   q: 4, list: 'inbox', urgent: false, done: false },
-    { id: 19, title: '设计评审',        rung: 'time',   date: '2026-11-25', time: '10:00', q: 2, list: 'work', urgent: false, done: false, expired: true },
-    { id: 20, title: '家长会',          rung: 'time',   date: '2026-11-24', time: '10:30', q: 2, list: 'life', urgent: false, done: true },
+    { id: 1,  title: '交报销单',        rung: 'time',   date: '2026-11-26', time: '18:00', important: true, list: 'work',  urgent: false, done: false },
+    { id: 2,  title: '产品评审会',      rung: 'time',   date: '2026-11-26', time: '15:00', end: '16:00', important: true, list: 'work', urgent: true,  done: false },
+    { id: 3,  title: '15:30 接孩子',    rung: 'time',   date: '2026-11-26', time: '15:30', important: true, list: 'life',  urgent: true,  done: false },
+    { id: 4,  title: '回客户邮件',      rung: 'period', date: '2026-11-26', period: 'afternoon', important: false, list: 'work', urgent: true, done: false },
+    { id: 5,  title: '给爸妈打电话',    rung: 'period', date: '2026-11-26', period: 'evening',   important: true, list: 'life', urgent: false, done: false },
+    { id: 6,  title: '跟进合同签署',    rung: 'day',    date: '2026-11-27', important: true, list: 'work',  urgent: false, done: false },
+    { id: 7,  title: '每周五复盘',      rung: 'day',    date: '2026-11-27', important: true, list: 'work',  urgent: false, done: false, repeat: 'weekly' },
+    { id: 8,  title: '交房租',          rung: 'day',    date: '2026-11-28', important: true, list: 'life',  urgent: false, done: false },
+    { id: 9,  title: '预约牙医',        rung: 'day',    date: '2026-11-29', important: false, list: 'life',  urgent: false, done: false },
+    { id: 10, title: '整理相册',        rung: 'day',    date: '2026-11-30', important: false, list: 'life',  urgent: false, done: false },
+    { id: 11, title: '写季度总结',      rung: 'week',   date: '2026-11-23', important: true, list: 'work',  urgent: false, done: false },
+    { id: 12, title: '部门聚餐筹备',    rung: 'week',   date: '2026-11-23', important: false, list: 'work',  urgent: false, done: false },
+    { id: 13, title: '读完《深度工作》', rung: 'week',   date: '2026-11-16', important: true, list: 'study', urgent: false, done: false, lateWeek: true },
+    { id: 14, title: '更新简历',        rung: 'month',  date: '2026-12-01', important: true, list: 'study', urgent: false, done: false },
+    { id: 15, title: '年度体检',        rung: 'month',  date: '2026-12-01', important: true, list: 'life',  urgent: false, done: false },
+    { id: 16, title: '未排期：随手记',  rung: 'none',   important: false, list: 'inbox', urgent: false, done: false },
+    { id: 17, title: '看看新出的效率工具', rung: 'none', important: false, list: 'study', urgent: false, done: false },
+    { id: 18, title: '整理浏览器书签',  rung: 'none',   important: false, list: 'inbox', urgent: false, done: false },
+    { id: 19, title: '设计评审',        rung: 'time',   date: '2026-11-25', time: '10:00', important: true, list: 'work', urgent: false, done: false, expired: true },
+    { id: 20, title: '家长会',          rung: 'time',   date: '2026-11-24', time: '10:30', important: true, list: 'life', urgent: false, done: true },
   ];
 
   var TODAY = '2026-11-26';
@@ -198,6 +198,64 @@
     none: '', far: '', soon: '临近', near: '马上到期', urgent: '已过期',
   };
 
+  /**
+   * The quadrant an item sits in, DERIVED — never stored.
+   *
+   * Items used to carry a single `q: 1..4` field, which conflated the two axes
+   * into one number. That made the board unable to follow ADR §4: it placed
+   * 年度体检 (next month, not urgent) in 重要且紧急 because q was hard-coded 1,
+   * while its own detail panel said "不进 Q1". Two facts, one number.
+   *
+   * Now: `important` is the only stored axis (the user's own word), and
+   * urgency comes from `urgencyOf()` — the user's flag OR the clock reading
+   * `urgent`. `near` deliberately does NOT count: ADR §4 keeps Q1 small.
+   */
+  function quadrantOf(item) {
+    var urgent = item.urgent === true || urgencyOf(item) === 'urgent';
+    if (item.important && urgent) return 1;
+    if (item.important) return 2;
+    if (urgent) return 3;
+    return 4;
+  }
+
+  /**
+   * Every count any surface displays. One definition, because two fragments
+   * hard-coded their own numbers and drifted: 01 said 19 open and 收集箱 2,
+   * while 03 said 20 and 3 — on the same data, in the same session.
+   */
+  function counts() {
+    var open = ITEMS.filter(function (i) { return !i.done; });
+    var byList = {};
+    for (var k = 0; k < LISTS.length; k++) byList[LISTS[k].id] = 0;
+    for (var j = 0; j < open.length; j++) {
+      if (byList[open[j].list] != null) byList[open[j].list]++;
+    }
+    var today = 0;
+    for (var m = 0; m < open.length; m++) if (open[m].date === TODAY) today++;
+    return {
+      open: open.length,
+      done: ITEMS.length - open.length,
+      total: ITEMS.length,
+      byList: byList,
+      today: today,
+    };
+  }
+
+  /**
+   * The row label for an item. ADR 0004: the `none` rung shows the LIST NAME,
+   * not the word 不限 — an undated thing is identified by where it lives.
+   * Four fragments printed 不限 instead; this is the single definition.
+   */
+  function rowLabel(item) {
+    if (item.rung === 'none') {
+      for (var k = 0; k < LISTS.length; k++) {
+        if (LISTS[k].id === item.list) return LISTS[k].name;
+      }
+      return '收集箱';
+    }
+    return rungLabel(item);
+  }
+
   global.Kairos = {
     LISTS: LISTS,
     ITEMS: ITEMS,
@@ -208,6 +266,9 @@
     QUADRANTS: QUADRANTS,
     PERIOD_LABEL: PERIOD_LABEL,
     rungLabel: rungLabel,
+    rowLabel: rowLabel,
+    counts: counts,
+    quadrantOf: quadrantOf,
     isLate: isLate,
     isWindowPassed: isWindowPassed,
     urgencyOf: urgencyOf,

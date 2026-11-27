@@ -15,7 +15,6 @@
    ========================================================================== */
 
 /* 演示条占住右上角，顶栏给它让位 */
-.topbar { padding-inline-end: 10rem; }
 
 .content--board { display: flex; overflow: hidden; }
 
@@ -98,7 +97,27 @@
 .qadd__input::placeholder { color: var(--ink-3); }
 
 /* ---- 行 ------------------------------------------------------------------ */
+.qbody-wrap { position: relative; flex: 1; min-block-size: 0; display: flex; }
 .qbody { flex: 1; min-block-size: 0; overflow-y: auto; padding: 0 0 var(--sp-2); }
+/* 卡等高时内容会被裁在滚动区里；没有提示就是「静默裁切」——
+   用户以为看全了。底部渐隐 + 角标告诉他下面还有。 */
+.qbody-wrap::after {
+  content: ''; position: absolute; inset-inline: 0; inset-block-end: 0;
+  block-size: 28px; pointer-events: none;
+  background: linear-gradient(to top, var(--bg-surface), transparent);
+  opacity: 0; transition: opacity var(--dur-fast) var(--ease);
+}
+.qbody-wrap[data-more]::after { opacity: 1; }
+.qmore {
+  position: absolute; inset-block-end: 4px; inset-inline-start: 50%;
+  translate: -50% 0;
+  display: none;
+  padding: 1px 8px; border-radius: var(--radius-full);
+  background: var(--bg-surface); border: 1px solid var(--hairline-strong);
+  font-size: var(--text-xs); color: var(--ink-2);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.qbody-wrap[data-more] .qmore { display: block; }
 
 .qrows { list-style: none; margin: 0; padding: 0; }
 
@@ -549,20 +568,54 @@
             '<input class="qadd__input" type="text" autocomplete="off" placeholder="添加到「' + Q.name + '」" aria-label="添加到' + Q.name + '">' +
           '</label>' +
         '</form>' +
-        '<div class="qbody">' + body + doneBox + '</div>' +
+        '<div class="qbody-wrap">' +
+          '<div class="qbody">' + body + doneBox + '</div>' +
+          '<span class="qmore" aria-hidden="true"></span>' +
+        '</div>' +
       '</section>';
     }
 
     function renderBoard() {
       var html = '';
       [1, 2, 3, 4].forEach(function (q) {
-        var mine = K.ITEMS.filter(function (it) { return it.q === q; });
+        // Derived, not stored: `important` is the only field the user sets,
+        // urgency comes from the clock (ADR 0004 §4). A hard-coded q put
+        // 年度体检 (next month) in Q1 while its own detail said otherwise.
+        var mine = K.ITEMS.filter(function (it) { return K.quadrantOf(it) === q; });
         var open = mine.filter(function (it) { return !it.done && passes(it); }).sort(cmp);
         var done = mine.filter(function (it) { return it.done && passes(it); }).sort(cmp);
         html += cardHTML(q, open, done);
       });
       board.innerHTML = html;
+      measureOverflow();
     }
+
+    /**
+     * 标出哪些卡的内容被裁在滚动区里，并数一共还有几条。
+     * 卡等高是有意的（见 KEEP.md §J），但「裁掉却不提示」是缺陷。
+     */
+    function measureOverflow() {
+      board.querySelectorAll('.qbody-wrap').forEach(function (wrap) {
+        var body = wrap.querySelector('.qbody');
+        if (!body) return;
+        var hidden = body.scrollHeight - body.clientHeight;
+        if (hidden > 4) {
+          wrap.setAttribute('data-more', '');
+          var rows = body.querySelectorAll('.qrow');
+          var visible = 0;
+          var top = body.getBoundingClientRect().top;
+          rows.forEach(function (r) {
+            if (r.getBoundingClientRect().bottom <= top + body.clientHeight + 2) visible++;
+          });
+          var more = Math.max(0, rows.length - visible);
+          var tag = wrap.querySelector('.qmore');
+          if (tag) tag.textContent = more > 0 ? '还有 ' + more + ' 条' : '更多';
+        } else {
+          wrap.removeAttribute('data-more');
+        }
+      });
+    }
+    window.addEventListener('resize', measureOverflow);
 
     /* ---- 侧栏 -------------------------------------------------------------- */
     function renderSidebar() {
@@ -687,19 +740,26 @@
 
     /* ---- ⋯ 菜单 ------------------------------------------------------------ */
     var menu = null;
-    function closeMenu() {
+    var menuTrigger = null;
+    function closeMenu(refocus) {
       if (menu) { menu.remove(); menu = null; }
       document.removeEventListener('click', onDocClick);
       document.removeEventListener('keydown', onEsc);
+      // Esc returns focus to the trigger; a picked action may not, because the
+      // row it belonged to can be gone after a delete.
+      if (refocus && menuTrigger && menuTrigger.isConnected) menuTrigger.focus();
+      menuTrigger = null;
     }
     function onDocClick(e) {
       if (menu && !menu.contains(e.target) && !e.target.closest('.qrow__more')) { closeMenu(); }
     }
     function onEsc(e) {
-      if (e.key === 'Escape') { closeMenu(); }
+      if (e.key === 'Escape') { closeMenu(true); }
     }
     function openMenu(btn) {
       closeMenu();
+      menuTrigger = btn;
+      if (btn.setAttribute) { btn.setAttribute('aria-haspopup', 'menu'); btn.setAttribute('aria-expanded', 'true'); }
       var it = byId(+btn.closest('.qrow').dataset.id);
       if (!it) { return; }
       var r = btn.getBoundingClientRect();
@@ -724,6 +784,19 @@
         }
         closeMenu();
         render();
+      });
+      /* role="menu" 是一个承诺：焦点要进来，方向键要能走，Esc 要能退出，
+         且退出后焦点回到触发器。原来只复制了 role，键盘用户按 Tab 会直接
+         越过菜单——「删除」永远够不到。承诺要么兑现，要么别写。 */
+      var items = menu.querySelectorAll('[role="menuitem"]');
+      if (items.length) items[0].focus();
+      menu.addEventListener('keydown', function (ev) {
+        var list = [].slice.call(menu.querySelectorAll('[role="menuitem"]'));
+        var i = list.indexOf(document.activeElement);
+        if (ev.key === 'ArrowDown') { ev.preventDefault(); list[(i + 1) % list.length].focus(); }
+        else if (ev.key === 'ArrowUp') { ev.preventDefault(); list[(i - 1 + list.length) % list.length].focus(); }
+        else if (ev.key === 'Home') { ev.preventDefault(); list[0].focus(); }
+        else if (ev.key === 'End') { ev.preventDefault(); list[list.length - 1].focus(); }
       });
       setTimeout(function () {
         document.addEventListener('click', onDocClick);

@@ -503,7 +503,7 @@ document.addEventListener('DOMContentLoaded', function () {
     btn.dataset.id = it.id;
     btn.dataset.title = it.title;
     btn.dataset.when = whenLabelFull(it);
-    btn.dataset.q = it.q;
+    btn.dataset.q = K.quadrantOf(it);
     btn.dataset.list = list.name;
     btn.dataset.lcolor = list.color;
     if (K.isLate(it)) btn.dataset.late = 'danger';
@@ -555,8 +555,8 @@ document.addEventListener('DOMContentLoaded', function () {
     end.className = 'arow-item__end';
     var q = document.createElement('span');
     q.className = 'arow-item__q';
-    q.style.background = 'var(--q' + it.q + ')';
-    q.title = K.QUADRANTS[it.q].name;
+    q.style.background = 'var(--q' + K.quadrantOf(it) + ')';
+    q.title = K.QUADRANTS[K.quadrantOf(it)].name;
     end.appendChild(q);
     var check = document.createElement('input');
     check.type = 'checkbox';

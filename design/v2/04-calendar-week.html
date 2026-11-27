@@ -614,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (it.end) dur = (+it.end.slice(0, 2) * 60 + +it.end.slice(3, 5)) - start;
     blocks.push({
       id: nextId++, title: it.title, date: it.date, start: start, dur: dur,
-      list: it.list, q: it.q, late: K.isLate(it), sourceId: it.id
+      list: it.list, q: K.quadrantOf(it), late: K.isLate(it), sourceId: it.id
     });
   });
 
@@ -686,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function () {
         b.style.setProperty('--chip', list.color);
         b.dataset.id = it.id;
         b.dataset.title = it.title;
-        b.dataset.q = it.q;
+        b.dataset.q = K.quadrantOf(it);
         b.dataset.list = list.name;
         b.dataset.lcolor = list.color;
         b.dataset.when = whenLabel(it);
@@ -777,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function () {
       b.style.setProperty('--b', sp.b);
       b.dataset.id = it.id;
       b.dataset.title = it.title;
-      b.dataset.q = it.q;
+      b.dataset.q = K.quadrantOf(it);
       b.dataset.list = list.name;
       b.dataset.lcolor = list.color;
       b.dataset.band = it.rung;

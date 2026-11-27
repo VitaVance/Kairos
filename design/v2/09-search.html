@@ -499,13 +499,22 @@ dialog.palette-dialog::backdrop { background: var(--scrim); }
     else if (late) flags = '<span class="when__flag">已过</span>';
     var title = '<span class="palette__title' + (item.done ? ' is-done' : '') + '">' + esc(item.title) + '</span>';
     var done = item.done ? '<span class="palette__done" aria-label="已完成">' + CHECK + '</span>' : '';
-    var label = item.title + '，' + QNAME[item.q] + '，' + K.rungLabel(item) + (item.done ? '，已完成' : '');
+    var label = item.title + '，' + QNAME[K.quadrantOf(item)] + '，' + K.rowLabel(item) + (item.done ? '，已完成' : '');
     return '<div class="palette__row" role="option" aria-selected="false" data-id="' + item.id + '" aria-label="' + esc(label) + '">'
-      + '<span class="qdot qdot--' + item.q + '" aria-hidden="true"></span>'
+      + '<span class="qdot qdot--' + K.quadrantOf(item) + '" aria-hidden="true"></span>'
       + title + done
-      + '<span class="palette__when ' + cls + '">' + esc(K.rungLabel(item)) + '</span>'
+      + ladHTML(item, late, passed)
       + flags
       + '</div>';
+  }
+
+  /* 共用时间阶梯标签：六种形状来自 shared.css 的 .lad--*，不是六种灰字。 */
+  function ladHTML(item, late, passed) {
+    var cls = 'lad lad--' + item.rung;
+    if (late) cls += ' is-late';
+    if (passed) cls += ' is-passed';
+    var text = K.rowLabel(item);
+    return '<span class="' + cls + '">' + esc(text) + '</span>';
   }
 
   function paletteHTML(initial) {

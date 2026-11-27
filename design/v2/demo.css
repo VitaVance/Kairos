@@ -22,6 +22,12 @@ html, body { block-size: 100%; }
   transition: opacity 160ms ease;
 }
 .demo-bar:hover, .demo-bar:focus-within { opacity: 1; }
+/* 演示条会盖住顶栏右侧的控件，并在 7 个片段里吞掉点击
+   （02 上点「按清单」实际点在演示条上）。片段各自用 padding-inline-end
+   打补丁，补得还不一致（7.25rem / 10.5rem / 10rem）。
+   与其逐个打补丁，不如让它自己让开：收起时不接收指针事件。 */
+.demo-bar { pointer-events: none; }
+.demo-bar > * { pointer-events: auto; }
 .demo-bar button {
   appearance: none; border: 0; cursor: pointer;
   padding: .25rem .5rem; border-radius: 5px;

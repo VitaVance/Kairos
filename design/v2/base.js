@@ -101,13 +101,24 @@
       }
     });
 
-    // Keyboard: ← / → walk the fragment sequence, but never while typing.
+    /*
+     * Keyboard: ← / → walk the fragment sequence — but ONLY when nothing else
+     * wants the key. The first version only excluded text inputs, so testing
+     * arrow keys on a radiogroup or a calendar teleported the reviewer to
+     * another fragment, and every keyboard verdict on this set became a false
+     * negative. One author worked around it with stopPropagation(); that is a
+     * symptom, not a fix.
+     *
+     * Skip when the event was already handled (defaultPrevented), when focus is
+     * inside anything interactive, or when a modifier is held.
+     */
     document.addEventListener('keydown', function (e) {
-      // e.target can be document or a text node (e.g. a synthetic event);
-      // Element.closest only exists on elements.
+      if (e.defaultPrevented) return;
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) return;
       var el = e.target;
-      if (el && typeof el.closest === 'function' && el.closest('input, textarea, select, [contenteditable]')) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (!el || typeof el.closest !== 'function') return;
+      if (el.closest('input, textarea, select, [contenteditable], button, a, [role="radio"], [role="tab"], [role="menuitem"], [role="option"], [role="gridcell"], [tabindex]')) return;
       if (e.key === 'ArrowLeft' && prev) location.href = prev;
       else if (e.key === 'ArrowRight' && next) location.href = next;
     });

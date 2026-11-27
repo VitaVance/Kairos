@@ -23,7 +23,6 @@
 <link rel="stylesheet" href="shared.css">
 <link rel="stylesheet" href="demo.css">
 <style>
-  .topbar { padding-inline-end: 7.25rem; }
   .topnav { display: flex; align-items: center; gap: var(--sp-1); }
   .topnav__label {
     font-size: var(--text-body); font-weight: 600; color: var(--ink-1);
@@ -67,7 +66,9 @@
     font-size: var(--text-sm); color: var(--ink-2);
   }
   .day__due b { font-size: var(--text-md); color: var(--ink-1); font-variant-numeric: tabular-nums; }
-  .day__due-sep { color: var(--hairline-strong); }
+  /* 分隔符是文字，必须用墨色令牌。--hairline-strong 是分隔线，
+     压在画布上只有 1.28:1 —— 等于看不见。 */
+  .day__due-sep { color: var(--ink-quiet); }
 
   /* ---------- 跨天 + 全天 ---------- */
   .day__top { flex: none; display: grid; grid-template-columns: var(--gutter) minmax(0, 1fr); background: var(--bg-subtle); border-block-end: 1px solid var(--hairline); }
@@ -268,6 +269,7 @@
   }
 </style>
 <script src="data.js" defer></script>
+<script src="radio.js" defer></script>
 <script src="base.js" defer></script>
 </head>
 <body data-skin="refined" data-theme="light">

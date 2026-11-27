@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="shared.css">
 <link rel="stylesheet" href="demo.css">
 <script src="data.js" defer></script>
+<script src="radio.js" defer></script>
 <script src="base.js" defer></script>
 <style>
   body {
@@ -928,6 +929,23 @@ document.addEventListener('DOMContentLoaded', function () {
     openPop(bPop.hidden);
     if (!bPop.hidden) renderCal();
   });
+
+  /* 两条必需的关闭路径。原来只有「再点一次触发器」——一个非模态浮层，
+     唯一的退出方式是提交一个值，比没有这个功能更糟：用户被卡在捕获中途。
+     原生 popover="auto" 本来免费提供这两条；这里是手搓的，就得自己补。 */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || bPop.hidden) return;
+    e.preventDefault();
+    openPop(false);
+    bChip.focus();
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (bPop.hidden) return;
+    // 触发器自己的点击由它自己的 click 处理负责开关；这里若也关一次，
+    // 紧接着 click 又把「关」翻成「开」，重开就永远失败。
+    if (bPop.contains(e.target) || bChip.contains(e.target)) return;
+    openPop(false);
+  }, true);
 
   bBar.querySelector('.presets').addEventListener('click', function (e) {
     var p = e.target.closest('.preset');

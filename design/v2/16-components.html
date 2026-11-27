@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="shared.css">
 <link rel="stylesheet" href="demo.css">
 <script src="data.js" defer></script>
+<script src="radio.js" defer></script>
 <script src="base.js" defer></script>
 <style>
   /* ==========================================================================
@@ -906,17 +907,17 @@
 
           <div class="ladder-sort" aria-label="行内排序">
             <span class="ladder-sort__label">行内顺序</span>
-            <span class="when when--month" data-txt="month">下个月</span>
+            <span class="lad lad--month" data-txt="month">下个月</span>
             <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            <span class="when when--week" data-txt="week">这周</span>
+            <span class="lad lad--week" data-txt="week">这周</span>
             <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            <span class="when when--day" data-txt="day">明天</span>
+            <span class="lad lad--day" data-txt="day">明天</span>
             <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            <span class="when when--period" data-txt="period">今天下午</span>
+            <span class="lad lad--period" data-txt="period">今天下午</span>
             <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            <span class="when when--time" data-txt="time">今天 18:00</span>
+            <span class="lad lad--time" data-txt="time">今天 18:00</span>
             <svg class="ladder-sort__arr" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            <span class="when when--none" data-txt="none">不限</span>
+            <span class="lad lad--none" data-txt="none">不限</span>
             <span class="spacer"></span>
             <span class="cap">粗 → 细 → 无</span>
           </div>
@@ -933,7 +934,7 @@
               <div class="rung-card__row">
                 <span class="rung-card__box" aria-hidden="true"></span>
                 <span class="rung-card__title">更新简历</span>
-                <span class="when when--month" data-txt="month">下个月</span>
+                <span class="lad lad--month" data-txt="month">下个月</span>
               </div>
               <p class="rung-card__fact">计划窗口，<b>永不过期</b>。月视图里该月每一天的格子都出现。</p>
               <code class="rung-card__pred" data-pred="month">isLate → false</code>
@@ -949,7 +950,7 @@
               <div class="rung-card__row">
                 <span class="rung-card__box" aria-hidden="true"></span>
                 <span class="rung-card__title">写季度总结</span>
-                <span class="when when--week" data-txt="week">这周</span>
+                <span class="lad lad--week" data-txt="week">这周</span>
               </div>
               <p class="rung-card__fact">计划窗口，<b>永不过期</b>。周一不自动跳进本周——宁可让人看见拖延。</p>
               <code class="rung-card__pred" data-pred="week">isLate → false</code>
@@ -965,7 +966,7 @@
               <div class="rung-card__row">
                 <span class="rung-card__box" aria-hidden="true"></span>
                 <span class="rung-card__title">跟进合同签署</span>
-                <span class="when when--day" data-txt="day">明天</span>
+                <span class="lad lad--day" data-txt="day">明天</span>
               </div>
               <p class="rung-card__fact">次日 0 点过期。当天一格，全天条。</p>
               <code class="rung-card__pred" data-pred="day">isLate → false</code>
@@ -981,7 +982,7 @@
               <div class="rung-card__row">
                 <span class="rung-card__box" aria-hidden="true"></span>
                 <span class="rung-card__title">回客户邮件</span>
-                <span class="when when--period" data-txt="period">今天下午</span>
+                <span class="lad lad--period" data-txt="period">今天下午</span>
               </div>
               <p class="rung-card__fact">半天末端过期。当天一格 + 时段标。</p>
               <code class="rung-card__pred" data-pred="period">isLate → false</code>
@@ -997,7 +998,7 @@
               <div class="rung-card__row">
                 <span class="rung-card__box" aria-hidden="true"></span>
                 <span class="rung-card__title">交报销单</span>
-                <span class="when when--time" data-txt="time">今天 18:00</span>
+                <span class="lad lad--time" data-txt="time">今天 18:00</span>
               </div>
               <p class="rung-card__fact">时刻过即过期。唯一长在时间轴块上的一档。</p>
               <code class="rung-card__pred" data-pred="time">isLate → false</code>
