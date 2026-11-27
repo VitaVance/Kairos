@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="shared.css">
 <link rel="stylesheet" href="demo.css">
 <script src="data.js" defer></script>
+<script src="radio.js" defer></script>
 <script src="base.js" defer></script>
 <style>
 /* ============================================================================
@@ -911,8 +912,10 @@ body[data-theme="dark"] {
           ' <b>' + s.n + '</b></button>';
       }).join('');
       document.getElementById('boardTitle').textContent = state.filter === 'today' ? '四象限 · 今天' : '四象限';
-      // 标题区把两个数字都说出来，切过去之后仍然知道自己切走了哪一档。
-      if (window.KairosRadio) { window.KairosRadio.wireAll(scopeSeg.parentNode); }
+      // 重渲染换掉了所有选项节点，但 wireAll 的「已接线」标记在**容器**上，
+      // 不复位就会跳过这一组，于是两个选项都留在 Tab 序列里（2 个停点）。
+      scopeSeg.removeAttribute('data-rg-wired');
+      if (window.KairosRadio) { window.KairosRadio.wireAll(scopeSeg); }
     }
 
     function two(n) { return String(n).padStart(2, '0'); }

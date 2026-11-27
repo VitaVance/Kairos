@@ -554,18 +554,14 @@ document.addEventListener('DOMContentLoaded', function () {
     if (it.rung === 'none') return '不限';
     return '';
   }
-  /** 一段的起止，写在标题后面，让「这周」不是一个模糊的词 */
+  /** 一段的起止，写在标题后面，让「这周」不是一个模糊的词。
+      终点算法只有 data.js 的 K.spanEnd 一份 —— 这里原来自己算
+      `addDays(ws, 7)`，于是同一周在组头写「11/23 – 11/29」、在行里写
+      「11/23 → 11/30」，差一天；月区间写成「12/1 → 1/1」。 */
   function spanHint(it) {
-    if (it.rung === 'week') {
-      var ws = K.weekStartOf(it.date);
-      return shortDate(ws) + ' → ' + shortDate(K.addDays(ws, 7));
-    }
-    if (it.rung === 'month') {
-      var ms = K.monthStartOf(it.date);
-      var d = K.parse(ms); d.setMonth(d.getMonth() + 1);
-      return shortDate(ms) + ' → ' + shortDate(K.fmt(d));
-    }
-    return '';
+    if (it.rung !== 'week' && it.rung !== 'month' && it.rung !== 'range') { return ''; }
+    var arg = it.rung === 'range' ? { start: it.start, end: it.end } : it.date;
+    return K.formatSpan(it.rung, arg);
   }
   function shortDate(d) { var p = d.split('-'); return (+p[1]) + '/' + (+p[2]); }
   function whenClass(it) {

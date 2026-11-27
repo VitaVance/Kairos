@@ -43,11 +43,20 @@
       // After a click, the fragment may have re-rendered and re-marked a
       // different option as selected. Re-derive the roving stop from the
       // markup rather than trusting the clicked element.
+      //
+      // The re-derive must happen AFTER the fragment's own click handler has
+      // written `aria-checked`. Listeners fire in registration order, and this
+      // one is attached before the fragment's, so reading the attribute
+      // synchronously returns the OLD value and the Tab stop stays on the
+      // previous option — the classic "arrow to option 6, then Shift+Tab back
+      // in and you land on option 1" bug. Defer to a microtask.
       item.addEventListener('click', function () {
-        var sel = items.filter(function (el) {
-          return el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-selected') === 'true';
-        })[0];
-        setRoving(sel || item);
+        Promise.resolve().then(function () {
+          var sel = items.filter(function (el) {
+            return el.getAttribute('aria-checked') === 'true' || el.getAttribute('aria-selected') === 'true';
+          })[0];
+          setRoving(sel || item);
+        });
       });
 
       item.addEventListener('keydown', function (e) {
