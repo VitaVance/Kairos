@@ -91,7 +91,7 @@
     border: 0;
     border-radius: var(--radius-sm);
     background: color-mix(in oklab, var(--chip-color) 14%, var(--bg-surface));
-    color: var(--ink-1); font: inherit; font-size: var(--text-xs); line-height: 1;
+    color: var(--ink-1); font: inherit; font-size: var(--text-xs); line-height: 1.35;
     transition: background var(--dur-fast) var(--ease);
   }
   .spanbar:hover { background: color-mix(in oklab, var(--chip-color) 22%, var(--bg-surface)); }
@@ -267,6 +267,26 @@
     font-size: var(--text-xs); font-weight: 700; color: var(--accent-ink);
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
+
+  /* ---------- 窄屏 ----------
+     日视图的计时列宽由 --gutter 决定；900px 下 220px 侧栏会把标题列吃到很窄，
+     先把侧栏收起（与 03/04 一致），再把计时列收窄。 */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 56px minmax(0, 1fr); }
+    .sidebar { display: none; }
+    .topbar { padding-inline: var(--sp-3); }
+    .topbar__actions { padding-inline-end: 0; }
+    .day { --gutter: 3.25rem; }
+    .day__hl { padding-inline: var(--sp-2); }
+    .spanbar__k { display: none; }
+    .pending { inset-inline: var(--sp-2); }
+    .now__lab { inset-inline-start: var(--sp-1); }
+  }
+  @media (max-width: 560px) {
+    .day { --gutter: 2.75rem; }
+    .day__hl { font-size: var(--text-xs); }
+    .pending__k { display: none; }
+  }
 </style>
 <script src="data.js" defer></script>
 <script src="radio.js" defer></script>
@@ -321,7 +341,7 @@
         <button class="icon-btn" type="button" aria-label="前一天">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <span class="topnav__label">11 月 26 日</span>
+        <span class="topnav__label" id="navLabel"></span>
         <button class="icon-btn" type="button" aria-label="后一天">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
@@ -360,10 +380,19 @@ document.addEventListener('DOMContentLoaded', function () {
   var K = window.Kairos;
   if (!K) return;
 
-  var DS = K.TODAY;                     /* 2026-11-26 周四 */
   var HR = 32, EARLY = 0.26, PAD = 6;
   var HOURS = 24;
   var EARLY_END = 6;                    /* 00:00–06:00 压缩 */
+
+  var DOW = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+
+  /* 日期一律从 K.now().today 推出：串 → 数字，不写死「26」「周四」「11 月」 */
+  function dowName(d) {
+    var p = d.split('-');
+    return DOW[new Date(+p[0], +p[1] - 1, +p[2]).getDay()];
+  }
+  function dayNum(d) { return +d.slice(8); }
+  function monthNum(d) { return +d.slice(5, 7); }
 
   function toMin(t) { return (+t.slice(0, 2)) * 60 + (+t.slice(3, 5)); }
   function fmtMin(m) { return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
@@ -388,209 +417,238 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     if (it.rung === 'month') {
       var s2 = K.monthStartOf(it.date);
-      var d = new Date(s2 + 'T00:00:00Z');
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      return { s: s2, e: d.toISOString().slice(0, 10) };
+      var d = K.parse(s2);
+      d.setMonth(d.getMonth() + 1);
+      return { s: s2, e: K.fmt(d) };
     }
     return null;
   }
 
-  /* ---------- 页头 ---------- */
-  var dueItems = K.ITEMS.filter(function (it) {
-    return !it.done && it.date === DS;
-  });
-  document.getElementById('head').innerHTML =
-    '<div class="day__date">' +
-      '<span class="day__dnum">26</span>' +
-      '<span class="day__dow">11 月 · 周四</span>' +
-      '<span class="day__today">今天</span>' +
-    '</div>' +
-    '<div class="day__due">' +
-      '今天到期 <b>' + dueItems.length + '</b> 件' +
-      '<span class="day__due-sep">/</span>' +
-      '本周窗口 <b>' + K.ITEMS.filter(function (it) {
-        return !it.done && it.rung === 'week' && K.weekStartOf(it.date) === K.weekStartOf(DS);
-      }).length + '</b> 件' +
-    '</div>';
-
-  /* ---------- 跨天条 + 全天条 ---------- */
-  var spans = K.ITEMS.filter(function (it) {
-    if (it.done) return false;
-    var sp = spanOf(it);
-    return sp && sp.s <= DS && DS < sp.e;   /* 覆盖今天 */
-  });
-  var adItems = K.ITEMS.filter(function (it) {
-    if (it.done || it.date !== DS) return false;
-    return it.rung === 'period' || it.rung === 'day';
-  }).sort(function (a, b) {
-    var r = { day: 0, period: 1 };
-    if (r[a.rung] !== r[b.rung]) return r[a.rung] - r[b.rung];
-    var order = { morning: 0, afternoon: 1, evening: 2 };
-    return (order[a.period] || 0) - (order[b.period] || 0);
-  });
-
-  var top = '<div class="day__top-gutter"><span>跨天</span><span>全天</span></div>' +
-    '<div class="day__top-body">';
-
-  spans.forEach(function (it) {
-    var sp = spanOf(it);
-    var contL = sp.s < DS, contR = sp.e > K.addDays(DS, 1);
-    var label = it.rung === 'week'
-      ? (K.weekStartOf(it.date) === K.weekStartOf(DS) ? '这周' : '上周 · 未完成')
-      : K.rungLabel(it);
-    top += '<button class="spanbar' + (contL || contR ? ' spanbar--top' : '') + '" type="button" ' +
-        'style="--chip-color:' + listColor(it.list) + '" ' +
-        'title="' + it.title + ' · ' + (+sp.s.slice(5, 7)) + '-' + (+sp.s.slice(8)) + ' → ' + (+sp.e.slice(5, 7)) + '-' + (+sp.e.slice(8)) + '（覆盖今天）">' +
-        (contL ? '<span class="spanbar__cont" aria-hidden="true">‹</span>' : '') +
-        '<span class="spanbar__t">' + it.title + '</span>' +
-        '<span class="spanbar__k">' + label + ' · 覆盖今天</span>' +
-        (contR ? '<span class="spanbar__cont" aria-hidden="true">›</span>' : '') +
-      '</button>';
-  });
-
-  top += '<div class="day__allday' + (adItems.length ? '' : ' day__allday--empty') + '">' +
-    adItems.map(function (it) {
-      var mk = it.rung === 'period'
-        ? '<span class="chip__period">' + K.PERIOD_LABEL[it.period] + '</span>'
-        : '';
-      return '<button class="chip" type="button" data-id="' + it.id + '" style="--chip-color:' + listColor(it.list) + '" title="' + it.title + '">' +
-        '<span class="chip__t">' + it.title + '</span>' + mk + '</button>';
-    }).join('') +
-  '</div></div>';
-  document.getElementById('top').innerHTML = top;
-
-  /* ---------- 时间轴 ---------- */
-  var blocks = K.ITEMS.filter(function (it) {
-    return !it.done && it.rung === 'time' && it.date === DS;
-  }).sort(function (a, b) { return toMin(a.time) - toMin(b.time); });
-
-  var g = '<div class="day__gutter">';
-  for (var h = 0; h < HOURS; h++) {
-    if (h === 0) {
-      /* 压缩带只留一个居中标签，不写六个 */
-      g += '<span class="day__hl day__hl--span" style="top:' + (PAD + px(3 * 60)) + 'px">00 – 06</span>';
-    } else if (h >= EARLY_END) {
-      g += '<span class="day__hl" style="top:' + (PAD + px(h * 60) - 1) + 'px">' + String(h).padStart(2, '0') + ':00</span>';
-    }
-  }
-  g += '</div>';
-
-  g += '<div class="day__col" id="col">';
-  for (var h2 = 0; h2 < HOURS; h2++) {
-    var hh = HR * (h2 < EARLY_END ? EARLY : 1);
-    g += '<div class="day__line' + (h2 < EARLY_END ? ' day__line--early' : '') + '" style="block-size:' + hh + 'px"></div>';
-  }
-  /* 压缩带的两端各一条实线，把「折叠」这件事画出来 */
-  g += '<div class="early-band" style="top:' + PAD + 'px;block-size:' + px(EARLY_END * 60) + 'px" aria-hidden="true"></div>';
-
-  blocks.forEach(function (it) {
-    var s = toMin(it.time), e = it.end ? toMin(it.end) : s + 30;
-    it._s = s; it._e = e;
-  });
-
-  /* 同一时段相撞的两件事并排分列：15:00–16:00 与 15:30 必须都看得见 */
-  var groups = [], cur = [];
-  blocks.forEach(function (it) {
-    if (cur.length && it._s >= Math.max.apply(null, cur.map(function (x) { return x._e; }))) {
-      groups.push(cur); cur = [];
-    }
-    cur.push(it);
-  });
-  if (cur.length) groups.push(cur);
-  var lanes = {};
-  groups.forEach(function (grp) {
-    grp.forEach(function (it, k) { lanes[it.id] = { k: k, n: grp.length }; });
-  });
-
-  blocks.forEach(function (it) {
-    var t = PAD + px(it._s), hgt = Math.max(px(it._e) - px(it._s), 24);
-    var late = K.isLate(it);
-    var l = lanes[it.id];
-    var w = 100 / l.n;
-    var inline = (l.n === 1)
-      ? 'inset-inline:4px'
-      : 'inset-inline:calc(' + (l.k * w) + '% + 4px) calc(' + ((l.n - l.k - 1) * w) + '% + 4px)';
-    g += '<div class="blk ' + (hgt >= 44 ? 'blk--tall' : '') + '" style="top:' + t + 'px;block-size:' + hgt + 'px;' + inline + '" data-block="' + it.id + '">' +
-      '<button class="chip" type="button" style="--chip-color:' + listColor(it.list) + '" title="' + it.title + ' · ' + hhmm(it) + '">' +
-        '<span class="chip__t">' + it.title + '</span>' +
-        '<span class="chip__k' + (late ? ' chip__k--late' : '') + '">' + hhmm(it) + (late ? ' · 已过' : '') + '</span>' +
-      '</button>' +
-      '<span class="blk__acts">' +
-        '<button class="blk__act" type="button" aria-label="完成：' + it.title + '" title="完成">' +
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' +
-        '</button>' +
-        '<button class="blk__act" type="button" aria-label="更多：' + it.title + '" title="更多">' +
-          '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>' +
-        '</button>' +
-      '</span>' +
-    '</div>';
-  });
-
-  /* 现在时刻线 14:20 */
-  g += '<div class="now" style="top:' + (PAD + px(K.NOW_MIN)) + 'px"><span class="now__lab">' + fmtMin(K.NOW_MIN) + '</span></div>';
-  g += '<div class="ghost" id="ghost" aria-hidden="true"><span id="ghost-t">—</span></div>';
-  g += '</div>';
-
-  document.getElementById('grid').innerHTML = g;
-  document.getElementById('grid').style.setProperty('--px-total', (TOTAL + PAD * 2) + 'px');
-
-  /* ---------- 空槽：悬停给幽灵，点击转待确认 ---------- */
-  var col = document.getElementById('col');
-  var ghost = document.getElementById('ghost');
-  var ghostT = document.getElementById('ghost-t');
-
-  function slotAt(clientY) {
-    var r = col.getBoundingClientRect();
-    var y = clientY - r.top - PAD;
-    /* 反向查：像素 → 分钟（两段斜率不同） */
-    var earlyPx = EARLY_END * HR * EARLY;
-    var min;
-    if (y < earlyPx) min = y / (HR * EARLY) * 60;
-    else min = EARLY_END * 60 + (y - earlyPx) / HR * 60;
-    return Math.max(0, Math.min(24 * 60 - 30, Math.floor(min / 30) * 30));
-  }
-
-  col.addEventListener('mousemove', function (e) {
-    if (e.target.closest('.blk') || e.target.closest('.pending')) { ghost.classList.remove('is-on'); return; }
-    var m = slotAt(e.clientY);
-    ghost.classList.add('is-on');
-    ghost.style.top = (PAD + px(m)) + 'px';
-    ghost.style.blockSize = Math.max(px(m + 30) - px(m), 20) + 'px';
-    ghostT.textContent = fmtMin(m) + '–' + fmtMin(m + 30) + ' · 点击新建';
-  });
-  col.addEventListener('mouseleave', function () { ghost.classList.remove('is-on'); });
-
+  var sc = document.getElementById('scroll');
   var pending = null;
-  col.addEventListener('click', function (e) {
-    if (e.target.closest('.blk') || e.target.closest('.pending')) return;
-    var m = slotAt(e.clientY);
-    if (pending) pending.remove();
 
-    pending = document.createElement('div');
-    pending.className = 'pending';
-    pending.style.top = (PAD + px(m)) + 'px';
-    pending.style.blockSize = Math.max(px(m + 30) - px(m), 24) + 'px';
-    pending.innerHTML =
-      '<span class="pending__t">新事情</span>' +
-      '<span class="pending__k">' + fmtMin(m) + '–' + fmtMin(m + 30) + '</span>' +
-      '<button class="pending__go" type="button">确认</button>';
-    col.appendChild(pending);
+  function render() {
+    var now = K.now();
+    var DS = now.today;
+    var nowMin = now.nowMin;
+    var scrollKeep = sc ? sc.scrollTop : 0;
 
-    pending.querySelector('.pending__go').addEventListener('click', function (ev) {
-      ev.stopPropagation();
-      this.textContent = '已加入';
-      this.disabled = true;
-      setTimeout(function () { if (pending) { pending.remove(); pending = null; } }, 800);
+    /* ---------- 页头：日期 / 星期 / 月份全部由 DS 推出 ---------- */
+    var dueItems = K.ITEMS.filter(function (it) {
+      return !it.done && it.date === DS;
     });
-  });
+    document.getElementById('navLabel').textContent = monthNum(DS) + ' 月 ' + dayNum(DS) + ' 日';
+    document.getElementById('head').innerHTML =
+      '<div class="day__date">' +
+        '<span class="day__dnum">' + dayNum(DS) + '</span>' +
+        '<span class="day__dow">' + monthNum(DS) + ' 月 · ' + dowName(DS) + '</span>' +
+        '<span class="day__today">今天</span>' +
+      '</div>' +
+      '<div class="day__due">' +
+        '今天到期 <b>' + dueItems.length + '</b> 件' +
+        '<span class="day__due-sep">/</span>' +
+        '本周窗口 <b>' + K.ITEMS.filter(function (it) {
+          return !it.done && it.rung === 'week' && K.weekStartOf(it.date) === K.weekStartOf(DS);
+        }).length + '</b> 件' +
+      '</div>';
+
+    /* ---------- 跨天条 + 全天条 ---------- */
+    var spans = K.ITEMS.filter(function (it) {
+      if (it.done) return false;
+      var sp = spanOf(it);
+      return sp && sp.s <= DS && DS < sp.e;   /* 覆盖今天 */
+    });
+    var adItems = K.ITEMS.filter(function (it) {
+      if (it.done || it.date !== DS) return false;
+      return it.rung === 'period' || it.rung === 'day';
+    }).sort(function (a, b) {
+      var r = { day: 0, period: 1 };
+      if (r[a.rung] !== r[b.rung]) return r[a.rung] - r[b.rung];
+      var order = { morning: 0, afternoon: 1, evening: 2 };
+      return (order[a.period] || 0) - (order[b.period] || 0);
+    });
+
+    var top = '<div class="day__top-gutter"><span>跨天</span><span>全天</span></div>' +
+      '<div class="day__top-body">';
+
+    spans.forEach(function (it) {
+      var sp = spanOf(it);
+      var contL = sp.s < DS, contR = sp.e > K.addDays(DS, 1);
+      var label = it.rung === 'week'
+        ? (K.weekStartOf(it.date) === K.weekStartOf(DS) ? '这周' : '上周 · 未完成')
+        : K.rungLabel(it);
+      top += '<button class="spanbar' + (contL || contR ? ' spanbar--top' : '') + '" type="button" ' +
+          'style="--chip-color:' + listColor(it.list) + '" ' +
+          'title="' + it.title + ' · ' + (+sp.s.slice(5, 7)) + '-' + (+sp.s.slice(8)) + ' → ' + (+sp.e.slice(5, 7)) + '-' + (+sp.e.slice(8)) + '（覆盖今天）">' +
+          (contL ? '<span class="spanbar__cont" aria-hidden="true">‹</span>' : '') +
+          '<span class="spanbar__t">' + it.title + '</span>' +
+          '<span class="spanbar__k">' + label + ' · 覆盖今天</span>' +
+          (contR ? '<span class="spanbar__cont" aria-hidden="true">›</span>' : '') +
+        '</button>';
+    });
+
+    top += '<div class="day__allday' + (adItems.length ? '' : ' day__allday--empty') + '">' +
+      adItems.map(function (it) {
+        var mk = it.rung === 'period'
+          ? '<span class="chip__period">' + K.PERIOD_LABEL[it.period] + '</span>'
+          : '';
+        return '<button class="chip" type="button" data-id="' + it.id + '" style="--chip-color:' + listColor(it.list) + '" title="' + it.title + '">' +
+          '<span class="chip__t">' + it.title + '</span>' + mk + '</button>';
+      }).join('') +
+    '</div></div>';
+    document.getElementById('top').innerHTML = top;
+
+    /* ---------- 时间轴 ---------- */
+    var blocks = K.ITEMS.filter(function (it) {
+      return !it.done && it.rung === 'time' && it.date === DS;
+    }).sort(function (a, b) { return toMin(a.time) - toMin(b.time); });
+
+    var g = '<div class="day__gutter">';
+    for (var h = 0; h < HOURS; h++) {
+      if (h === 0) {
+        /* 压缩带只留一个居中标签，不写六个 */
+        g += '<span class="day__hl day__hl--span" style="top:' + (PAD + px(3 * 60)) + 'px">00 – 06</span>';
+      } else if (h >= EARLY_END) {
+        g += '<span class="day__hl" style="top:' + (PAD + px(h * 60) - 1) + 'px">' + String(h).padStart(2, '0') + ':00</span>';
+      }
+    }
+    g += '</div>';
+
+    g += '<div class="day__col" id="col">';
+    for (var h2 = 0; h2 < HOURS; h2++) {
+      var hh = HR * (h2 < EARLY_END ? EARLY : 1);
+      g += '<div class="day__line' + (h2 < EARLY_END ? ' day__line--early' : '') + '" style="block-size:' + hh + 'px"></div>';
+    }
+    /* 压缩带的两端各一条实线，把「折叠」这件事画出来 */
+    g += '<div class="early-band" style="top:' + PAD + 'px;block-size:' + px(EARLY_END * 60) + 'px" aria-hidden="true"></div>';
+
+    blocks.forEach(function (it) {
+      var s = toMin(it.time), e = it.end ? toMin(it.end) : s + 30;
+      it._s = s; it._e = e;
+    });
+
+    /* 同一时段相撞的两件事并排分列：15:00–16:00 与 15:30 必须都看得见 */
+    var groups = [], cur = [];
+    blocks.forEach(function (it) {
+      if (cur.length && it._s >= Math.max.apply(null, cur.map(function (x) { return x._e; }))) {
+        groups.push(cur); cur = [];
+      }
+      cur.push(it);
+    });
+    if (cur.length) groups.push(cur);
+    var lanes = {};
+    groups.forEach(function (grp) {
+      grp.forEach(function (it, k) { lanes[it.id] = { k: k, n: grp.length }; });
+    });
+
+    blocks.forEach(function (it) {
+      var t = PAD + px(it._s), hgt = Math.max(px(it._e) - px(it._s), 24);
+      var late = K.isLate(it);
+      var l = lanes[it.id];
+      var w = 100 / l.n;
+      var inline = (l.n === 1)
+        ? 'inset-inline:4px'
+        : 'inset-inline:calc(' + (l.k * w) + '% + 4px) calc(' + ((l.n - l.k - 1) * w) + '% + 4px)';
+      g += '<div class="blk ' + (hgt >= 44 ? 'blk--tall' : '') + '" style="top:' + t + 'px;block-size:' + hgt + 'px;' + inline + '" data-block="' + it.id + '">' +
+        '<button class="chip" type="button" style="--chip-color:' + listColor(it.list) + '" title="' + it.title + ' · ' + hhmm(it) + '">' +
+          '<span class="chip__t">' + it.title + '</span>' +
+          '<span class="chip__k' + (late ? ' chip__k--late' : '') + '">' + hhmm(it) + (late ? ' · 已过' : '') + '</span>' +
+        '</button>' +
+        '<span class="blk__acts">' +
+          '<button class="blk__act" type="button" aria-label="完成：' + it.title + '" title="完成">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>' +
+          '</button>' +
+          '<button class="blk__act" type="button" aria-label="更多：' + it.title + '" title="更多">' +
+            '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>' +
+          '</button>' +
+        '</span>' +
+      '</div>';
+    });
+
+    /* 现在时刻线：读时钟，不再写死 14:20 */
+    g += '<div class="now" style="top:' + (PAD + px(nowMin)) + 'px"><span class="now__lab">' + fmtMin(nowMin) + '</span></div>';
+    g += '<div class="ghost" id="ghost" aria-hidden="true"><span id="ghost-t">—</span></div>';
+    g += '</div>';
+
+    document.getElementById('grid').innerHTML = g;
+    document.getElementById('grid').style.setProperty('--px-total', (TOTAL + PAD * 2) + 'px');
+
+    /* 空槽：悬停给幽灵，点击转待确认 */
+    wireSlots();
+
+    /* 时钟每分钟重渲染会把 innerHTML 换掉，滚动位置一起丢；
+       重画后把它放回原处，用户滚到哪就停在哪。 */
+    if (sc) sc.scrollTop = scrollKeep;
+  }
+
+  function wireSlots() {
+    var col = document.getElementById('col');
+    var ghost = document.getElementById('ghost');
+    var ghostT = document.getElementById('ghost-t');
+    if (!col || !ghost) return;
+
+    function slotAt(clientY) {
+      var r = col.getBoundingClientRect();
+      var y = clientY - r.top - PAD;
+      /* 反向查：像素 → 分钟（两段斜率不同） */
+      var earlyPx = EARLY_END * HR * EARLY;
+      var min;
+      if (y < earlyPx) min = y / (HR * EARLY) * 60;
+      else min = EARLY_END * 60 + (y - earlyPx) / HR * 60;
+      return Math.max(0, Math.min(24 * 60 - 30, Math.floor(min / 30) * 30));
+    }
+
+    col.addEventListener('mousemove', function (e) {
+      if (e.target.closest('.blk') || e.target.closest('.pending')) { ghost.classList.remove('is-on'); return; }
+      var m = slotAt(e.clientY);
+      ghost.classList.add('is-on');
+      ghost.style.top = (PAD + px(m)) + 'px';
+      ghost.style.blockSize = Math.max(px(m + 30) - px(m), 20) + 'px';
+      ghostT.textContent = fmtMin(m) + '–' + fmtMin(m + 30) + ' · 点击新建';
+    });
+    col.addEventListener('mouseleave', function () { ghost.classList.remove('is-on'); });
+
+    col.addEventListener('click', function (e) {
+      if (e.target.closest('.blk') || e.target.closest('.pending')) return;
+      var m = slotAt(e.clientY);
+      if (pending) pending.remove();
+
+      pending = document.createElement('div');
+      pending.className = 'pending';
+      pending.style.top = (PAD + px(m)) + 'px';
+      pending.style.blockSize = Math.max(px(m + 30) - px(m), 24) + 'px';
+      pending.innerHTML =
+        '<span class="pending__t">新事情</span>' +
+        '<span class="pending__k">' + fmtMin(m) + '–' + fmtMin(m + 30) + '</span>' +
+        '<button class="pending__go" type="button">确认</button>';
+      col.appendChild(pending);
+
+      pending.querySelector('.pending__go').addEventListener('click', function (ev) {
+        ev.stopPropagation();
+        this.textContent = '已加入';
+        this.disabled = true;
+        setTimeout(function () { if (pending) { pending.remove(); pending = null; } }, 800);
+      });
+    });
+  }
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && pending) { pending.remove(); pending = null; }
   });
 
-  /* 打开就滚到 11:00 上方：整个下午（14:20 现在线、15:00 评审、18:00 报销）都在首屏 */
-  var sc = document.getElementById('scroll');
+  render();
+
+  /* 打开就滚到 11:00 上方：整个下午（现在线、15:00 评审、18:00 报销）都在首屏。
+     只在首次渲染时设置一次：时钟每分钟重渲染时不打断读者自己的滚动。 */
   sc.scrollTop = PAD + px(11 * 60) - 16;
+
+  /* 时钟：每分钟把「现在」推一分钟并重渲染，现在线就真的在走。
+     today 保持 data.js 里演示的那一天 —— 这是设计稿，不是真实日历。 */
+  setInterval(function () {
+    var n = K.now();
+    K.setNow(n.nowMin + 1, n.today);
+    render();
+  }, 60000);
 });
 </script>
 </body>

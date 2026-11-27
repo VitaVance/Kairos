@@ -90,6 +90,8 @@
   .allday { flex: none; background: var(--bg-surface); border-block-end: 1px solid var(--hairline); }
 
   .arow { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: stretch; }
+  /* display:grid 会盖掉 UA 的 [hidden]{display:none}，必须显式关掉 */
+  .arow[hidden] { display: none; }
   .arow + .arow { border-block-start: 1px solid var(--hairline-soft); }
   .arow__gutter {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -100,11 +102,13 @@
   .arow__gutter b { font-size: var(--text-xs); font-weight: 600; color: var(--ink-2); }
   .arow__gutter span { font-size: var(--text-xs); color: var(--ink-quiet); }
 
-  /* 一段（这周 / 下个月 / 出差三天）：一条按列定位的条。
-     它横跨的列就是它覆盖的那些天，不复制、不重复。 */
-  .bandlane { position: relative; block-size: 22px; }
+  /* 一段（占用：出差三天 / 假期）：一条按列定位的条。
+     ADR 0006：只有真正占掉时间的区间才有资格在这里占地方。
+     「这周 / 下个月」这类意图不进日格，也不通栏 —— 见 .winlane。 */
+  .bandlane { position: relative; }
   .wband {
-    position: absolute; inset-block: 2px;
+    position: absolute; inset-block-start: calc(var(--row, 0) * 22px + 2px);
+    block-size: 18px;
     inset-inline-start: calc(var(--a, 0) * 100% / 7 + 3px);
     inline-size: calc((var(--b, 7) - var(--a, 0)) * 100% / 7 - 6px);
     display: flex; align-items: center; gap: 7px;
@@ -136,6 +140,28 @@
   .wband--late .wband__tag { color: var(--warning-ink); border-inline-end-color: color-mix(in oklab, var(--warning-ink) 34%, transparent); }
   .wband--late .wband__meta { color: var(--warning-ink); font-weight: 600; }
   .wband--late .wband__ticks i { background: color-mix(in oklab, var(--warning-ink) 22%, transparent); }
+
+  /* ---- 窗口（意图）：芯片，不是条 ----
+     ADR 0006：这周有 2 件窗口内的事。它和「+3」同一族：一个计数，一个字形。
+     它住在全天行里，但不属于任何一天 —— 所以它有自己的行，不通栏、不占列。 */
+  .winrow .arow__gutter b { color: var(--ink-1); }
+  .winlane {
+    display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+    padding: 3px 6px; min-inline-size: 0;
+  }
+  .wchip {
+    appearance: none; border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    block-size: 20px; padding: 0 8px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-sunken); color: var(--ink-2);
+    font: inherit; font-size: var(--text-xs); font-weight: 600;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+  }
+  .wchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .wchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .wchip__k { font-weight: 500; color: var(--ink-quiet); }
+  .wchip__n::before { content: "·"; margin-inline-end: 5px; color: var(--ink-quiet); }
 
   /* 全天条目：7 列，每列一条竖分隔 */
   .allday__chips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); align-items: stretch; }
@@ -297,6 +323,20 @@
     font-size: var(--text-xs); font-weight: 600;
     font-variant-numeric: tabular-nums; white-space: nowrap;
   }
+  .nowline[hidden] { display: none; }
+  /* 「今天不在本周」/「在压缩带里」—— 现在线不画时的一句说明 */
+  .now-note {
+    position: sticky; inset-block-start: 4px;
+    margin-inline-start: auto; margin-inline-end: 12px;
+    z-index: 7; pointer-events: none;
+    inline-size: fit-content;
+    padding: 2px 8px; border-radius: var(--radius-full);
+    background: var(--bg-surface); color: var(--ink-2);
+    border: 1px solid var(--hairline-strong);
+    font-size: var(--text-xs); font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .now-note[hidden] { display: none; }
 
   /* ---- 内联捕获（非模态） ---- */
   .cap {
@@ -354,6 +394,32 @@
   }
   .toast[hidden] { display: none; }
   .toast svg { color: var(--success-ink); flex: none; }
+
+  /* ---------- 窄屏 ----------
+     900px 下 220px 侧栏把 7 列压到 ~80px，横带标题会被挤成 0 宽。
+     收起侧栏，7 列拿回整条宽度。 */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 56px minmax(0, 1fr); }
+    .sidebar { display: none; }
+    .topbar { padding-inline: var(--sp-3); }
+    .topbar__actions { padding-inline-end: 0; }
+    .content--week { padding-inline: var(--sp-2); }
+    .grid7 { grid-template-columns: 40px repeat(7, minmax(0, 1fr)); }
+    .arow, .comprow__inner { grid-template-columns: 40px minmax(0, 1fr); }
+    .wband { gap: 4px; padding: 0 5px; }
+    .wband__meta { display: none; }
+    .nowline { inset-inline: 40px; }
+  }
+  /* 560 以下：7 天 × ~46px。时间块里的标题放不下了，只留时间与色条；
+     全天行里的芯片同理，缩成圆点宽度。 */
+  @media (max-width: 560px) {
+    .content--week { padding-inline: 4px; }
+    .grid7 { grid-template-columns: 34px repeat(7, minmax(0, 1fr)); }
+    .arow, .comprow__inner { grid-template-columns: 34px minmax(0, 1fr); }
+    .tblock__title, .achip__x, .wband { display: none; }
+    .nowline { inset-inline: 34px; }
+    .comprow__gutter { font-size: 10px; }
+  }
 </style>
 </head>
 <body data-skin="refined" data-theme="light">
@@ -431,8 +497,8 @@
   <!-- ======================= 主区 ======================= -->
   <div class="main">
     <header class="topbar">
-      <h1 class="topbar__title"><span>11月23日 – 29日</span>
-        <span class="sub">2026 年 · 第 48 周 · 本周</span>
+      <h1 class="topbar__title"><span id="weekTitle">—</span>
+        <span class="sub" id="weekSub"></span>
       </h1>
       <div class="nav" aria-label="周切换">
         <button class="icon-btn" type="button" id="prevW" aria-label="上一周" title="上一周">
@@ -465,15 +531,15 @@
           </div>
         </div>
 
-        <!-- 窗口带 + 全天条目 -->
+        <!-- 占用带（出差 / 假期）+ 窗口计数 + 全天条目 -->
         <div class="allday">
           <div class="arow" id="bandRow1">
-            <div class="arow__gutter"><b>一段</b><span>跨多天</span></div>
+            <div class="arow__gutter"><b>占用</b><span>出差 / 假期</span></div>
             <div class="bandlane" id="bandSlot1"></div>
           </div>
-          <div class="arow" id="bandRow2">
-            <div class="arow__gutter"><b>一段</b><span>跨多天</span></div>
-            <div class="bandlane" id="bandSlot2"></div>
+          <div class="arow winrow" id="winRow" hidden>
+            <div class="arow__gutter"><b>窗口</b><span>这周内</span></div>
+            <div class="winlane" id="winLane"></div>
           </div>
           <div class="arow">
             <div class="arow__gutter"><b>某天</b><span>日 / 时段</span></div>
@@ -491,6 +557,7 @@
 
         <!-- 时间网格 06:00–24:00 -->
         <div class="wbody" id="wbody">
+          <div class="now-note" id="nowNote" hidden></div>
           <div class="wgrid" id="wgrid">
             <div class="grid7">
               <div class="hours" id="hours" aria-hidden="true"></div>
@@ -498,7 +565,7 @@
             </div>
             <div class="nowline" id="nowline" aria-hidden="true">
               <span class="nowline__dot" id="nowDot"></span>
-              <span class="nowline__label" id="nowLabel">14:20</span>
+              <span class="nowline__label" id="nowLabel">—</span>
             </div>
           </div>
         </div>
@@ -588,6 +655,10 @@ document.addEventListener('DOMContentLoaded', function () {
   var DAYS = [];
   for (var i = 0; i < 7; i++) DAYS.push(K.addDays(START, i));
   var DOW = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+  /* 演示允许在两周边界内前后走：ADR 0006 的那条「占用」（12/3–12/5）不在本周，
+     不给走法它就永远证明不了自己。范围从数据算，不写字面量。 */
+  var WEEK_MIN = K.WEEK_START;
+  var WEEK_MAX = K.addDays(K.WEEK_START, 14);
 
   var HOUR = 38;                 // 每小时像素
   var DAY_START = 6 * 60;        // 网格从 06:00 起（00–06 在压缩带里）
@@ -606,17 +677,25 @@ document.addEventListener('DOMContentLoaded', function () {
   var blocks = [];
   var nextId = 1000;
 
-  K.ITEMS.forEach(function (it) {
-    if (it.done || it.rung !== 'time') return;
-    if (it.date < START || it.date > K.addDays(START, 6)) return;
-    var start = +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5);
-    var dur = 30;
-    if (it.end) dur = (+it.end.slice(0, 2) * 60 + +it.end.slice(3, 5)) - start;
-    blocks.push({
-      id: nextId++, title: it.title, date: it.date, start: start, dur: dur,
-      list: it.list, q: K.quadrantOf(it), late: K.isLate(it), sourceId: it.id
+  /* 切周时重构 DAYS 与时间块：所有渲染都读这两份，改完重画即可。 */
+  function setWeek(start) {
+    START = start;
+    DAYS = [];
+    for (var i = 0; i < 7; i++) DAYS.push(K.addDays(START, i));
+    blocks = [];
+    K.ITEMS.forEach(function (it) {
+      if (it.done || it.rung !== 'time') return;
+      if (it.date < START || it.date > K.addDays(START, 6)) return;
+      var start = +it.time.slice(0, 2) * 60 + +it.time.slice(3, 5);
+      var dur = 30;
+      if (it.end) dur = (+it.end.slice(0, 2) * 60 + +it.end.slice(3, 5)) - start;
+      blocks.push({
+        id: nextId++, title: it.title, date: it.date, start: start, dur: dur,
+        list: it.list, q: K.quadrantOf(it), late: K.isLate(it), sourceId: it.id
+      });
     });
-  });
+  }
+  setWeek(WEEK_MIN);
 
   var pop = document.getElementById('pop');
   var cap = document.getElementById('cap');
@@ -644,13 +723,37 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ---------------- 表头 ---------------- */
+  /* ISO 周序号（周一为一周之始）。与 03-month 同一套算法。 */
+  function weekNo(date) {
+    var p = date.split('-');
+    var t = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    var dow = (t.getUTCDay() + 6) % 7;
+    t.setUTCDate(t.getUTCDate() - dow + 3);
+    var jan4 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+    var jdow = (jan4.getUTCDay() + 6) % 7;
+    jan4.setUTCDate(jan4.getUTCDate() - jdow + 3);
+    return 1 + Math.round((t - jan4) / (7 * 86400000));
+  }
+
+  /* 页头：「11月23日 – 29日」「2026 年 · 第 48 周 · 本周」——全部从本周起止算。
+     跨月时右端带上月份，否则「11月30日 – 6日」读不出是哪个月。 */
+  function renderHeader() {
+    var end = K.addDays(START, 6);
+    document.getElementById('weekTitle').textContent =
+      (+START.slice(5, 7)) + '月' + (+START.slice(8)) + '日 – ' +
+      (START.slice(5, 7) === end.slice(5, 7) ? '' : (+end.slice(5, 7)) + '月') + (+end.slice(8)) + '日';
+    var thisWeek = (K.weekStartOf(K.now().today) === START);
+    document.getElementById('weekSub').textContent =
+      START.slice(0, 4) + ' 年 · 第 ' + weekNo(START) + ' 周 · ' + (thisWeek ? '本周' : '不在本周');
+  }
+
   function renderHead() {
     var head = document.getElementById('wdayHead');
     head.innerHTML = '';
     DAYS.forEach(function (d, i) {
       var el = document.createElement('div');
       el.className = 'wday';
-      if (d === K.TODAY) el.classList.add('is-today');
+      if (d === K.now().today) el.classList.add('is-today');
       var n = blocks.filter(function (b) { return b.date === d; }).length + allDayOn(d).length;
       el.innerHTML = '<span class="wday__dow">' + DOW[i] + '</span>' +
         '<span class="wday__num">' + (+d.slice(8)) + '</span>' +
@@ -676,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function () {
     box.innerHTML = '';
     DAYS.forEach(function (d) {
       var cell = document.createElement('div');
-      cell.className = 'aday' + (d === K.TODAY ? ' is-today' : '');
+      cell.className = 'aday' + (d === K.now().today ? ' is-today' : '');
       allDayOn(d).forEach(function (it) {
         var list = LIST[it.list];
         var late = K.isLate(it);
@@ -722,50 +825,37 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
-  /* ---------------- 一段：横跨的条 ----------------
-     「这周」= 11-23 → 11-30，「下一周」= 11-30 → 12-07。一段在周视图里按列定位：
-     本周完整横跨 7 列；跨过本周边界的段在边缘切平（不带圆角、不带竖条的那一侧）。 */
-  function spanRange(it) {
-    if (it.rung === 'week') {
-      var ws = K.weekStartOf(it.date);
-      return { start: ws, end: K.addDays(ws, 7) };
-    }
-    if (it.rung === 'month') {
-      var ms = K.monthStartOf(it.date);
-      var d = K.parse(ms);
-      d.setMonth(d.getMonth() + 1);
-      return { start: ms, end: K.fmt(d) };
-    }
-    return null;
+  /* ---------------- 占用带 + 窗口计数（ADR 0006）----------------
+     只有「占用」（blocksTime：出差、假期）在这条带里画。它按列定位，
+     横跨它真正覆盖的那几列；越出本周的那一头切平（不带圆角、不带竖条）。
+     意图性的区间（这周 / 下个月）不画条，改成全天行里的一个芯片：
+     「这周 · 2 件」——和 +3 同一族语法。 */
+  function spanArg(it) {
+    return it.rung === 'range' ? { start: it.start, end: it.end } : it.date;
   }
 
   function renderBands() {
-    var slots = [document.getElementById('bandSlot1'), document.getElementById('bandSlot2')];
-    slots.forEach(function (s) { s.innerHTML = ''; });
+    var slot = document.getElementById('bandSlot1');
+    slot.innerHTML = '';
 
     var weekEnd = K.addDays(START, 7);
     var spans = [];
     K.ITEMS.forEach(function (it) {
-      if (it.done) return;
-      var r = spanRange(it);
+      if (it.done || !K.isOccupancy(it)) return;                 // 只有占用配占地方
+      var r = K.spanEnd(it.rung, spanArg(it), false);            // 切片用半开区间
       if (!r) return;
-      if (r.end <= START || r.start >= weekEnd) return;   // 与本周不重叠
-      // 只有 month 段覆盖本周时才算进来（11 月的 month 段不覆盖本周）
+      if (r.end <= START || r.start >= weekEnd) return;          // 与本周不重叠
       var a = 0, b = 7;
       for (var i = 0; i < 7; i++) { if (DAYS[i] < r.start) a = i + 1; else break; }
       for (var j = 6; j >= 0; j--) { if (K.addDays(DAYS[j], 1) > r.end) b = j; else break; }
       if (a >= b) return;
       spans.push({ item: it, a: a, b: b, contStart: r.start < START, contEnd: r.end > weekEnd });
     });
-    spans.sort(function (x, y) {
-      var o = { month: 0, week: 1 };
-      return o[x.item.rung] - o[y.item.rung];
-    });
 
-    document.getElementById('bandRow1').hidden = !spans[0];
-    document.getElementById('bandRow2').hidden = !spans[1];
+    document.getElementById('bandRow1').hidden = !spans.length;
+    slot.style.blockSize = (spans.length * 22 + 4) + 'px';
 
-    spans.slice(0, 2).forEach(function (sp, idx) {
+    spans.forEach(function (sp, idx) {
       var it = sp.item;
       var list = LIST[it.list];
       var passed = K.isWindowPassed(it);
@@ -775,21 +865,23 @@ document.addEventListener('DOMContentLoaded', function () {
       b.style.setProperty('--chip', passed ? 'var(--warning-ink)' : list.color);
       b.style.setProperty('--a', sp.a);
       b.style.setProperty('--b', sp.b);
+      b.style.setProperty('--row', idx);
       b.dataset.id = it.id;
       b.dataset.title = it.title;
       b.dataset.q = K.quadrantOf(it);
       b.dataset.list = list.name;
       b.dataset.lcolor = list.color;
       b.dataset.band = it.rung;
-      if (passed) { b.dataset.late = 'soft'; b.dataset.when = K.rungLabel(it) + ' · 未完成'; }
-      else b.dataset.when = K.rungLabel(it) + ' · ' + shortDate(spanOf(it).start) + ' → ' + shortDate(spanOf(it).end);
+      b.dataset.when = K.formatSpan(it.rung, spanArg(it)) + (passed ? ' · 未完成' : '');
+      if (passed) b.dataset.late = 'soft';
 
       b.innerHTML =
-        '<span class="wband__tag">' + (it.rung === 'month' ? (+it.date.slice(5, 7)) + '月' : '本周') + '</span>' +
+        '<span class="wband__tag">占用</span>' +
         '<span class="wband__title"></span>' +
-        '<span class="wband__meta">' + (passed ? '未完成' : shortDate(spanOf(it).start) + ' – ' + shortDate(spanOf(it).end)) + '</span>' +
+        '<span class="wband__meta"></span>' +
         '<span class="wband__ticks" aria-hidden="true"></span>';
       b.querySelector('.wband__title').textContent = it.title;
+      b.querySelector('.wband__meta').textContent = passed ? '未完成' : K.formatSpan(it.rung, spanArg(it));
       var ticks = b.querySelector('.wband__ticks');
       for (var k = sp.a + 1; k < sp.b; k++) {
         var t = document.createElement('i');
@@ -797,10 +889,56 @@ document.addEventListener('DOMContentLoaded', function () {
         ticks.appendChild(t);
       }
       b.addEventListener('click', function (e) { e.stopPropagation(); openItem(b); });
-      slots[idx].appendChild(b);
+      slot.appendChild(b);
     });
   }
-  function spanOf(it) { return spanRange(it); }
+
+  /* 本周窗口里有哪些「意图」：这周 / 下个月 / 别的周 —— 不占格子，只计数。 */
+  function weekWindows() {
+    var weekEnd = K.addDays(START, 7);
+    return K.ITEMS.filter(function (it) {
+      if (it.done || K.isOccupancy(it)) return false;
+      if (it.rung !== 'week' && it.rung !== 'month') return false;
+      var r = K.spanEnd(it.rung, spanArg(it), false);
+      return r.start < weekEnd && r.end > START;
+    });
+  }
+
+  function renderWindows() {
+    var wins = weekWindows();
+    var row = document.getElementById('winRow');
+    var lane = document.getElementById('winLane');
+    lane.innerHTML = '';
+    row.hidden = !wins.length;
+    if (!wins.length) return;
+
+    // 按窗口分组：「这周」一 chip，「下个月」一 chip —— 不是一件事一 chip。
+    var groups = [], byKey = {};
+    wins.forEach(function (it) {
+      var key = it.rung + ':' + K.startOf(it);
+      if (!byKey[key]) {
+        byKey[key] = { label: it.rung === 'month' ? (K.monthStartOf(it.date) === K.monthStartOf(K.now().today) ? '这个月' : K.rungLabel(it)) : K.rungLabel(it), span: K.formatSpan(it.rung, spanArg(it)), items: [] , rung: it.rung };
+        groups.push(byKey[key]);
+      }
+      byKey[key].items.push(it);
+    });
+
+    groups.forEach(function (g) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'wchip';
+      b.innerHTML = '<span class="wchip__k"></span><span class="wchip__n"></span>';
+      b.querySelector('.wchip__k').textContent = g.label;
+      b.querySelector('.wchip__n').textContent = g.items.length + ' 件';
+      b.dataset.count = '1';
+      b.setAttribute('aria-label', g.label + '有 ' + g.items.length + ' 件窗口内的事：' + g.span);
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        toastMsg(g.label + '（' + g.span + '）· ' + g.items.map(function (x) { return x.title; }).join('、'));
+      });
+      lane.appendChild(b);
+    });
+  }
 
   /* ---------------- 时间网格 ---------------- */
   function renderHours() {
@@ -845,7 +983,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var col = document.createElement('div');
       col.className = 'daycol';
       col.dataset.date = d;
-      if (d === K.TODAY) col.classList.add('is-today');
+      if (d === K.now().today) col.classList.add('is-today');
       if (i >= 5) col.classList.add('is-weekend');
       col.style.blockSize = height + 'px';
 
@@ -911,32 +1049,80 @@ document.addEventListener('DOMContentLoaded', function () {
     return el;
   }
 
+  /*
+   * 现在线。三种「不画」的情形都要说清楚，否则线会跑到负坐标或跑进 gutter：
+   *   1. 今天不在本周（DAYS 里没有 today）—— 整条线隐藏，dot 不许留在 gutter 里；
+   *   2. nowMin 落在 00:00–06:00 的压缩带里 —— 网格从 06:00 起画，yOf() 会给负值，
+   *      线藏起来，标签也不显示（压缩带里没有它的位置）；
+   *   3. 任何 y 也不允许是负的 —— 兜底 clamp。
+   * 线本身带一个「今天不在本周」的说明文字，而不是沉默地消失。
+   */
   function renderNow() {
-    var idx = DAYS.indexOf(K.TODAY);
-    var y = yOf(K.NOW_MIN);
+    var now = K.now();
     var line = document.getElementById('nowline');
-    line.style.top = y + 'px';
+    var label = document.getElementById('nowLabel');
+    var note = document.getElementById('nowNote');
+    var idx = DAYS.indexOf(now.today);
+    var inDay = idx !== -1;
+    var inGrid = now.nowMin >= DAY_START && now.nowMin <= DAY_END;
+
+    if (!inDay) {
+      line.hidden = true;
+      if (note) { note.hidden = false; note.textContent = '今天不在本周（' + now.today + '）'; }
+      return;
+    }
+    if (!inGrid) {
+      // 在压缩带：线不画，但告诉读者它为什么不在
+      line.hidden = true;
+      if (note) { note.hidden = false; note.textContent = fmtTime(now.nowMin) + ' 在 00–06 压缩带里'; }
+      return;
+    }
+    line.hidden = false;
+    if (note) note.hidden = true;
+
+    var y = yOf(now.nowMin);
+    line.style.top = Math.max(0, y) + 'px';
     var oneCol = '((100% - ' + GUTTER + 'px) / 7)';
     var xPos = 'calc(' + GUTTER + 'px + ' + idx + ' * ' + oneCol + ')';
     document.getElementById('nowDot').style.insetInlineStart = 'calc(' + xPos + ' - 5px)';
-    var label = document.getElementById('nowLabel');
-    label.textContent = fmtTime(K.NOW_MIN);
+    label.textContent = fmtTime(now.nowMin);
     label.style.insetInlineStart = 'calc(' + xPos + ' + 4px)';
   }
 
+  /* 初始滚动：把当前时刻放到可视区正中，且必须可复现。
+     坑：DOMContentLoaded 时 flex 高度还没最终确定，clientHeight 读到的小值会把
+     计算结果 clamp 到最大值（滚到底），六次开页就会时中时底。
+     只靠「连续两帧 clientHeight 相同」也会被骗：布局在中间态停两帧是常事。
+     所以用 ResizeObserver 跟着 wbody 的真实高度走，直到用户第一次滚动/交互为止
+     —— 高度稳定后最后一次回调就把 scrollTop 钉在同一处。 */
+  function computeScrollTop(clientH) {
+    var now = K.now();
+    if (DAYS.indexOf(now.today) === -1) return 0;
+    var y = yOf(Math.max(DAY_START, Math.min(now.nowMin, DAY_END)));
+    return Math.max(0, y - clientH / 2);
+  }
+  var autoFollow = true;
+  function positionNow() {
+    if (!autoFollow) return;
+    wbody.scrollTop = computeScrollTop(wbody.clientHeight);
+  }
   function scrollToNow() {
-    var y = yOf(K.NOW_MIN);
-    wbody.scrollTop = Math.max(0, y - wbody.clientHeight * 0.42);
+    autoFollow = true;
+    positionNow();
+    requestAnimationFrame(positionNow);
   }
 
   function renderAll() {
+    renderHeader();
     renderHead();
     renderAllDay();
     renderBands();
+    renderWindows();
     renderHours();
     renderCols();
     renderNow();
-    scrollToNow();
+    // 注意：这里**不**滚动。DOMContentLoaded 时布局未定，clientHeight 偏小会把
+    // 计算结果 clamp 成最大值，六次开页就会时中时底。初始滚动交给 settleScroll()。
   }
 
   /* ---------------- 点击空白槽：内联捕获 ---------------- */
@@ -1083,7 +1269,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var note = document.getElementById('popNote');
     if (el.dataset.band) {
       note.hidden = false;
-      note.textContent = '「本周」是一段从周一指向下周一的连续时间。它横跨这 7 天，但只是一件事。';
+      note.textContent = '这几天是真的被占掉了（出差 / 假期），所以它在日历上占地方。';
     } else note.hidden = true;
     var r = el.getBoundingClientRect();
     clampPlace(pop, r.right + 8, r.top);
@@ -1098,6 +1284,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (band) {
       document.querySelectorAll('.wband[data-id="' + id + '"]').forEach(function (n) { n.parentNode.removeChild(n); });
       renderBands();
+      renderWindows();
     } else if (el.classList.contains('tblock')) {
       blocks = blocks.filter(function (x) { return x.id !== +id; });
       renderHead(); renderCols();
@@ -1114,9 +1301,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
   document.getElementById('newBtn').addEventListener('click', function () { toastMsg('演示：打开唯一的新建事情面板'); });
   document.getElementById('newBtn2').addEventListener('click', function () { toastMsg('演示：打开唯一的新建事情面板'); });
-  document.getElementById('todayBtn').addEventListener('click', function () { scrollToNow(); toastMsg('这是本周'); });
-  document.getElementById('prevW').addEventListener('click', function () { toastMsg('演示稿只提供 11月23日 – 29日 这一周'); });
-  document.getElementById('nextW').addEventListener('click', function () { toastMsg('演示稿只提供 11月23日 – 29日 这一周'); });
+  document.getElementById('prevW').addEventListener('click', function () {
+    var prev = K.addDays(START, -7);
+    if (prev < WEEK_MIN) { toastMsg('演示从 ' + K.shortDate(WEEK_MIN) + ' 那一周开始'); return; }
+    setWeek(prev); renderAll();
+  });
+  document.getElementById('nextW').addEventListener('click', function () {
+    var next = K.addDays(START, 7);
+    if (next > WEEK_MAX) { toastMsg('演示到 ' + K.shortDate(K.addDays(WEEK_MAX, 6)) + ' 那一周为止'); return; }
+    setWeek(next); renderAll();
+  });
+  document.getElementById('todayBtn').addEventListener('click', function () {
+    // 「今天」= 当前时钟所在的那一周，不是写死的演示起点
+    setWeek(K.weekStartOf(K.now().today)); renderAll(); scrollToNow(); toastMsg('回到今天所在的那一周');
+  });
 
   document.querySelectorAll('.vpill__item').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -1135,7 +1333,29 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   renderAll();
-  window.addEventListener('resize', renderNow);
+
+  /* 布局落地后再定位初始滚动：ResizeObserver 等到 wbody 高度稳定才落位，
+     保证六次开页 scrollTop 相同（验收帧 5）。用户一旦自己滚，就不再跟随。 */
+  scrollToNow();
+  if (window.ResizeObserver) {
+    new ResizeObserver(function () { positionNow(); }).observe(wbody);
+  }
+  wbody.addEventListener('wheel', function () { autoFollow = false; }, { passive: true });
+  wbody.addEventListener('touchmove', function () { autoFollow = false; }, { passive: true });
+  wbody.addEventListener('keydown', function () { autoFollow = false; });
+  // 兜底：几秒后无论布局如何都停掉跟随，避免一直抢用户的滚动
+  setTimeout(function () { autoFollow = false; }, 4000);
+
+  window.addEventListener('resize', function () { renderNow(); });
+
+  /* 时钟：每分钟推一分钟并重渲染，现在线随之移动；页头「本周」也随时间更新。
+     重渲染只动现在线，不动 scrollTop —— 用户可能已经滚到别处。 */
+  setInterval(function () {
+    var n = K.now();
+    K.setNow(n.nowMin + 1, n.today);
+    renderHeader();
+    renderNow();
+  }, 60000);
 });
 </script>
 </body>

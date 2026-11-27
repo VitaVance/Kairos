@@ -65,6 +65,15 @@
   .phead__icon { color: var(--ink-2); flex: none; }
   .phead__q { margin: 3px 0 0; font-size: var(--text-sm); color: var(--ink-2); }
   .phead__q b { color: var(--ink-1); font-weight: 600; }
+  /* 热力图是合成数据：在标题旁明说，不让人把背景热度假当成真实记录 */
+  .demo-note {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-inline-start: var(--sp-2);
+    padding: 1px var(--sp-2); border-radius: var(--radius-xs);
+    background: var(--bg-sunken); color: var(--ink-quiet);
+    font-size: var(--text-xs); white-space: nowrap;
+  }
+  .demo-note svg { flex: none; }
 
   /* 两个问题各一枚对仗的印章：含已完成 / 不含已完成 */
   .stamp {
@@ -290,6 +299,33 @@
     .stats { display: none; }
     .mcard.is-open { grid-column: span 3; }
   }
+
+  /* ---------- 窄屏 ----------
+     900px 下收起侧栏；53 周的热力图本来就是 ~900px 宽，
+     给它自己的横向滚动条，而不是把整页撑破。 */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 56px minmax(0, 1fr); }
+    .sidebar { display: none; }
+    .topbar { padding-inline: var(--sp-3); }
+    .content { padding-inline: var(--sp-3); }
+    .heat-panel, .months { padding-inline: var(--sp-3); }
+    .heat-wrap { overflow-x: auto; }
+    .heat-main { min-inline-size: 0; }
+    .mcard.is-open { grid-column: span 1; }
+    .mcard__body { flex-direction: column; gap: var(--sp-3); }
+    .mini { flex-basis: auto; inline-size: 100%; }
+    .heat-foot { flex-wrap: wrap; gap: var(--sp-2); }
+    .legend { margin-inline-start: 0; flex-wrap: wrap; }
+    /* 面板头：标题/说明在一个 flex 列里，容器宽度由最长一行决定。
+       窄屏必须让每一层都能收缩，否则 phead__q 的 330px 会把面板撑到 411。 */
+    .content { min-inline-size: 0; }
+    .phead, .months__head { flex-wrap: wrap; }
+    .phead > div, .months__head > div { flex: 1 1 100%; min-inline-size: 0; }
+    .phead__title { flex-wrap: wrap; min-inline-size: 0; }
+    .phead__q { max-inline-size: 100%; }
+    .demo-note { white-space: normal; }
+    .heat-panel, .months, .mcard, .mcard__btn { min-inline-size: 0; }
+  }
 </style>
 <script src="data.js" defer></script>
 <script src="radio.js" defer></script>
@@ -374,7 +410,12 @@
               <svg class="phead__icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
               全年热度
             </h2>
-            <p class="phead__q">问的是<b>「哪天忙过」</b>：完成的、过去的，都算。</p>
+            <p class="phead__q">问的是<b>「哪天忙过」</b>：完成的、过去的，都算。
+              <span class="demo-note" title="除 data.js 里真实记录的那些天以外，其余格子由 mulberry32 合成">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+                示意数据：真实记录的只有 data.js 里的那些天，其余为合成
+              </span>
+            </p>
           </div>
           <span class="stamp">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -445,27 +486,27 @@ document.addEventListener('DOMContentLoaded', function () {
   var CELL = 14 + 3;                    /* 单元格 + 间隙，用于月份标签列号 */
 
   /* ---------- 数据：一条来源 ---------- */
+  /* 每种形状都有一个「它属于哪一天」：range（出差）用 K.startOf() 给起点。
+     直接读 it.date 会让 range 条目落进 undefined 键，月卡里再读 .slice() 就崩。 */
   var byDate = {};
   K.ITEMS.forEach(function (it) {
-    if (!it.date) return;
-    (byDate[it.date] = byDate[it.date] || []).push(it);
+    var d = K.startOf(it);
+    if (!d || d === '9999-99-99') return;              // 无日期的事不上年视图
+    (byDate[d] = byDate[d] || []).push(it);
   });
 
-  /* 一段时间的起止：「这周」= 本周一 → 下周一；「下个月」= 1 号 → 次月 1 号。
-     ADR §2：这两个词是「一段时间」的预设，不是精度档。 */
-  function spanOf(it) {
-    if (it.rung === 'week') {
-      var s = K.weekStartOf(it.date);
-      return { s: s, e: K.addDays(s, 7) };
-    }
-    if (it.rung === 'month') {
-      var s2 = K.monthStartOf(it.date);
-      var d = new Date(s2 + 'T00:00:00Z');
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      return { s: s2, e: d.toISOString().slice(0, 10) };
-    }
-    return null;
+  /* 一段时间的起止：唯一来自 K.spanEnd()。
+     ADR 0006：年视图不画条 —— 区间在这里只是一行「还剩什么」的文字，
+     所以占用与意图在年卡片上的呈现相同（ADR 0006 表格的最后一列：不动）。 */
+  function spanArg(it) {
+    return it.rung === 'range' ? { start: it.start, end: it.end } : it.date;
   }
+  function spanOf(it) {
+    if (it.rung !== 'week' && it.rung !== 'month' && it.rung !== 'range') return null;
+    var r = K.spanEnd(it.rung, spanArg(it), false);
+    return r ? { s: r.start, e: r.end } : null;
+  }
+  function spanText(it) { return K.formatSpan(it.rung, spanArg(it)); }
   function listColor(id) {
     var l = K.LISTS.filter(function (x) { return x.id === id; })[0];
     return l ? l.color : 'var(--ink-quiet)';
@@ -502,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var ds = iso(t);
     var dow = new Date(t).getUTCDay();
     var r = rnd();
-    var c = known[ds] != null ? known[ds] : (ds > K.TODAY ? 0 : synth(r, dow));
+    var c = known[ds] != null ? known[ds] : (ds > K.now().today ? 0 : synth(r, dow));
     counts[ds] = c;
     doneOn[ds] = (byDate[ds] || []).filter(function (x) { return x.done; }).length;
     cells.push({ ds: ds, c: c, col: Math.floor(i / 7), row: i % 7 });
@@ -516,7 +557,7 @@ document.addEventListener('DOMContentLoaded', function () {
     d.className = 'heat-cell heat--' + Math.min(c.c, 4);
     d.dataset.date = c.ds;
     if (c.ds < '2026-01-01' || c.ds > '2026-12-31') d.classList.add('is-out');
-    if (c.ds === K.TODAY) d.classList.add('is-today');
+    if (c.ds === K.now().today) d.classList.add('is-today');
     d.title = md(c.ds) + ' · ' + (c.c ? c.c + ' 件' : '没有记录') +
       (doneOn[c.ds] ? '（含已完成 ' + doneOn[c.ds] + ' 件）' : '');
     frag.appendChild(d);
@@ -547,7 +588,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
     readoutEl.innerHTML = html;
   }
-  showReadout(K.TODAY);
+  showReadout(K.now().today);
 
   heat.addEventListener('click', function (e) {
     var cell = e.target.closest('.heat-cell');
@@ -600,11 +641,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /* 本月还没做完的事：
        · 非区间的事（某天/半天/几点）落在本月 → 计入，也进迷你月历的圆点
-       · 区间的事（「这周」「下个月」）→ 只在本月卡片上占一行，**不进任何一天的格子**
-         区间是「一段时间」，不是「七件一样的事」（ADR §2）。 */
+       · 区间的事（这周 / 下个月 / 出差）→ 只在本月卡片上占一行，**不进任何一天的格子**
+         区间是「一段时间」，不是「七件一样的事」（ADR 0006：年视图这一列不动）。 */
     var dayItems = [], spanItems = [], seen = {};
     K.ITEMS.forEach(function (it) {
-      if (!it.date || it.done) return;
+      if (it.done) return;
       var sp = spanOf(it);
       if (sp) {
         /* 区间与本月有交集就算在本月名下（跨月只计一次） */
@@ -614,7 +655,8 @@ document.addEventListener('DOMContentLoaded', function () {
         }
         return;
       }
-      if (it.date.slice(0, 7) === y + '-' + pad2(mn)) dayItems.push(it);
+      var d0 = K.startOf(it);
+      if (d0.slice(0, 7) === y + '-' + pad2(mn)) dayItems.push(it);
     });
     var rest = dayItems.length + spanItems.length;
 
@@ -625,7 +667,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var arr = (byDate[dsy] || []).filter(function (x) { return !x.done && !spanOf(x); });
       var cls = 'mini__day';
       if (arr.length) cls += ' has';
-      if (dsy === K.TODAY) cls += ' is-today';
+      if (dsy === K.now().today) cls += ' is-today';
       var dots = '';
       if (arr.length) {
         dots = '<span class="mini__dots">';
@@ -638,16 +680,16 @@ document.addEventListener('DOMContentLoaded', function () {
       mini += '<div class="' + cls + '" title="' + md(dsy) + ' · ' + (arr.length || '没有未完成的事') + '">' + dd2 + dots + '</div>';
     }
 
-    /* 区间行：「这周 / 下个月」在月卡片上各占一行，不散到日格里 */
+    /* 区间行：在本月卡片上各占一行，不散到日格里。
+       区间文字只有 K.formatSpan() 一种写法（闭区间）。 */
     var spanRows = spanItems.map(function (it) {
-      var sp = spanOf(it);
       var label = it.rung === 'month'
-        ? (K.monthStartOf(it.date) === K.monthStartOf(K.TODAY) ? '这个月' : K.rungLabel(it))
-        : K.rungLabel(it);
-      return '<div class="mspan" title="' + it.title + ' · ' + md(sp.s) + '–' + md(K.addDays(sp.e, -1)) + '">' +
+        ? (K.monthStartOf(it.date) === K.monthStartOf(K.now().today) ? '这个月' : K.rungLabel(it))
+        : (it.rung === 'range' ? '占用' : K.rungLabel(it));
+      return '<div class="mspan" title="' + it.title + ' · ' + spanText(it) + '">' +
         '<span class="mspan__bar" style="--chip-color:' + listColor(it.list) + '"></span>' +
         '<span class="mspan__t">' + it.title + '</span>' +
-        '<span class="mspan__k">' + label + '</span>' +
+        '<span class="mspan__k">' + label + ' · ' + spanText(it) + '</span>' +
       '</div>';
     }).join('');
 

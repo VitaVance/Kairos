@@ -7,8 +7,9 @@
   1. 三 / 五 / 七天的切换是真换列（--n 跟着变，不是把列藏起来）。
   2. 全天条装「某天」与「半天」两档：半天的 chip 带一个「下午 / 晚上」标。
   3. 「这周」不是一个精度档，是「一段时间」的预设（ADR §2）。
-     它存的是 11-23 → 11-30 这个区间，所以在日历上就是**一条连续横带**，
-     横跨它真正覆盖的那几列，越出视口的两端画成方角 + 续接箭头。
+     ADR 0006 之后它**不再通栏**：日格只画「占用」（出差、假期）——那段时间真的没了。
+     意图性的窗口（这周 / 下个月）改成全天行里的一个计数芯片「这周 · 2 件」，
+     和月视图 26 号格子上的「+3」同一族语法：一个计数，一个字形。
      一条带子 = 一件事占了一段，不是七件一样的事。
   4. 时间块：短块（< 46px）横排「标题 + 时间」，高块竖排；
      同一时段相撞的两件事并排分列，谁也不用盖住谁。
@@ -69,13 +70,13 @@
   .mdv__allday {
     display: grid;
     grid-template-columns: var(--gutter) repeat(var(--n), minmax(0, 1fr));
-    grid-template-rows: auto auto;
+    grid-template-rows: auto auto auto;
     background: var(--bg-subtle);
     border-block-end: 1px solid var(--hairline);
     flex: none;
   }
   .mdv__allday-gutter {
-    grid-row: 1 / 3; grid-column: 1;
+    grid-row: 1 / 4; grid-column: 1;
     display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between;
     padding: 5px var(--sp-2) 4px;
     border-inline-end: 1px solid var(--hairline-soft);
@@ -96,6 +97,30 @@
   .mdv__spanlane:not(.is-empty) { border-block-end: 1px solid var(--hairline); }
   .mdv__spanlane.is-empty { padding-block: 0; }
 
+  /* 窗口芯片行：放在跨天横带与「某天」之间。
+     它横跨所有列，但内容只是一两个计数芯片 —— 「这周 · 2 件」。 */
+  .mdv__winlane {
+    grid-row: 2; grid-column: 2 / -1;
+    display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap;
+    padding: 3px 4px;
+    border-block-end: 1px solid var(--hairline);
+  }
+  .mdv__winlane.is-empty { display: none; }
+  .wchip {
+    appearance: none; border: 0; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    block-size: 20px; padding: 0 8px;
+    border-radius: var(--radius-xs);
+    background: var(--bg-surface); color: var(--ink-2);
+    font: inherit; font-size: var(--text-xs); font-weight: 600;
+    font-variant-numeric: tabular-nums; white-space: nowrap;
+    border: 1px solid var(--hairline-strong);
+  }
+  .wchip:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .wchip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+  .wchip__k { font-weight: 500; color: var(--ink-quiet); }
+  .wchip__n::before { content: "·"; margin-inline-end: 5px; color: var(--ink-quiet); }
+
   .spanbar {
     appearance: none; cursor: pointer; text-align: start;
     position: relative;
@@ -109,7 +134,7 @@
     border-radius: var(--radius-sm);
     background: color-mix(in oklab, var(--chip-color) 14%, var(--bg-surface));
     color: var(--ink-1);
-    font: inherit; font-size: var(--text-xs); line-height: 1;
+    font: inherit; font-size: var(--text-xs); line-height: 1.35;
     transition: background var(--dur-fast) var(--ease);
   }
   .spanbar:hover { background: color-mix(in oklab, var(--chip-color) 22%, var(--bg-surface)); }
@@ -123,7 +148,7 @@
   .spanbar__k { margin-inline-start: auto; flex: none; color: var(--ink-2); font-size: var(--text-xs); }
 
   .mdv__allday-cell {
-    grid-row: 2;
+    grid-row: 3;
     display: flex; flex-direction: column; gap: 2px;
     padding: 2px 3px 4px; min-inline-size: 0;
     border-inline-start: 1px solid var(--hairline-soft);
@@ -251,6 +276,57 @@
   }
   .cap__ok:hover { background: var(--cta-bg-hover); }
   .cap__hint { font-size: var(--text-xs); color: var(--ink-quiet); }
+
+  /* ---------- 窄屏 ----------
+     900px 下 220px 侧栏把 3–7 列压得放不下芯片，收起侧栏；
+     7 天在更窄的窗口里再缩一点 gutter。 */
+  @media (max-width: 900px) {
+    .app { grid-template-columns: 56px minmax(0, 1fr); }
+    .sidebar { display: none; }
+    .topbar { padding-inline: var(--sp-3); }
+    .mdv { --gutter: 2.5rem; }
+    .mdv__day { padding-inline: var(--sp-2); }
+    .spanbar__k { display: none; }
+  }
+  /* 560 以下：多日视图的列数不变（那是它的语义），但每列只剩 ~55px。
+     计时列再收一档，跨天条的说明文字藏掉，只保留色条与标题。 */
+  @media (max-width: 560px) {
+    .mdv { --gutter: 2rem; }
+    .mdv__day { padding-inline: 4px; }
+    .spanbar__k, .chip__k { display: none; }
+  }
+
+  /* ---------- 详情浮层（与 03 / 04 同一族） ---------- */
+  .mdpop {
+    position: fixed;
+    z-index: 60;
+    inline-size: 15rem;
+    padding: var(--sp-3);
+    border: 1px solid var(--hairline-strong);
+    border-radius: var(--radius-lg);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-lg);
+  }
+  .mdpop[hidden] { display: none; }
+  .mdpop__title {
+    margin: 0 0 var(--sp-1);
+    font-size: var(--text-body);
+    font-weight: 600;
+    color: var(--ink-1);
+  }
+  .mdpop__when {
+    margin: 0 0 var(--sp-1);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+  .mdpop__when.is-late { color: var(--danger-ink); font-weight: 600; }
+  .mdpop__when.is-passed { color: var(--warning-ink); font-weight: 600; }
+  .mdpop__meta {
+    margin: 0 0 var(--sp-3);
+    font-size: var(--text-sm);
+    color: var(--ink-quiet);
+  }
+  .mdpop__acts { display: flex; gap: var(--sp-2); justify-content: flex-end; }
 </style>
 <script src="data.js" defer></script>
 <script src="radio.js" defer></script>
@@ -302,11 +378,11 @@
     <header class="topbar">
       <h1 class="topbar__title">日历</h1>
       <div class="topnav">
-        <button class="icon-btn" type="button" aria-label="向前">
+        <button class="icon-btn" type="button" aria-label="向前" id="prevSpan">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
         </button>
-        <span class="topnav__label" id="range">11 月 25 – 27 日</span>
-        <button class="icon-btn" type="button" aria-label="向后">
+        <span class="topnav__label" id="range">—</span>
+        <button class="icon-btn" type="button" aria-label="向后" id="nextSpan">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
         </button>
       </div>
@@ -339,6 +415,17 @@
           <div class="mdv__body" id="grid"></div>
         </div>
       </div>
+      <!-- 点任何一件事都开这里。03/04 都有弹层，14 原来只有空白网格能点，
+           chip 和跨天条都是死的 —— 同一个产品里「点一件事」不该按视图变意思。 -->
+      <div class="mdpop" id="mdpop" role="dialog" aria-modal="false" aria-label="事情详情" hidden>
+        <p class="mdpop__title" id="mdpopTitle"></p>
+        <p class="mdpop__when" id="mdpopWhen"></p>
+        <p class="mdpop__meta" id="mdpopMeta"></p>
+        <div class="mdpop__acts">
+          <button type="button" class="btn btn--secondary" id="mdpopDone">勾完成</button>
+          <button type="button" class="btn btn--primary" id="mdpopOpen">打开</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -352,7 +439,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var DOW = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
   var HOURS = 24, HR = 46, PAD = 6;
 
-  var state = { days: 3, start: '2026-11-25' };
+  var state = { days: 3, start: K.addDays(K.now().today, -1) };
 
   function listColor(id) {
     var l = K.LISTS.filter(function (x) { return x.id === id; })[0];
@@ -366,19 +453,26 @@ document.addEventListener('DOMContentLoaded', function () {
     return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
   }
 
-  /* 「这周」= 一段时间的一个预设：周一起，下周一止（左闭右开） */
-  function spanOf(it) {
-    if (it.rung === 'week') {
-      var s = K.weekStartOf(it.date);
-      return { s: s, e: K.addDays(s, 7) };
-    }
-    if (it.rung === 'month') {
-      var s2 = K.monthStartOf(it.date);
-      var d = new Date(s2 + 'T00:00:00Z');
-      d.setUTCMonth(d.getUTCMonth() + 1);
-      return { s: s2, e: d.toISOString().slice(0, 10) };
-    }
-    return null;
+  /* 区间的半开切片：终点唯一来自 K.spanEnd()。
+     ADR 0006：只给「占用」用 —— 意图不画条，改成计数芯片。 */
+  function spanArg(it) {
+    return it.rung === 'range' ? { start: it.start, end: it.end } : it.date;
+  }
+  function spanHalfOpen(it) {
+    var r = K.spanEnd(it.rung, spanArg(it), false);
+    return r ? { s: r.start, e: r.end } : null;
+  }
+
+  /* ISO 周序号（周一为一周之始），与 03 / 04 同一套。 */
+  function weekNo(date) {
+    var p = date.split('-');
+    var t = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2]));
+    var dow = (t.getUTCDay() + 6) % 7;
+    t.setUTCDate(t.getUTCDate() - dow + 3);
+    var jan4 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+    var jdow = (jan4.getUTCDay() + 6) % 7;
+    jan4.setUTCDate(jan4.getUTCDate() - jdow + 3);
+    return 1 + Math.round((t - jan4) / (7 * 86400000));
   }
 
   function visibleDays() {
@@ -386,8 +480,8 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   function anchorFor(n) {
     if (n === 7) return K.WEEK_START;
-    if (n === 5) return K.addDays(K.TODAY, -2);
-    return K.addDays(K.TODAY, -1);
+    if (n === 5) return K.addDays(K.now().today, -2);
+    return K.addDays(K.now().today, -1);
   }
 
   var REPEAT = '<svg class="chip__repeat" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg>';
@@ -397,7 +491,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var when = '';
     if (it.rung === 'period') when = '<span class="chip__period">' + K.PERIOD_LABEL[it.period] + '</span>';
     else if (it.rung === 'day' && it.repeat) when = REPEAT;
-    return '<button class="chip" type="button" style="--chip-color:' + listColor(it.list) + '" title="' +
+    return '<button class="chip" type="button" data-id="' + it.id + '" style="--chip-color:' + listColor(it.list) + '" title="' +
       it.title + (it.rung === 'day' ? ' · ' + md(it.date) : '') + '">' +
       '<span class="chip__t">' + it.title + '</span>' + when + (extra || '') + '</button>';
   }
@@ -412,7 +506,7 @@ document.addEventListener('DOMContentLoaded', function () {
     /* ---- 表头 ---- */
     var head = '<div class="mdv__head-gutter"></div>';
     days.forEach(function (ds, i) {
-      var isToday = ds === K.TODAY;
+      var isToday = ds === K.now().today;
       head += '<div class="mdv__day">' +
         '<div class="mdv__dow">' + DOW[K.parse(ds).getDay()] + '</div>' +
         '<div class="mdv__dnum' + (isToday ? ' mdv__dnum--today' : '') + '">' + (+ds.slice(8)) +
@@ -421,37 +515,67 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     document.getElementById('head').innerHTML = head;
 
-    /* ---- 跨天横带：只横跨它真正覆盖的可见列 ---- */
+    /* ---- 跨天横带：只有「占用」才占地方（ADR 0006）---- */
     var spans = K.ITEMS.filter(function (it) {
-      if (it.done) return false;
-      var sp = spanOf(it);
+      if (it.done || !K.isOccupancy(it)) return false;
+      var sp = spanHalfOpen(it);
       if (!sp) return false;
       return sp.s < K.addDays(last, 1) && sp.e > first;    /* 与可见范围相交 */
-    }).sort(function (a, b) { return spanOf(a).s < spanOf(b).s ? -1 : 1; });
+    }).sort(function (a, b) { return spanHalfOpen(a).s < spanHalfOpen(b).s ? -1 : 1; });
 
     var lane = '';
     spans.forEach(function (it) {
-      var sp = spanOf(it);
+      var sp = spanHalfOpen(it);
       var startIdx = Math.max(0, K.diffDays(sp.s, first));
       var endIdx = Math.min(state.days, K.diffDays(sp.e, first));
       var contL = sp.s < first;
       var contR = sp.e > K.addDays(last, 1);
       var cls = 'spanbar' + (contL ? ' spanbar--cont-l' : '') + (contR ? ' spanbar--cont-r' : '');
-      var label = it.rung === 'week'
-        ? (K.weekStartOf(it.date) === K.weekStartOf(K.TODAY) ? '这周' : '上周 · 未完成')
-        : K.rungLabel(it);
-      lane += '<button class="' + cls + '" type="button" style="--chip-color:' + listColor(it.list) +
-          ';--i:' + startIdx + ';--span:' + (endIdx - startIdx) + '" title="' + it.title + ' · ' + md(sp.s) + '–' + md(K.addDays(sp.e, -1)) + '">' +
+      lane += '<button class="' + cls + '" type="button" data-id="' + it.id + '" style="--chip-color:' + listColor(it.list) +
+          ';--i:' + startIdx + ';--span:' + (endIdx - startIdx) + '" title="' + it.title + ' · ' + K.formatSpan(it.rung, spanArg(it)) + '">' +
           (contL ? '<span class="spanbar__cont" aria-hidden="true">‹</span>' : '') +
           '<span class="spanbar__t">' + it.title + '</span>' +
-          '<span class="spanbar__k">' + label + '</span>' +
+          '<span class="spanbar__k">' + K.formatSpan(it.rung, spanArg(it)) + '</span>' +
           (contR ? '<span class="spanbar__cont" aria-hidden="true">›</span>' : '') +
         '</button>';
     });
 
+    /* ---- 窗口（意图）：芯片，不是通栏横带 ----
+       「这周 · 2 件」——和 +3 同一族；它不占任何一列。 */
+    var wins = K.ITEMS.filter(function (it) {
+      if (it.done || K.isOccupancy(it)) return false;
+      if (it.rung !== 'week' && it.rung !== 'month') return false;
+      var sp = spanHalfOpen(it);
+      return sp.s < K.addDays(last, 1) && sp.e > first;
+    });
+    var winGroups = [], byKey = {};
+    wins.forEach(function (it) {
+      var key = it.rung + ':' + K.startOf(it);
+      if (!byKey[key]) {
+        byKey[key] = {
+          label: it.rung === 'month'
+            ? (K.monthStartOf(it.date) === K.monthStartOf(K.now().today) ? '这个月' : K.rungLabel(it))
+            : K.rungLabel(it),
+          span: K.formatSpan(it.rung, spanArg(it)),
+          key: key,
+          items: []
+        };
+        winGroups.push(byKey[key]);
+      }
+      byKey[key].items.push(it);
+    });
+    var winChips = winGroups.map(function (g) {
+      return '<button class="wchip" type="button" data-win="' + g.key + '" title="' + g.span + '：' +
+        g.items.map(function (x) { return x.title; }).join('、') + '">' +
+        '<span class="wchip__k">' + g.label + '</span>' +
+        '<span class="wchip__n">' + g.items.length + ' 件</span>' +
+      '</button>';
+    }).join('');
+
     /* ---- 全天条：某天 + 半天 ---- */
     var ad = '<div class="mdv__allday-gutter"><span>跨天</span><span>全天</span></div>';
-    ad += '<div class="mdv__spanlane' + (lane ? '' : ' is-empty') + '" aria-label="跨天的事：横带横跨它覆盖的每一天">' + lane + '</div>';
+    ad += '<div class="mdv__spanlane' + (lane ? '' : ' is-empty') + '" aria-label="跨天占用：横带横跨它覆盖的每一天">' + lane + '</div>';
+    ad += '<div class="mdv__winlane' + (winChips ? '' : ' is-empty') + '" aria-label="窗口内的事（不占任何一天）">' + winChips + '</div>';
     days.forEach(function (ds, i) {
       var items = K.ITEMS.filter(function (it) {
         if (it.done || it.date !== ds) return false;
@@ -496,7 +620,7 @@ document.addEventListener('DOMContentLoaded', function () {
         grp.forEach(function (it, k) { lanes[it.id] = { k: k, n: grp.length }; });
       });
 
-      g += '<div class="mdv__col' + (ds === K.TODAY ? ' mdv__col--today' : '') + '" data-day="' + ds + '"' +
+      g += '<div class="mdv__col' + (ds === K.now().today ? ' mdv__col--today' : '') + '" data-day="' + ds + '"' +
         (di === 0 ? ' style="border-inline-start:0"' : '') + '>';
       for (var h2 = 0; h2 < HOURS; h2++) g += '<div class="mdv__line"></div>';
 
@@ -508,13 +632,13 @@ document.addEventListener('DOMContentLoaded', function () {
         var w = 100 / l.n;
         g += '<div class="blk ' + (hgt >= 40 ? 'blk--tall' : 'blk--short') + '" style="top:' + top + 'px;block-size:' + hgt +
           'px;inset-inline:' + (l.k * w) + '% calc(' + ((l.n - l.k - 1) * w) + '% + 4px)">' +
-          '<button class="chip" type="button" style="--chip-color:' + listColor(it.list) + '" title="' + it.title + ' · ' + hhmm(it) + '">' +
+          '<button class="chip" type="button" data-id="' + it.id + '" style="--chip-color:' + listColor(it.list) + '" title="' + it.title + ' · ' + hhmm(it) + '">' +
             '<span class="chip__t">' + it.title + '</span>' +
             '<span class="chip__k' + (late ? ' chip__k--late' : '') + '">' + hhmm(it) + (late ? ' · 已过' : '') + '</span>' +
           '</button></div>';
       });
 
-      if (ds === K.TODAY) {
+      if (ds === K.now().today) {
         g += '<div class="now" style="top:' + (K.NOW_MIN / 60 * HR + PAD) + 'px">' +
           '<span class="now__lab">' + fmtMin(K.NOW_MIN) + '</span></div>';
       }
@@ -523,7 +647,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('grid').innerHTML = g;
 
     var sc = document.getElementById('scroll');
-    sc.scrollTop = 6.5 * HR + PAD - 12;
+    sc.scrollTop = Math.max(0, K.now().nowMin / 60 * HR + PAD - 12);
 
     document.getElementById('range').textContent =
       (first.slice(5, 7) === last.slice(5, 7))
@@ -544,6 +668,16 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     clearCap();
     render();
+  });
+
+  /* 前后走：ADR 0006 的占用（12/3–12/5）不在今天附近，得能翻到它。 */
+  document.getElementById('prevSpan').addEventListener('click', function () {
+    state.start = K.addDays(state.start, -state.days);
+    clearCap(); render();
+  });
+  document.getElementById('nextSpan').addEventListener('click', function () {
+    state.start = K.addDays(state.start, state.days);
+    clearCap(); render();
   });
 
   /* ---------- 点空格 = 就地捕获 ---------- */
@@ -593,6 +727,76 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }, 0);
   }
+
+  /* ---------- 点一件事 → 详情浮层 ----------
+     三种可点对象：时间块 chip、全天 chip、跨天条，都带 data-id。
+     窗口芯片（data-win）是「一组」，点开列出窗口内的事。
+     03 / 04 早就能点开，14 原来只有空白网格能点 —— 这不是本视图的取舍，是漏了。 */
+  var pop = document.getElementById('mdpop');
+  var popFor = null;
+
+  function fmtWhen(it) {
+    if (it.rung === 'week' || it.rung === 'month' || it.rung === 'range') {
+      return K.formatSpan(it.rung, spanArg(it)) + (K.isWindowPassed(it) ? ' · 未完成' : '');
+    }
+    return K.rungLabel(it) + (K.isLate(it) ? ' · 已过' : '');
+  }
+
+  function openPop(anchor, it) {
+    popFor = it;
+    document.getElementById('mdpopTitle').textContent = it.title;
+    var when = document.getElementById('mdpopWhen');
+    when.textContent = fmtWhen(it);
+    when.className = 'mdpop__when' + (K.isLate(it) ? ' is-late' : K.isWindowPassed(it) ? ' is-passed' : '');
+    var q = K.quadrantOf(it);
+    document.getElementById('mdpopMeta').textContent = K.QUADRANTS[q].name + ' · ' + (K.LISTS.filter(function (l) { return l.id === it.list; })[0] || {}).name;
+    var r = anchor.getBoundingClientRect();
+    pop.hidden = false;
+    pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    pop.style.top = Math.max(8, Math.min(r.bottom + 6, window.innerHeight - pop.offsetHeight - 8)) + 'px';
+    pop.querySelector('#mdpopDone').focus();
+  }
+  function closePop() { pop.hidden = true; popFor = null; }
+
+  document.getElementById('mdv').addEventListener('click', function (e) {
+    var chip = e.target.closest('[data-id]');
+    if (chip) {
+      e.stopPropagation();
+      var it = K.ITEMS.filter(function (x) { return x.id === +chip.getAttribute('data-id'); })[0];
+      if (it) { openPop(chip, it); }
+      return;
+    }
+    var win = e.target.closest('[data-win]');
+    if (win) {
+      e.stopPropagation();
+      var key = win.getAttribute('data-win');
+      var members = K.ITEMS.filter(function (x) {
+        return !x.done && (x.rung === 'week' || x.rung === 'month') && x.rung + ':' + K.startOf(x) === key;
+      });
+      var lead = members[0];
+      if (!lead) { return; }
+      openPop(win, lead);
+      document.getElementById('mdpopTitle').textContent = win.textContent.trim();
+      document.getElementById('mdpopWhen').textContent = members.map(function (m) { return m.title; }).join('、');
+      document.getElementById('mdpopMeta').textContent = members.length + ' 件窗口内的事';
+    }
+  });
+
+  document.getElementById('mdpopDone').addEventListener('click', function () {
+    if (!popFor) { return; }
+    popFor.done = true;
+    closePop();
+    render();
+  });
+  document.getElementById('mdpopOpen').addEventListener('click', function () {
+    closePop();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !pop.hidden) { closePop(); }
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (!pop.hidden && !pop.contains(e.target) && !e.target.closest('[data-id],[data-win]')) { closePop(); }
+  });
 
   document.getElementById('grid').addEventListener('click', function (e) {
     if (e.target.closest('.blk') || e.target.closest('.cap')) return;
