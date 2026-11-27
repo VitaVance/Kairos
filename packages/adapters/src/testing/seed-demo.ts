@@ -239,9 +239,17 @@ export async function seedDemoData(deps: SeedDeps): Promise<void> {
         title: t('urgentImportant').title,
         notes: t('urgentImportant').notes,
         important: true,
-        urgent: true,
-        dueAt: instantAt(17),
-        dueDate: dateOf(),
+        /*
+         * ADR 0007：这一条**不标 urgent**，日期放在昨天 —— 它进 Q1 应当是
+         * 时钟读出来的，不是种子数据替用户勾的。
+         *
+         * 原来这里写 `urgent: true` + 今天 17:00，于是演示里最显眼的
+         * 「重要且紧急」其实是手工摆进去的，产品「时间会把它推上去」这件事
+         * 一次都没被演示过。
+         */
+        urgent: false,
+        dueAt: instantAt(17, 0, -1),
+        dueDate: dateOf(-1),
         allDay: false,
       },
     },

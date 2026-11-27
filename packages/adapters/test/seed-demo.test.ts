@@ -1,7 +1,7 @@
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
-import { duePrecisionOf, isSystemInbox, quadrantOf } from '@todolist/core';
-import type { Task, TaskList } from '@todolist/core';
+import { duePrecisionOf, isSystemInbox, isUrgentByClock, quadrantOf } from '@todolist/core';
+import type { Instant, Task, TaskList } from '@todolist/core';
 import {
   CryptoIdGenerator,
   DEMO_EVENT_KEYS,
@@ -144,6 +144,21 @@ describe('seed corpora — both languages teach the same lessons', () => {
         expect([...quadrants].sort()).toEqual(
           ['not-urgent-important', 'unimportant', 'urgent-important', 'urgent-not-important'].sort(),
         );
+      });
+
+      it('demonstrates the clock pushing a task into Q1, not a stored flag', async () => {
+        // ADR 0007：演示数据里最显眼的「重要且紧急」必须是时钟读出来的。
+        // 种子数据如果替用户勾了 urgent，产品那条规则就一次都没被演示过。
+        const deps = memoryDeps(language);
+        await seedDemoData(deps);
+        const { tasks } = await snapshot(deps.uow);
+        const now = new Date().toISOString() as Instant;
+        const byClock = tasks.filter((t) => isUrgentByClock(t, now));
+        expect(byClock.length).toBeGreaterThan(0);
+        // 而且它真的因此进了 Q1，尽管 urgent 是 false。
+        const pushed = byClock[0]!;
+        expect(pushed.urgent).toBe(false);
+        expect(quadrantOf(pushed, now)).toBe('urgent-important');
       });
 
       it('covers all four scheduling precisions, labelled in the titles', async () => {
