@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent } from 'react';
-import type { LocalDate, Task, TaskId, TaskList } from '@todolist/core';
-import { quadrantOf } from '@todolist/core';
+import type { Instant, LocalDate, Task, TaskId, TaskList } from '@todolist/core';
+import { isUrgentByClock, quadrantOf } from '@todolist/core';
 import type { QuadrantKey } from '@todolist/ui';
 import {
   Badge,
@@ -15,6 +15,8 @@ import {
 } from '@todolist/ui';
 import { useTasks } from '../data/useTasks';
 import { useAppServices } from '../services';
+import { useNowInstant } from '../shared/useNow';
+import { dragVerdict } from './drag-verdict';
 import { useToast } from '../undo/UndoProvider';
 import { QuadrantRow, QUADRANT_DRAG_MIME } from './QuadrantRow';
 
@@ -80,6 +82,15 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
   // completion renders before the write resolves.
   const { data, error, loading, mutate, toggleDone, fresh } = useTasks();
   const notify = useToast();
+  /*
+   * ADR 0007：紧急由时钟派生，所以板需要一个会走的「现在」，每分钟 tick。
+   * 没有它，一件事过期之后要等用户重新打开应用才会进 Q1 —— 那等于这条规则
+   * 只在启动那一刻成立一次。
+   *
+   * 直接 as Instant：useNow 返回的是 ISO 字符串，与 core 的 Instant 同形
+   * （仓库里 export-import.ts / WeekView.tsx 都是这个写法）。
+   */
+  const now = useNowInstant(true) as Instant;
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [dragOver, setDragOver] = useState<QuadrantKey | null>(null);
   /** Id of the row being dragged, so it can dim while it travels. */
@@ -123,7 +134,8 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
       unimportant: { open: [], done: [] },
     };
     for (const task of all) {
-      const q = quadrantOf(task) as QuadrantKey;
+      // 带时钟：过期的事自己走进 urgent 列，不需要用户去勾那个勾。
+      const q = quadrantOf(task, now) as QuadrantKey;
       if (task.status === 'done') map[q].done.push(task);
       else map[q].open.push(task);
     }
@@ -163,7 +175,24 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
   const moveTask = useCallback(
     async (id: TaskId, quadrant: QuadrantKey) => {
       const current = all.find((task) => task.id === id);
-      if (!current || quadrantOf(current) === quadrant) return;
+      if (!current || quadrantOf(current, now) === quadrant) return;
+
+      /*
+       * ADR 0007 决策 3：时钟有否决权。
+       *
+       * 一件已经过期的事不能被声明为「不紧急」—— 拖走它看起来会像成功，
+       * 但下一帧它又因为过期被算回 urgent 列。与其让控件看起来失灵，
+       * 不如拒绝并说明：他能做的只有做掉它，或者给它一个新日期。
+       *
+       * 用户自己标了紧急、但没到期的任务不受此限：那是他的判断，
+       * 改变主意是他的权利。
+       */
+      const verdict = dragVerdict(isUrgentByClock(current, now));
+      if (!verdict.allowed) {
+        setAnnouncement(t('quadrant.cannotMoveOverdue', { title: current.title }));
+        notify(t('quadrant.cannotMoveOverdue', { title: current.title }));
+        return;
+      }
       try {
         await mutate(() => taskService.moveToQuadrant(id, quadrant));
         setAnnouncement(t('quadrant.moved', { quadrant: quadrantName(quadrant) }));
@@ -182,7 +211,7 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
         notify(t('quadrant.moveFailed'));
       }
     },
-    [all, mutate, notify, quadrantName, taskService, t],
+    [all, mutate, notify, now, quadrantName, taskService, t],
   );
 
   const toggle = useCallback(
@@ -330,6 +359,8 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
                 <QuadrantRow
                   key={task.id}
                   task={task}
+
+                  now={now}
                   lists={lists}
                   today={today}
                   onToggle={toggle}
@@ -349,6 +380,8 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
                   <QuadrantRow
                     key={`leaving-${task.id}`}
                     task={task}
+
+                    now={now}
                     lists={lists}
                     today={today}
                     onToggle={toggle}
@@ -377,6 +410,8 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
                       <QuadrantRow
                         key={task.id}
                         task={task}
+
+                        now={now}
                         lists={lists}
                         today={today}
                         onToggle={toggle}

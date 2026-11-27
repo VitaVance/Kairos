@@ -1,9 +1,11 @@
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import type { Task, TaskList } from '@todolist/core';
-import { quadrantOf } from '@todolist/core';
+import { daysFromToday, quadrantOf, todayLocal, urgencyOf } from '@todolist/core';
+import { urgencyBadge } from './urgency-badge';
+import type { UrgencyBadge } from './urgency-badge';
 import { Checkbox, useTranslation } from '@todolist/ui';
 import type { QuadrantKey } from '@todolist/ui';
-import type { LocalDate, TaskId } from '@todolist/core';
+import type { Instant, LocalDate, TaskId } from '@todolist/core';
 import { listDisplayName } from '@todolist/core';
 import { formatDue } from '../task/due-label';
 import { shouldActivateRow } from '../task/row-click';
@@ -45,6 +47,12 @@ export interface QuadrantRowProps {
   onDragEnd?: () => void;
   /** This row is the one being dragged right now. */
   dragging?: boolean;
+  /**
+   * The clock. ADR 0007: urgency is derived, so the row has to be told what
+   * time it is — and it must be the same reading the board grouped by, or a
+   * row could sit in Q1 while its own badge says “not urgent”.
+   */
+  now: Instant;
   /** Chevron click opens the task detail panel. */
   onOpen?: (id: TaskId) => void;
   /** True while the completion animation for this row should play. */
@@ -88,6 +96,7 @@ export function QuadrantRow({
   onDragEnd,
   dragging = false,
   onOpen,
+  now,
   fresh = false,
   leaving = false,
 }: QuadrantRowProps) {
@@ -96,6 +105,17 @@ export function QuadrantRow({
   const meta = metaLabel(task, list, today, t('quadrant.inbox'));
   const done = task.status === 'done';
   const quadrant = taskQuadrant(task);
+  /*
+   * ADR 0007 决策 5：行上要说清「为什么在 Q1」。
+   *
+   * 「用户标的」和「时间推的」在数据上都读作紧急，但一件是他昨天决定的事，
+   * 另一件他根本没做决定、是日期到了。都画成同一个红点，等于让系统替他说话。
+   *
+   * daysUntilDue 只在 near 档用得到（「今天到期」/「明天到期」），
+   * 而 near 不进 Q1 —— 那条信号只能放在行上。
+   */
+  const urgency = urgencyOf(task, now);
+  const badge = urgencyBadge(task, urgency, daysUntilDue(task));
 
   const moveByArrow = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     const target = KEY_TARGETS[quadrant][event.key];
@@ -164,6 +184,22 @@ export function QuadrantRow({
         aria-label={done ? t('row.markOpen', { title: task.title }) : t('row.markDone', { title: task.title })}
       />
       <span className="qz-row__title">{task.title}</span>
+      {badge.kind === 'none' ? null : (
+        <span
+          className={'qz-row__why qz-row__why--' + badge.kind}
+          /*
+           * 「时间推的」和「我标的」必须看起来不一样。这不是装饰：
+           * 前者拖不走（ADR 0007 决策 3），后者拖得走。用户在执行拖动之前，
+           * 就该从这一枚标记上看出区别。
+           *
+           * 文案直接映射而不是拼 key：i18n 的类型检查要求字面量键，
+           * 而拼出来的键恰恰会让漏翻的文案静默变成 key 本身。
+           */
+          title={badgeText(badge, t)}
+        >
+          {badgeText(badge, t)}
+        </span>
+      )}
       <span className="qz-row__meta">{meta}</span>
       {onOpen ? (
         // Labelled, not a mystery glyph — and it stays even though the row
@@ -183,6 +219,33 @@ export function QuadrantRow({
       ) : null}
     </div>
   );
+}
+
+/**
+ * 距离截止还有几天（负数表示已过期）。只按本地日期算，不按小时 ——
+ * 「今天到期」和「明天到期」是日历上的说法，不是剩余小时数的说法。
+ *
+ * 没有日期时返回 null：无从谈起。
+ */
+/**
+ * 把 badge 的枚举翻成文案。用穷举而不是拼 `'quadrant.' + label`：
+ * i18n 的类型检查要求字面量键，而拼出来的键在漏翻时会静默显示 key 本身 ——
+ * 用户看到的是一串英文标识符，不是「已过期」。
+ */
+function badgeText(
+  badge: UrgencyBadge,
+  t: (key: 'quadrant.overdue' | 'quadrant.whyUser' | 'quadrant.dueSoon' | 'quadrant.dueTomorrow') => string,
+): string {
+  if (badge.kind === 'clock') return t('quadrant.overdue');
+  if (badge.kind === 'user') return t('quadrant.whyUser');
+  if (badge.kind === 'due') return t(badge.label === 'dueSoon' ? 'quadrant.dueSoon' : 'quadrant.dueTomorrow');
+  return '';
+}
+
+function daysUntilDue(task: Task): number | null {
+  if (task.dueDate === null) return null;
+  const today = todayLocal();
+  return daysFromToday(task.dueDate, today);
 }
 
 export function taskQuadrant(task: Task): QuadrantKey {

@@ -278,6 +278,38 @@
   text-decoration: line-through;
 }
 
+/* ----------------------------------------------------------------------------
+   「为什么在 Q1」—— 这一枚标记必须让三种来源一眼可分
+   ----------------------------------------------------------------------------
+   时间推的（clock）用危险色：事情真的迟了。
+   用户标的（user）用中性色：他不是在报警，是在记下自己的判断。
+   即将到期（due）用警告色：还没迟，但今天/明天就到。
+
+   三种颜色都只是第二重编码：文字本身已经写清是哪一种。颜色不是唯一信号。
+   用 --tl-*-ink 而不是 --tl-* 填充色，因为这里是文字压在白底上：
+   填充色在浅色皮肤下对白字只有 3.68，ink 系列是为「有颜色的字」准备的。
+-------------------------------------------------------------------------- */
+.qz-row__why {
+  flex: none;
+  font-size: var(--tl-font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.qz-row__why--clock {
+  color: var(--tl-danger-ink);
+}
+
+.qz-row__why--user {
+  /* 用户标的：安静的墨色 + 一枚小旗的意象由字符本身承担。 */
+  color: var(--tl-text-secondary);
+  font-weight: 500;
+}
+
+.qz-row__why--due {
+  color: var(--tl-warning-ink);
+}
+
 /* Completed rows are an archive: they cannot be re-dragged between quadrants
    (reopening is what returns one to the live list), so the handle is hidden —
    `visibility` rather than `display` keeps its 10px slot so the checkbox and
