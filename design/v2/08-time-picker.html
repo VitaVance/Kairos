@@ -332,6 +332,18 @@
     gap: var(--sp-6);
     align-items: start;
   }
+  /* 窄屏：两栏（实时演示 / 滚动规则）在 900 以下叠成一栏；
+     本片段没有侧栏（.app--wide），所以只需处理内容本身。 */
+  @media (max-width: 900px) {
+    .sheet { padding-inline: var(--sp-3); }
+    .topbar__actions { padding-inline-end: 0; }
+    .demo, .scrollrule { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+    .card { padding: var(--sp-3); }
+  }
+  @media (max-width: 560px) {
+    .mgrid__dow, .mgrid__grid { font-size: 10px; }
+    .sec-title { margin-block-start: var(--sp-6); }
+  }
   .scrollrule__steps {
     margin: 0;
     padding: 0;

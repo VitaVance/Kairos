@@ -240,7 +240,7 @@ body[data-theme="dark"] { --scrim: color-mix(in oklab, var(--bg-sunken) 78%, tra
 .about-row code { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: var(--text-sm); }
 
 /* 设置页的演示画框 */
-.spec__frame--settings { display: grid; place-items: center; padding: var(--sp-6); background: var(--bg-sunken); }
+.spec__frame--settings { display: grid; place-items: center; padding: var(--sp-6); background: var(--bg-app); }
 .dialog-shell { inline-size: 100%; display: grid; place-items: center; }
 
 dialog.settings-dialog {
@@ -270,6 +270,26 @@ dialog.settings-dialog::backdrop { background: var(--scrim); }
   .settings__nav { flex-direction: row; border-inline-end: 0; border-block-end: 1px solid var(--hairline); }
   .settings__nav-title, .settings__nav-foot { display: none; }
   .skins, .themes { grid-template-columns: 1fr; }
+}
+/* ---- 900px 以下：画框的留白先收，再把设置弹窗的左右两栏拆开 ----------
+   .settings 是 184 + 1fr 的两栏，760 宽。900 视口减去 rail/侧栏后主区只有
+   ~624，画框再减 padding 就装不下两栏；导航改成横排、面板铺满。
+   这一点已经在 720 的规则里；900 这一刀只负责把外圈留白与字号挤回来。 */
+@media (max-width: 900px) {
+  .doc { padding-inline: var(--sp-3); }
+  .spec__frame--settings { padding: var(--sp-3); }
+  .settings { max-inline-size: 100%; }
+  .settings__pane { padding: var(--sp-4); }
+  .settings-dialog { inline-size: min(760px, calc(100vw - var(--sp-4))); }
+  .about-row { grid-template-columns: 6.5rem minmax(0, 1fr); }
+  .csv-table { font-size: var(--text-xs); }
+}
+@media (max-width: 560px) {
+  .doc__title { font-size: var(--text-xl); }
+  .settings__pane { padding: var(--sp-3); }
+  .about-row { grid-template-columns: 1fr; gap: 2px; }
+  .about-row dt { font-size: var(--text-xs); }
+  .danger-zone { flex-direction: column; align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
   .skin, .theme, .settings__tab { transition: none; }

@@ -383,6 +383,7 @@
     font-size: var(--text-xs);
     line-height: 1.5;
   }
+  .rd__hint .nowrap { white-space: nowrap; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 
   .seg {
     display: flex;
@@ -410,7 +411,45 @@
   }
   .rd__seg { margin-block-start: var(--sp-2); }
   .rd__row { display: flex; align-items: center; gap: var(--sp-2); margin-block-start: var(--sp-2); }
+  .rd__row--wrap { flex-wrap: wrap; }
   .rd__label { color: var(--ink-quiet); font-size: var(--text-xs); flex: none; }
+
+  /* 「几点」的两个输入。5 个固定值只是五个常见时刻，不是全部时刻 ——
+     一个 15:40 的会，在这 5 个值里根本选不出来，用户只能把它记错。 */
+  .timepair {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    flex: 1;
+    min-inline-size: 0;
+  }
+  .timepair__in {
+    inline-size: 2.75rem;
+    text-align: center;
+    font-size: var(--text-sm);
+    font-variant-numeric: tabular-nums;
+  }
+  .timepair__in[aria-invalid="true"] {
+    border-color: var(--danger-ink);
+    color: var(--danger-ink);
+  }
+  .timepair__sep { color: var(--ink-quiet); font-size: var(--text-sm); }
+  .timepair__dash { color: var(--ink-quiet); padding-inline: 2px; }
+  .timepair__clear {
+    appearance: none;
+    block-size: var(--control-h-sm);
+    padding: 0 var(--sp-1);
+    border: 0;
+    border-radius: var(--radius-xs);
+    background: transparent;
+    color: var(--ink-quiet);
+    font: inherit;
+    font-size: var(--text-xs);
+    cursor: pointer;
+  }
+  .timepair__clear:hover { background: var(--bg-hover); color: var(--ink-1); }
+  .timepair__clear[hidden] { display: none; }
+  .timepair__clear:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 
   /* 迷你月历 */
   .mgrid {
@@ -478,6 +517,12 @@
   }
 
   /* ---------- 象限 ---------- */
+  /* 一个坑必须先说清楚：象限是**派生值**（ADR 0004 §4，important 是真源，
+     紧急由 urgent 与时钟共同决定），所以详情面板不能像捕获条那样「点哪个就是哪个」。
+     当时间把一件事推过紧急线时，Q1 与 Q2 会同时「真」——它确实同时是「重要」
+     和「紧急」。那时界面上不能假装用户只选了其中一个：
+     两格都亮，Q1 加一条「时间判定」的说明，而**写入永远同时落两个轴**。
+     见 bindQuad()。 */
   .qgrid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -736,6 +781,7 @@
               <button type="button" class="qbtn" role="radio" aria-checked="false" data-q="3"><span class="qdot qdot--3" aria-hidden="true"></span>不重要但紧急</button>
               <button type="button" class="qbtn" role="radio" aria-checked="false" data-q="4"><span class="qdot qdot--4" aria-hidden="true"></span>不重要不紧急</button>
             </div>
+            <p class="dsec__foot" id="quadFoot"></p>
           </section>
 
           <section class="dsec">
@@ -781,16 +827,21 @@ document.addEventListener('DOMContentLoaded', function () {
   var K = window.Kairos;
   if (!K) return;
 
-  var RANK = { month: 0, week: 1, day: 2, period: 3, time: 4, none: 5 };
+  var RANK = { month: 0, week: 1, range: 2, day: 3, period: 4, time: 5, none: 6 };
   var RUNG_ORDER = ['month', 'week', 'day', 'period', 'time', 'none']; /* 粗窗口在前，不限最后 */
   var RUNG_EX = {
     none: '清单名', month: '12月', week: '11-23 起',
     day: '明天', period: '今天下午', time: '今天 15:00'
   };
+  /* 五个常用时刻 —— 只是快选，不是全部。精确分钟走 HH:MM 输入。 */
+  var TIME_PRESETS = ['09:00', '12:00', '15:00', '18:00', '21:00'];
 
-  var items = K.ITEMS.filter(function (i) { return !i.done; }).map(function (i) {
-    return Object.assign({}, i);
-  });
+  /* 直接引用 K.ITEMS 里的对象，不再复制一份。
+     原来这里是 Object.assign({}, i)，于是面板里改的是一份影子数据：
+     关掉面板、切到下一条再回来，或者任何别处读 K.ITEMS（日历、四象限板），
+     看到的都还是旧值。ADR 0004 §1 说「只有一个详情面板」，那这个面板
+     写进去的东西就必须是那份唯一的存储。 */
+  var items = K.ITEMS.filter(function (i) { return !i.done; });
   var notes = {};
   var selectedId = 6;
   var savedTimer = null;
@@ -826,6 +877,9 @@ document.addEventListener('DOMContentLoaded', function () {
     for (var i = 0; i < items.length; i++) if (items[i].id === selectedId) return items[i];
     return null;
   }
+  /* 面板里的时钟：K.now() 是唯一真源。原来这里读 K.TODAY / K.NOW_MIN 的快照，
+     而那两个值在 data.js 里已经是可变的，快照会在 setNow() 之后说谎。 */
+  function today() { return K.now().today; }
   function listOf(id) {
     for (var i = 0; i < K.LISTS.length; i++) if (K.LISTS[i].id === id) return K.LISTS[i];
     return K.LISTS[0];
@@ -836,6 +890,10 @@ document.addEventListener('DOMContentLoaded', function () {
   function rowLabel(it) {
     if (it.rung === 'none') return listOf(it.list).name;
     var label = K.rungLabel(it);
+    // 产品评审会是 15:00 到 16:00 的事。行上只写「今天 15:00」会让它看起来
+    // 像一分钟的事，也和日历里那条 15:00–16:00 的块对不上。结束是可选的，
+    // 没填就还是不写。
+    if (it.rung === 'time' && it.end) label += '–' + it.end;
     if (K.isWindowPassed(it)) label += '·未完成';
     return label;
   }
@@ -857,7 +915,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return { text: K.rungLabel(it) + ' · 计划窗口', tone: 'normal' };
     }
     if (it.rung === 'day') {
-      var n = K.diffDays(it.date, K.TODAY);
+      var n = K.diffDays(it.date, today());
       var txt = n === 0 ? '今天到期' : n === 1 ? '明天到期' : n > 1 ? n + ' 天后到期' : '已过';
       return { text: txt, tone: n <= 2 ? 'warning' : 'normal' };
     }
@@ -910,8 +968,8 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderCounts() {
     el.count.textContent = items.length + ' 件未完成';
     el.countAll.textContent = items.length;
-    var today = items.filter(function (i) { return i.date === K.TODAY; }).length;
-    el.countToday.textContent = today;
+    var todayCount = items.filter(function (i) { return i.date === today(); }).length;
+    el.countToday.textContent = todayCount;
     K.LISTS.forEach(function (l) {
       var node = el.listRows.querySelector('[data-list-count="' + l.id + '"]');
       if (node) node.textContent = items.filter(function (i) { return i.list === l.id; }).length;
@@ -975,14 +1033,14 @@ document.addEventListener('DOMContentLoaded', function () {
       html += '<div class="rd__chips">' + weeks.map(function (w) {
         return '<button type="button" class="chip' + (it.date === w.v ? ' chip--on' : '') + '" data-set-week="' + w.v + '" aria-pressed="' + (it.date === w.v) + '">' + w.label + '</button>';
       }).join('') + '</div>';
-      html += '<p class="rd__hint">一个计划窗口，按整周计。周一到了也不会自己跳进本周。</p>';
+      html += '<p class="rd__hint">一个计划窗口，按整周计。进入下一周之后它仍停在原来那一周，不会自己滚过去。</p>';
       el.detail.innerHTML = html;
       return;
     }
 
     /* day / period / time 共用同一排日期，再按档位加时段的细分 */
     var days = [0, 1, 2].map(function (n) {
-      var d = K.addDays(K.TODAY, n);
+      var d = K.addDays(today(), n);
       return { v: d, label: K.rungLabel({ rung: 'day', date: d }) };
     });
     html += '<div class="rd__chips">' + days.map(function (d) {
@@ -1001,19 +1059,67 @@ document.addEventListener('DOMContentLoaded', function () {
         }).join('') + '</div>';
       html += '<p class="rd__hint">到这半天结束才过期。</p>';
     } else if (it.rung === 'time') {
-      html += '<div class="rd__row"><span class="rd__label">时刻</span><div class="rd__chips">' +
-        ['09:00', '12:00', '15:00', '18:00', '21:00'].map(function (t) {
+      /* 5 个常用时刻只是快捷方式，不是全部时刻。一条 15:40 的会在这 5 个值里
+         根本不存在，所以后面必须跟一个真的 HH:MM 输入 —— 否则「具体时刻」这一档
+         说得出「几点」，说不出「几分」。结束时间同理，且是可选的（一个时刻可以
+         只是「到点做某事」，不必有长度）。 */
+      html += '<div class="rd__row rd__row--wrap"><span class="rd__label">开始</span><div class="rd__chips">' +
+        TIME_PRESETS.map(function (t) {
           return '<button type="button" class="chip' + (it.time === t ? ' chip--on' : '') + '" data-set-time="' + t + '" aria-pressed="' + (it.time === t) + '">' + t + '</button>';
         }).join('') + '</div></div>';
-      html += '<p class="rd__hint">到这个时刻就过期。到期前 24 小时只是「马上到期」，不进 Q1。</p>';
+      html += '<div class="rd__row"><span class="rd__label">几点</span>' +
+        timePairHTML(it.time, 'start') +
+        '</div>';
+      html += '<div class="rd__row"><span class="rd__label">到</span>' +
+        timePairHTML(it.end, 'end') +
+        '</div>';
+      html += '<p class="rd__hint">开始时刻过了就算过期；结束是可选的，填了就在行上写成 <b class="nowrap">' +
+        esc((it.time || '15:00') + '–' + (it.end || '16:00')) + '</b> 这样的区间。</p>';
     } else {
       html += '<p class="rd__hint">到当天 24:00 才过期。</p>';
     }
     el.detail.innerHTML = html;
   }
 
-  function gridHTML(it) {
-    var y = gridMonth.getFullYear();
+  /* 一对 HH:MM 输入。kind = start | end：开始必填（一个「具体时刻」没有开始就不成立），
+     结束可选（点「清除」就是「这件事没有长度」）。两个都由 renderDetail 重建，
+     所以重绘后焦点会掉；commitTimePair 里把焦点还回去。 */
+  function timePairHTML(value, kind) {
+    var v = value || '';
+    var parts = v ? v.split(':') : ['', ''];
+    var id = 'time-' + kind + '-' + (current() ? current().id : 'x');
+    return '<span class="timepair">' +
+      '<input class="field timepair__in" id="' + id + '" data-time-pair="' + kind + '" data-part="hour" type="text" inputmode="numeric" maxlength="2" value="' +
+        esc(parts[0]) + '" placeholder="HH" aria-label="' + (kind === 'end' ? '结束小时' : '开始小时') + '" autocomplete="off">' +
+      '<span class="timepair__sep" aria-hidden="true">:</span>' +
+      '<input class="field timepair__in" data-time-pair="' + kind + '" data-part="minute" type="text" inputmode="numeric" maxlength="2" value="' +
+        esc(parts[1]) + '" placeholder="MM" aria-label="' + (kind === 'end' ? '结束分钟' : '开始分钟') + '" autocomplete="off">' +
+      (kind === 'end' ? '<button type="button" class="timepair__clear" data-clear-end' + (v ? '' : ' hidden') + '>清除</button>' : '') +
+      '</span>';
+  }
+
+  /* 一对输入的读数：两个都空 = 没填（仅结束允许）；有一个不合法 = 非法；
+     只有一个填了 = 按 :00 补（用户打了「16」多半是 16:00，不是「拒绝」）。 */
+  function readPair(kind) {
+    var h = el.detail.querySelector('[data-time-pair="' + kind + '"][data-part="hour"]');
+    var m = el.detail.querySelector('[data-time-pair="' + kind + '"][data-part="minute"]');
+    if (!h || !m) return { empty: true };
+    var hs = h.value.replace(/\D/g, '');
+    var ms = m.value.replace(/\D/g, '');
+    if (hs === '' && ms === '') {
+      h.removeAttribute('aria-invalid'); m.removeAttribute('aria-invalid');
+      return { empty: true };
+    }
+    var hh = hs === '' ? 0 : parseInt(hs, 10);
+    var mm = ms === '' ? 0 : parseInt(ms, 10);
+    var ok = hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59;
+    h.setAttribute('aria-invalid', String(!ok));
+    m.setAttribute('aria-invalid', String(!ok));
+    if (!ok) return { bad: true };
+    return { value: String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0') };
+  }
+
+  function gridHTML(it) {    var y = gridMonth.getFullYear();
     var m = gridMonth.getMonth();
     var first = new Date(y, m, 1);
     var offset = (first.getDay() + 6) % 7;
@@ -1024,7 +1130,7 @@ document.addEventListener('DOMContentLoaded', function () {
       var ds = K.fmt(d);
       var out = d.getMonth() !== m;
       var cls = 'mgrid__day' + (out ? ' mgrid__day--out' : '') +
-        (ds === K.TODAY ? ' mgrid__day--today' : '') +
+        (ds === today() ? ' mgrid__day--today' : '') +
         (ds === it.date ? ' mgrid__day--sel' : '');
       cells += '<button type="button" class="' + cls + '" data-day="' + ds + '" aria-pressed="' + (ds === it.date) + '">' + d.getDate() + '</button>';
     }
@@ -1058,10 +1164,36 @@ document.addEventListener('DOMContentLoaded', function () {
   function renderQuad() {
     var it = current();
     if (!it) return;
+    /* 界面上必须只有一个亮格 —— 它是一个 radiogroup，四格同时亮就读不出「我在哪」。
+       亮的那一格永远是 quadrantOf()，也就是**真值**：用户说的 important 与 urgent
+       是输入，时间读数是另一个输入，象限是两者的结果（ADR 0004 §4）。
+       当时间把 userChose 的那一格推走时（Q2 的事过了自己的时刻 → 真值 Q1），
+       脚注要说清楚是谁动了它，否则用户会以为点击没生效。 */
+    var shown = K.quadrantOf(it);
     Array.prototype.forEach.call(el.qgrid.querySelectorAll('.qbtn'), function (btn) {
-      btn.setAttribute('aria-checked', String(+btn.getAttribute('data-q') === K.quadrantOf(it)));
+      btn.setAttribute('aria-checked', String(+btn.getAttribute('data-q') === shown));
     });
+    var foot = document.getElementById('quadFoot');
+    if (!foot) return;
+    var chosen = it.important ? (it.urgent ? 1 : 2) : (it.urgent ? 3 : 4);
+    if (shown !== chosen) {
+      foot.innerHTML = '你标的是 <b>' + (K.QUADRANTS[chosen] ? K.QUADRANTS[chosen].name : '') +
+        '</b>，但时间已经把这个时刻推过去了，所以它落在 <b class="is-warning">' +
+        (K.QUADRANTS[shown] ? K.QUADRANTS[shown].name : '') + '</b>。' +
+        '想让这件事「不急」，只能把时间推远 —— 时间不能被压低。';
+    } else {
+      foot.innerHTML = '直接点一格，只需要回答两个问题：<b>重要吗</b>、<b>现在就要做吗</b>。' +
+        '紧急由你说了算，时间只负责在你没说话的时候读一个值出来。';
+    }
   }
+
+  /* 四格对应两个布尔：Q1 = 都真，Q2 = 只有重要，Q3 = 只有紧急，Q4 = 都假。 */
+  var QUAD_AXES = {
+    1: { important: true, urgent: true },
+    2: { important: true, urgent: false },
+    3: { important: false, urgent: true },
+    4: { important: false, urgent: false }
+  };
 
   function renderSelect() {
     var it = current();
@@ -1139,12 +1271,21 @@ document.addEventListener('DOMContentLoaded', function () {
     var rung = btn.getAttribute('data-rung');
     if (rung === it.rung) return;
     it.rung = rung;
+    // 用 K.now() 而不是模块顶部的快照：setNow() 之后「今天」是会变的。
+    var nowToday = today();
     if (rung === 'month') it.date = '2026-12-01';
-    else if (rung === 'week') it.date = K.WEEK_START;
-    else if (rung === 'day') it.date = K.TODAY;
-    else if (rung === 'period') { it.date = K.TODAY; it.period = 'afternoon'; }
-    else if (rung === 'time') { it.date = K.TODAY; it.time = '15:00'; }
-    else if (rung === 'none') { delete it.date; delete it.period; delete it.time; }
+    else if (rung === 'week') it.date = K.weekStartOf(nowToday);
+    else if (rung === 'day') it.date = nowToday;
+    else if (rung === 'period') { it.date = nowToday; it.period = 'afternoon'; }
+    else if (rung === 'time') {
+      // 切到「具体时刻」时不要留着上一个档位的时间：它可能是昨天 10:00，
+      // 一进面板就显示成「已过」，且结束时刻还可能早于新的开始。
+      it.date = nowToday;
+      it.time = '15:00';
+      it.end = '16:00';
+    } else if (rung === 'none') {
+      delete it.date; delete it.period; delete it.time; delete it.end;
+    }
     gridOpen = false;
     renderLadder(); renderDetail(); renderDue(); renderList(); flashSaved();
   });
@@ -1191,6 +1332,11 @@ document.addEventListener('DOMContentLoaded', function () {
       it.period = btn.getAttribute('data-set-period');
     } else if (btn.hasAttribute('data-set-time')) {
       it.time = btn.getAttribute('data-set-time');
+      // 换开始时刻不该悄悄丢掉结束时刻，但结束早于新的开始是不成立的 ——
+      // 那种情况清掉它，比留下一个倒着走的区间诚实。
+      if (it.end && it.end <= it.time) delete it.end;
+    } else if (btn.hasAttribute('data-clear-end')) {
+      delete it.end;
     } else {
       return;
     }
@@ -1199,15 +1345,154 @@ document.addEventListener('DOMContentLoaded', function () {
     if (changed) { renderDue(); renderList(); flashSaved(); }
   });
 
+  /* ---- 时/分输入：唯一能填出 15:40 的地方 ----
+     两个必须遵守的细节：
+
+     1. 监听 input，不监听 change —— change 只在失焦时来，那样「改完立刻看行上的
+        区间变没变」就是空的。
+     2. 打字过程中**绝不重建这块 DOM**。第一版每次 input 都 renderDetail()，
+        于是打「09:05」时第一个「0」被立刻规整成「00」，第二个「9」再拼上去就是
+        「009」→ 截成「00」。用户看到的是输入框吞字。
+        所以打字时只更新「输入框之外」的东西：行标签、到期读数、预设 chip。
+        失焦时才 renderDetail()，把「9」补成「09」、把非法值标红。 */
+  el.detail.addEventListener('input', function (e) {
+    var input = e.target.closest('[data-time-pair]');
+    if (!input) return;
+    var it = current();
+    if (!it) return;
+    var kind = input.getAttribute('data-time-pair');
+    var part = input.getAttribute('data-part');
+    input.value = input.value.replace(/\D/g, '').slice(0, 2);
+    var r = readPair(kind);
+    if (r.bad) return;               // 非法值：标红，不写入
+    if (kind === 'start') {
+      if (r.empty) return;           // 开始不能为空，等用户打完
+      it.time = r.value;
+      if (it.end && it.end <= it.time) delete it.end;
+    } else if (r.empty) {
+      delete it.end;
+    } else {
+      if (r.value <= it.time) {
+        input.closest('.timepair').querySelectorAll('input').forEach(function (n) {
+          n.setAttribute('aria-invalid', 'true');
+        });
+        return;
+      }
+      it.end = r.value;
+    }
+    syncTimeChips(it);
+    renderLadder(); renderDue(); renderList(); flashSaved();
+    // 把光标还到用户正在打的那一格（重绘没有发生，但 setAttribute 之类
+    // 不会动选择区，这里只是保证它没被别的逻辑挪走）。
+    if (document.activeElement !== input) {
+      var again = el.detail.querySelector('[data-time-pair="' + kind + '"][data-part="' + part + '"]');
+      if (again) again.focus();
+    }
+  });
+
+  /* 失焦时才规整：补零、夹紧、清掉早于开始的结束。
+     同样不整块重建 —— 从「小时」跳到「分钟」时，小时的 change 会先触发，
+     重建会把刚拿到焦点的分钟框一起换掉，用户看到的是「点进去打不了字」。
+     所以这里就地改 value，只在模型真的被清理了（结束被删）时才重画，
+     而且重画前先把焦点记下来、重画后还回去。 */
+  el.detail.addEventListener('change', function (e) {
+    var input = e.target.closest('[data-time-pair]');
+    if (!input) return;
+    var it = current();
+    if (!it) return;
+    var kind = input.getAttribute('data-time-pair');
+    var pair = input.closest('.timepair');
+    var h0 = pair.querySelector('[data-part="hour"]');
+    var m0 = pair.querySelector('[data-part="minute"]');
+    var r = readPair(kind);
+    if (r.bad) return;
+
+    if (r.empty) {
+      if (kind === 'start') {
+        // 开始不能空着：回到当前值，而不是留一个空框。
+        h0.value = (it.time || '15:00').slice(0, 2);
+        m0.value = (it.time || '15:00').slice(3, 5);
+      } else {
+        delete it.end;
+        renderDetail();
+      }
+      return;
+    }
+
+    if (kind === 'start') {
+      it.time = r.value;
+      if (it.end && it.end <= it.time) {
+        delete it.end;
+        renderDetail();          // 结束被清掉，界面要跟着变
+        return;
+      }
+    } else if (r.value > it.time) {
+      it.end = r.value;
+    } else {
+      // 结束早于开始：拒收，把框里的值退回当前的结束（没有就清空）。
+      delete it.end;
+      renderDetail();
+      return;
+    }
+    h0.value = r.value.slice(0, 2);
+    m0.value = r.value.slice(3, 5);
+    syncTimeChips(it);
+    renderLadder(); renderDue(); renderList(); flashSaved();
+  });
+
+  /* 预设 chip 的选中态。不重建 DOM，只改 class，避免上面那个吞字问题。 */
+  function syncTimeChips(it) {
+    el.detail.querySelectorAll('[data-set-time]').forEach(function (c) {
+      var on = c.getAttribute('data-set-time') === it.time;
+      c.classList.toggle('chip--on', on);
+      c.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function gridHTML(it) {
+    var y = gridMonth.getFullYear();
+    var m = gridMonth.getMonth();
+    var first = new Date(y, m, 1);
+    var offset = (first.getDay() + 6) % 7;
+    var start = new Date(y, m, 1 - offset);
+    var cells = '';
+    for (var i = 0; i < 42; i++) {
+      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+      var ds = K.fmt(d);
+      var out = d.getMonth() !== m;
+      var cls = 'mgrid__day' + (out ? ' mgrid__day--out' : '') +
+        (ds === today() ? ' mgrid__day--today' : '') +
+        (ds === it.date ? ' mgrid__day--sel' : '');
+      cells += '<button type="button" class="' + cls + '" data-day="' + ds + '" aria-pressed="' + (ds === it.date) + '">' + d.getDate() + '</button>';
+    }
+    return '<div class="mgrid">' +
+      '<div class="mgrid__head">' +
+      '<button type="button" class="mgrid__nav" data-nav="-1" aria-label="上个月"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>' +
+      '<span class="mgrid__label">' + y + '年' + (m + 1) + '月</span>' +
+      '<button type="button" class="mgrid__nav" data-nav="1" aria-label="下个月"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>' +
+      '</div>' +
+      '<div class="mgrid__dow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>' +
+      '<div class="mgrid__grid">' + cells + '</div></div>';
+  }
+
   el.qgrid.addEventListener('click', function (e) {
     var btn = e.target.closest('.qbtn');
     if (!btn) return;
     var it = current();
     if (!it) return;
     var nextQ = +btn.getAttribute('data-q');
-    it.important = nextQ === 1 || nextQ === 2;
-    it.urgent = nextQ === 1 || nextQ === 3;
-    renderQuad(); renderList(); flashSaved();
+    var axes = QUAD_AXES[nextQ];
+    if (!axes) return;
+    /* 写入永远是两个轴，不是象限编号（象限不存在存储里，它是派生值）。
+       这正是 W2 那条「Q1 输入框写入 important/urgent 而不是 q」的同一条规则。
+       Q1 → important:true, urgent:true
+       Q2 → important:true
+       Q3 → urgent:true
+       Q4 → 两个都 false
+       点 Q2 / Q4 时顺手清掉用户手标的 urgent：那一格的意思就是「现在不用做」。 */
+    it.important = axes.important;
+    it.urgent = axes.urgent;
+    renderQuad(); renderDue(); renderLadder(); renderList(); flashSaved();
   });
 
   el.listSel.addEventListener('change', function () {
@@ -1257,6 +1542,15 @@ document.addEventListener('DOMContentLoaded', function () {
   bindPanel();
   renderList();
   renderCounts();
+
+  /* 验收读数口：面板写进的是不是那份唯一的存储，要能从外面看见。 */
+  window.KairosDetail = {
+    selected: function () { return current(); },
+    stored: function (title) {
+      for (var i = 0; i < K.ITEMS.length; i++) if (K.ITEMS[i].title === title) return K.ITEMS[i];
+      return null;
+    }
+  };
 });
 </script>
 </body>

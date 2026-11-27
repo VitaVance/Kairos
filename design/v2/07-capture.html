@@ -82,12 +82,44 @@
     padding: var(--sp-8) var(--sp-4);
     border: 1px solid var(--hairline);
     border-radius: var(--radius-xl);
-    background: var(--bg-subtle);
+    /* 捕获条是 --bg-surface 的「卡」，画布是它脚下的地面。
+       原来用 --bg-subtle（与卡片只差 1.06），两张白卡看不出边界；
+       改用 --bg-app（与卡片 1.20+）后，卡片才真的「浮」在画布上。 */
+    background: var(--bg-app);
   }
   .canvas--tall { min-block-size: 25rem; align-items: flex-start; }
+  /* 收下之后画布只剩两件东西：「这一条已经收下了」和「重新打开」。
+     它们是一件事的两半，必须竖着排、居中成一组。
+     原来 canvas 的 flex 是 nowrap + 横向居中，于是这句话和那个按钮并排成两个气泡，
+     读起来像「一条提示」和「一枚 toast」，而且画布从 279px 塌到 124px。 */
+  .canvas[data-canvas="a"].is-taken {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-2);
+    min-block-size: 12rem;
+    padding-block: var(--sp-6);
+  }
+  .canvas[data-canvas="a"].is-taken .reopen { gap: var(--sp-1); }
   /* 高度按浮层占位预留：浮层是绝对定位，不撑开父级；
      不给画布留够高度，下面的段落会叠到日历上。 */
   .canvas--pop { min-block-size: 43rem; padding-block-end: var(--sp-10); }
+  /* 状态 C 的画布：同样是浮层不撑开父级，展开时给它让位。 */
+  .canvas--cnest.canvas--open {
+    min-block-size: 40rem;
+    padding-block-end: var(--sp-10);
+    align-items: flex-start;
+  }
+  /* 状态 A 的画布只在浮层真的打开时才长高。 */
+  .canvas--open {
+    min-block-size: 43rem;
+    padding-block-end: var(--sp-10);
+    align-items: flex-start;
+  }
+  /* 关闭状态：.capbar 自己是 display:flex，作者的类规则会盖掉 UA 的 [hidden]，
+     所以必须显式写一条，否则 Esc 之后捕获条还在原地。 */
+  .capbar[hidden] { display: none; }
+
 
   /* ---------- 捕获条本体 ---------- */
   .capbar {
@@ -270,7 +302,81 @@
     color: var(--ink-quiet);
   }
 
+  /* 丢弃确认：只在「有内容 + Esc」时出现，占一整行，替换掉主操作的位置。
+     它不是弹窗 —— 捕获条本身就是浮层，再套一层模态会把「继续编辑」埋掉。 */
+  .capbar__discard {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-2);
+    padding: var(--sp-2);
+    border-radius: var(--radius-md);
+    background: var(--danger-tint);
+    color: var(--danger-ink);
+    font-size: var(--text-sm);
+  }
+  .capbar__discard[hidden] { display: none; }
+  .capbar__discard > span { flex: 1; }
+  .capbar__discard .btn {
+    block-size: var(--control-h-sm);
+    font-size: var(--text-sm);
+  }
+  .capbar__discard .btn--ghost,
+  .capbar__discard .btn--danger { background: var(--bg-surface); }
+
+  /* 关闭后的占位：捕获条关掉之后画布不能塌成一条空白 */
+  .reopen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--sp-2);
+    color: var(--ink-quiet);
+    font-size: var(--text-sm);
+  }
+  .reopen[hidden] { display: none; }
+
+  /* 收下的那条：捕获条关掉之后，画布上必须留下证据。
+     没有它，「回车提交」就只是把文字弄丢。 */
+  .taken {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-2);
+    margin-block-start: var(--sp-2);
+    padding: var(--sp-1) var(--sp-3);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-full);
+    background: var(--bg-subtle);
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+
   /* ---------- 时间浮层 ---------- */
+  /* 「具体时刻」的第二问：几点。没有这两个输入，预设就只是个假按钮 ——
+     用户只能拿到 15:00，拿不到 15:40。 */
+  .timefields {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-1);
+    margin: 0 0 var(--sp-2);
+    padding: var(--sp-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+  }
+  .timefields[hidden] { display: none; }
+  .timefields__label { color: var(--ink-quiet); font-size: var(--text-xs); font-weight: 600; }
+  .timefields__colon { color: var(--ink-quiet); }
+  .timefields__in {
+    inline-size: 3rem;
+    text-align: center;
+    font-size: var(--text-md);
+    font-variant-numeric: tabular-nums;
+  }
+  .timefields__in[aria-invalid="true"] {
+    border-color: var(--danger-ink);
+    color: var(--danger-ink);
+  }
+  .timefields__ok { margin-inline-start: auto; block-size: var(--control-h-sm); font-size: var(--text-sm); }
+
   .popover {
     position: absolute;
     z-index: var(--z-popover);
@@ -557,6 +663,24 @@
     color: var(--ink-quiet);
     font-size: var(--text-sm);
   }
+
+  /* ---------- 窄屏 ----------
+     这个片段没有侧栏（.app--wide），所以只需要给内容让位：
+     捕获条本身 max-inline-size:100% 已经会缩，缩不下去的是四个象限 chip
+     与「时间 / 象限」那一行。900 下把 chip 改成 2×2，560 下把 timechip
+     的说明文字藏掉，只留图标与值。 */
+  @media (max-width: 900px) {
+    .sheet { padding-inline: var(--sp-3); }
+    .topbar__actions { padding-inline-end: 0; }
+    .quads { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .capbar { padding: var(--sp-2); }
+  }
+  @media (max-width: 560px) {
+    .capbar__title { font-size: var(--text-md); }
+    .state__head { flex-wrap: wrap; row-gap: 2px; }
+    .state__hint { flex-basis: 100%; }
+    .minigrid { font-size: 10px; }
+  }
 </style>
 </head>
 <body data-skin="refined" data-theme="light">
@@ -605,9 +729,8 @@
           <div class="state__head">
             <span class="state__tag" aria-hidden="true">A</span>
             <h2 class="state__title" id="sA">默认</h2>
-            <span class="state__hint">Ctrl+N 打开。光标在标题里，回车提交。</span>
-          </div>
-          <div class="canvas">
+            <span class="state__hint">Ctrl+N 打开。光标在标题里，回车提交。</span>          </div>
+          <div class="canvas" data-canvas="a">
             <div class="capbar" data-state="a" role="dialog" aria-modal="false" aria-label="快速添加">
               <label class="visually-hidden" for="titleA">要做什么？</label>
               <textarea class="capbar__title" id="titleA" rows="2" placeholder="要做什么？"></textarea>
@@ -624,8 +747,14 @@
                 <button type="button" class="qchip" role="radio" aria-checked="false" data-q="1"><span class="qdot" data-q="1" aria-hidden="true"></span>重要且紧急</button>
                 <button type="button" class="qchip" role="radio" aria-checked="false" data-q="2"><span class="qdot" data-q="2" aria-hidden="true"></span>重要不紧急</button>
                 <button type="button" class="qchip" role="radio" aria-checked="false" data-q="3"><span class="qdot" data-q="3" aria-hidden="true"></span>不重要但紧急</button>
-                <button type="button" class="qchip" role="radio" aria-checked="true" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
+                <button type="button" class="qchip" role="radio" aria-checked="false" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
               </div>
+
+              <p class="capbar__discard" data-role="discard" hidden>
+                <span>丢弃这条捕获？</span>
+                <button type="button" class="btn btn--ghost" data-role="discard-cancel">继续编辑</button>
+                <button type="button" class="btn btn--danger" data-role="discard-ok">丢弃</button>
+              </p>
 
               <div class="capbar__foot">
                 <button type="button" class="listchip">
@@ -634,6 +763,42 @@
                 </button>
                 <button type="button" class="btn btn--primary capbar__submit" data-role="submit" disabled>添加</button>
               </div>
+
+              <div class="popover" data-role="popover" role="dialog" aria-label="选择时间" aria-modal="false" hidden>
+                <p class="popover__label">什么时候</p>
+                <div class="presets" role="group" aria-label="时间预设">
+                  <button type="button" class="preset" data-preset="today" aria-pressed="false">今天</button>
+                  <button type="button" class="preset" data-preset="tomorrow" aria-pressed="false">明天</button>
+                  <button type="button" class="preset" data-preset="week" aria-pressed="false">这周</button>
+                  <button type="button" class="preset" data-preset="month" aria-pressed="false">下个月</button>
+                  <button type="button" class="preset" data-preset="time" aria-pressed="false">具体时刻</button>
+                  <button type="button" class="preset" data-preset="none" aria-pressed="true">不限</button>
+                </div>
+
+                <div class="timefields" data-role="timefields" hidden>
+                  <label class="timefields__label" for="timeA">几点</label>
+                  <input class="field timefields__in" id="timeA" data-role="hour" type="text" inputmode="numeric" maxlength="2" placeholder="HH" aria-label="小时" autocomplete="off">
+                  <span class="timefields__colon" aria-hidden="true">:</span>
+                  <input class="field timefields__in" data-role="minute" type="text" inputmode="numeric" maxlength="2" placeholder="MM" aria-label="分钟" autocomplete="off">
+                  <button type="button" class="btn btn--secondary btn--sm timefields__ok" data-role="time-ok">确定</button>
+                </div>
+
+                <div class="minihead">
+                  <button type="button" class="mininav" data-nav="-1" aria-label="上个月">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                  </button>
+                  <span class="minihead__label" data-role="calmonth"></span>
+                  <button type="button" class="mininav" data-nav="1" aria-label="下个月">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                  </button>
+                </div>
+                <div class="minidow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+                <div class="minigrid" data-role="calgrid"></div>
+              </div>
+            </div>
+            <div class="reopen" data-role="reopen" hidden>
+              <span data-role="reopen-msg">捕获条已关闭，没有提交。</span>
+              <button type="button" class="btn btn--secondary" data-role="reopen-btn">重新打开捕获条</button>
             </div>
           </div>
         </section>
@@ -664,7 +829,7 @@
                   <button type="button" class="qchip" role="radio" aria-checked="false" data-q="1"><span class="qdot" data-q="1" aria-hidden="true"></span>重要且紧急</button>
                   <button type="button" class="qchip" role="radio" aria-checked="false" data-q="2"><span class="qdot" data-q="2" aria-hidden="true"></span>重要不紧急</button>
                   <button type="button" class="qchip" role="radio" aria-checked="false" data-q="3"><span class="qdot" data-q="3" aria-hidden="true"></span>不重要但紧急</button>
-                  <button type="button" class="qchip" role="radio" aria-checked="true" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
+                  <button type="button" class="qchip" role="radio" aria-checked="false" data-q="4"><span class="qdot" data-q="4" aria-hidden="true"></span>不重要不紧急</button>
                 </div>
 
                 <div class="capbar__foot">
@@ -680,10 +845,18 @@
                   <div class="presets" role="group" aria-label="时间预设">
                     <button type="button" class="preset" data-preset="today" aria-pressed="true">今天</button>
                     <button type="button" class="preset" data-preset="tomorrow" aria-pressed="false">明天</button>
-                    <button type="button" class="preset" data-preset="week" aria-pressed="false">本周</button>
+                    <button type="button" class="preset" data-preset="week" aria-pressed="false">这周</button>
                     <button type="button" class="preset" data-preset="month" aria-pressed="false">下个月</button>
                     <button type="button" class="preset" data-preset="time" aria-pressed="false">具体时刻</button>
                     <button type="button" class="preset" data-preset="none" aria-pressed="false">不限</button>
+                  </div>
+
+                  <div class="timefields" data-role="timefields" hidden>
+                    <label class="timefields__label" for="timeB">几点</label>
+                    <input class="field timefields__in" id="timeB" data-role="hour" type="text" inputmode="numeric" maxlength="2" placeholder="HH" aria-label="小时" autocomplete="off">
+                    <span class="timefields__colon" aria-hidden="true">:</span>
+                    <input class="field timefields__in" data-role="minute" type="text" inputmode="numeric" maxlength="2" placeholder="MM" aria-label="分钟" autocomplete="off">
+                    <button type="button" class="btn btn--secondary timefields__ok" data-role="time-ok">确定</button>
                   </div>
 
                   <div class="minihead">
@@ -709,7 +882,7 @@
               <h2 class="state__title" id="sC">提交失败</h2>
               <span class="state__hint">内容一个字不丢</span>
             </div>
-            <div class="canvas canvas--tall">
+            <div class="canvas canvas--tall canvas--cnest">
               <div class="capbar" data-state="c" role="dialog" aria-modal="false" aria-label="快速添加">
                 <label class="visually-hidden" for="titleC">要做什么？</label>
                 <textarea class="capbar__title" id="titleC" rows="2" placeholder="要做什么？">跟进合同签署</textarea>
@@ -740,6 +913,40 @@
                     <span data-role="listname">工作</span>
                   </button>
                   <button type="button" class="btn btn--primary capbar__submit" data-role="submit">重试</button>
+                </div>
+
+                <!-- 状态 C 的时间按钮原来也是死的：有 aria-haspopup、有 hover，
+                     没有监听。失败重试的这一刻，用户最可能想改的就是时间。 -->
+                <div class="popover" data-role="popover" role="dialog" aria-label="选择时间" aria-modal="false" hidden>
+                  <p class="popover__label">什么时候</p>
+                  <div class="presets" role="group" aria-label="时间预设">
+                    <button type="button" class="preset" data-preset="today" aria-pressed="false">今天</button>
+                    <button type="button" class="preset" data-preset="tomorrow" aria-pressed="true">明天</button>
+                    <button type="button" class="preset" data-preset="week" aria-pressed="false">这周</button>
+                    <button type="button" class="preset" data-preset="month" aria-pressed="false">下个月</button>
+                    <button type="button" class="preset" data-preset="time" aria-pressed="false">具体时刻</button>
+                    <button type="button" class="preset" data-preset="none" aria-pressed="false">不限</button>
+                  </div>
+
+                  <div class="timefields" data-role="timefields" hidden>
+                    <label class="timefields__label" for="timeC">几点</label>
+                    <input class="field timefields__in" id="timeC" data-role="hour" type="text" inputmode="numeric" maxlength="2" placeholder="HH" aria-label="小时" autocomplete="off">
+                    <span class="timefields__colon" aria-hidden="true">:</span>
+                    <input class="field timefields__in" data-role="minute" type="text" inputmode="numeric" maxlength="2" placeholder="MM" aria-label="分钟" autocomplete="off">
+                    <button type="button" class="btn btn--secondary timefields__ok" data-role="time-ok">确定</button>
+                  </div>
+
+                  <div class="minihead">
+                    <button type="button" class="mininav" data-nav="-1" aria-label="上个月">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+                    </button>
+                    <span class="minihead__label" data-role="calmonth"></span>
+                    <button type="button" class="mininav" data-nav="1" aria-label="下个月">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
+                    </button>
+                  </div>
+                  <div class="minidow" aria-hidden="true"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
+                  <div class="minigrid" data-role="calgrid"></div>
                 </div>
               </div>
             </div>
@@ -828,19 +1035,15 @@ document.addEventListener('DOMContentLoaded', function () {
   var K = window.Kairos;
   if (!K) return;
 
-  var WEEK_START = K.WEEK_START;
-  var TODAY = K.TODAY;
-
-  function esc(s) {
-    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  /* 「今天」从 K.now() 取，不缓存快照：setNow() 之后它是要变的。 */
+  function today() { return K.now().today; }
   function labelFor(state) {
     switch (state.kind) {
-      case 'today': return K.rungLabel({ rung: 'day', date: TODAY });
-      case 'tomorrow': return K.rungLabel({ rung: 'day', date: K.addDays(TODAY, 1) });
-      case 'week': return K.rungLabel({ rung: 'week', date: WEEK_START });
+      case 'today': return K.rungLabel({ rung: 'day', date: today() });
+      case 'tomorrow': return K.rungLabel({ rung: 'day', date: K.addDays(today(), 1) });
+      case 'week': return K.rungLabel({ rung: 'week', date: K.WEEK_START });
       case 'month': return K.rungLabel({ rung: 'month', date: '2026-12-01' });
-      case 'time': return K.rungLabel({ rung: 'time', date: state.date || TODAY, time: state.time || '15:00' });
+      case 'time': return K.rungLabel({ rung: 'time', date: state.date || today(), time: state.time || '15:00' });
       case 'day': return K.rungLabel({ rung: 'day', date: state.date });
       default: return '不限';
     }
@@ -861,131 +1064,412 @@ document.addEventListener('DOMContentLoaded', function () {
     if (work) listDot(cBar, work.color);
   }
 
-  /* ---------- A · 默认 ---------- */
-  var aBar = document.querySelector('.capbar[data-state="a"]');
-  var aTitle = aBar.querySelector('.capbar__title');
-  var aSubmit = aBar.querySelector('[data-role="submit"]');
-  aTitle.addEventListener('input', function () {
-    aSubmit.disabled = aTitle.value.trim() === '';
-  });
-  aBar.querySelectorAll('.qchip').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      aBar.querySelectorAll('.qchip').forEach(function (c) { c.setAttribute('aria-checked', String(c === chip)); });
-    });
-  });
-
-  /* ---------- B · 时间展开 ---------- */
-  var bBar = document.querySelector('.capbar[data-state="b"]');
-  var bChip = bBar.querySelector('[data-role="timechip"]');
-  var bLabel = bBar.querySelector('[data-role="timelabel"]');
-  var bPop = bBar.querySelector('[data-role="popover"]');
-  var bGrid = bBar.querySelector('[data-role="calgrid"]');
-  var bMonthLabel = bBar.querySelector('[data-role="calmonth"]');
-  var bState = { kind: 'today', date: TODAY, time: '15:00' };
-  var bView = new Date(2026, 10, 1);
-
-  function syncChip() {
-    bLabel.textContent = labelFor(bState);
-    bBar.querySelectorAll('.preset').forEach(function (p) {
-      var map = { today: 'today', tomorrow: 'tomorrow', week: 'week', month: 'month', time: 'time', none: 'none' };
-      var key = p.getAttribute('data-preset');
-      var on = key === 'time' ? bState.kind === 'time'
-             : key === 'none' ? bState.kind === 'none'
-             : bState.kind === key;
-      p.setAttribute('aria-pressed', String(on));
+  /* ---------- 象限 chips：单选，但可以再点一下取消 ----------
+     ADR 0004 §4：「紧急由用户说」。所以捕获时四个 chip 一个都不能预先选中 ——
+     用户还没开口，产品不能替他说「不重要不紧急」。而 role="radio" 一旦选了就
+     退不出来，等于把这个默认值锁死；第二次点击同一个 chip 必须能回到「没说」。
+     状态 C 的 chip 是从已保存的条目回显的，它照常有一项选中。 */
+  function wireQchips(bar) {
+    bar.querySelectorAll('.qchip').forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var on = chip.getAttribute('aria-checked') === 'true';
+        bar.querySelectorAll('.qchip').forEach(function (c) {
+          c.setAttribute('aria-checked', String(!on && c === chip));
+        });
+      });
     });
   }
 
-  function renderCal() {
-    var y = bView.getFullYear();
-    var m = bView.getMonth();
-    bMonthLabel.textContent = y + '年' + (m + 1) + '月';
-    var first = new Date(y, m, 1);
-    var offset = (first.getDay() + 6) % 7;
-    var start = new Date(y, m, 1 - offset);
-    var html = '';
-    for (var i = 0; i < 42; i++) {
-      var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
-      var ds = K.fmt(d);
-      var out = d.getMonth() !== m;
-      var sel = (bState.kind === 'day' || bState.kind === 'today') && ds === bState.date;
-      if (bState.kind === 'today' && ds === TODAY) sel = true;
-      var cls = 'miniday' + (out ? ' miniday--out' : '') +
-        (ds === TODAY ? ' miniday--today' : '') + (sel ? ' miniday--sel' : '');
-      html += '<button type="button" class="' + cls + '" data-day="' + ds + '" aria-pressed="' + sel + '">' + d.getDate() + '</button>';
+  /* ---------- 捕获条：两种状态共用同一套时间浮层 ----------
+     状态 A 原来有一个「有 hover 样式、有 aria-haspopup、没有任何监听」的按钮。
+     点它什么都不会发生，而这个按钮正是捕获条上唯一必答的问题。
+     这里把整套逻辑抽成一个 composer，A 和 B 各建一个实例 —— 不是抄两份，
+     状态 A 的浮层就是 B 的那一套。 */
+  function Composer(bar, opts) {
+    opts = opts || {};
+    var el = {
+      bar: bar,
+      title: bar.querySelector('.capbar__title'),
+      chip: bar.querySelector('[data-role="timechip"]'),
+      label: bar.querySelector('[data-role="timelabel"]'),
+      pop: bar.querySelector('[data-role="popover"]'),
+      grid: bar.querySelector('[data-role="calgrid"]'),
+      month: bar.querySelector('[data-role="calmonth"]'),
+      presets: bar.querySelector('.presets'),
+      fields: bar.querySelector('[data-role="timefields"]'),
+      hour: bar.querySelector('[data-role="hour"]'),
+      minute: bar.querySelector('[data-role="minute"]'),
+      ok: bar.querySelector('[data-role="time-ok"]'),
+      discard: bar.querySelector('[data-role="discard"]'),
+      submit: bar.querySelector('[data-role="submit"]'),
+      reopen: (bar.closest('.canvas') || document).querySelector('[data-role="reopen"]')
+    };
+
+    var startKind = opts.initialKind || 'today';
+    var state = {
+      kind: startKind,
+      date: startKind === 'tomorrow' ? K.addDays(today(), 1) : today(),
+      time: '15:00'
+    };
+    var view = new Date(2026, 10, 1);
+    var pendingDiscard = false;
+
+    /* ---- 时间标签 ---- */
+    function syncChip() {
+      el.label.textContent = labelFor(state);
+      el.presets.querySelectorAll('.preset').forEach(function (p) {
+        var key = p.getAttribute('data-preset');
+        p.setAttribute('aria-pressed', String(key === state.kind));
+      });
+      // 「几点」只在选中的是「具体时刻」时出现。它不是一个独立档位，
+      // 而是那一档的第二问 —— 所以不选具体时刻时整块隐藏。
+      el.fields.hidden = state.kind !== 'time';
     }
-    bGrid.innerHTML = html;
+
+    /* ---- 时/分输入 ---- */
+    function putTimeIntoFields() {
+      var parts = (state.time || '15:00').split(':');
+      el.hour.value = parts[0];
+      el.minute.value = parts[1];
+      el.hour.setAttribute('aria-invalid', 'false');
+      el.minute.setAttribute('aria-invalid', 'false');
+    }
+    // 数字输入：只留数字，最多两位；离开时补零。
+    function numOnly(input) {
+      input.addEventListener('input', function () {
+        input.value = input.value.replace(/[^\d]/g, '').slice(0, 2);
+        input.removeAttribute('aria-invalid');
+      });
+      // 聚焦即全选。不选的话，点在「00」中间再打「40」会得到「0040」，
+      // 被 maxlength 截成「00」—— 用户输了两下、界面一动不动。
+      // 必须同步 select：放进 setTimeout 的话，一次很快的输入会赶在它之前。
+      input.addEventListener('focus', function () { input.select(); });
+      input.addEventListener('click', function () {
+        if (input.selectionStart === input.selectionEnd) input.select();
+      });
+      input.addEventListener('blur', function () {
+        if (input.value !== '') input.value = ('0' + input.value).slice(-2);
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); commitFields(); }
+      });
+    }
+    numOnly(el.hour);
+    numOnly(el.minute);
+
+    /* 把输入里的 HH:MM 收进 state。非法就不收（标红），合法就更新 chip。
+       这是「具体时刻」这一档唯一能说出 15:40 的地方 —— 预设按钮只给 15:00。 */
+    function commitFields(silent) {
+      var h = parseInt(el.hour.value, 10);
+      var m = parseInt(el.minute.value, 10);
+      var hOk = isFinite(h) && h >= 0 && h <= 23;
+      var mOk = isFinite(m) && m >= 0 && m <= 59;
+      el.hour.setAttribute('aria-invalid', String(!hOk));
+      el.minute.setAttribute('aria-invalid', String(!mOk));
+      if (!hOk || !mOk) return false;
+      state.kind = 'time';
+      state.date = state.date || today();
+      state.time = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+      syncChip();
+      if (!silent) openPop(false);
+      return true;
+    }
+    el.ok.addEventListener('click', function () { commitFields(); });
+    el.hour.addEventListener('blur', function () {
+      if (state.kind === 'time' && el.hour.value !== '' && el.minute.value !== '' &&
+          el.hour.getAttribute('aria-invalid') !== 'true') {
+        commitFields(true);
+      }
+    });
+    el.minute.addEventListener('blur', function () {
+      if (state.kind === 'time' && el.hour.value !== '' && el.minute.value !== '' &&
+          el.minute.getAttribute('aria-invalid') !== 'true') {
+        commitFields(true);
+      }
+    });
+
+    /* ---- 迷你月历 ---- */
+    function renderCal() {
+      var y = view.getFullYear();
+      var m = view.getMonth();
+      el.month.textContent = y + '年' + (m + 1) + '月';
+      var first = new Date(y, m, 1);
+      var offset = (first.getDay() + 6) % 7;
+      var start = new Date(y, m, 1 - offset);
+      var html = '';
+      for (var i = 0; i < 42; i++) {
+        var d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        var ds = K.fmt(d);
+        var out = d.getMonth() !== m;
+        var sel = (state.kind === 'day' || state.kind === 'today' || state.kind === 'time') && ds === state.date;
+        if (state.kind === 'today' && ds === today()) sel = true;
+        var cls = 'miniday' + (out ? ' miniday--out' : '') +
+          (ds === today() ? ' miniday--today' : '') + (sel ? ' miniday--sel' : '');
+        html += '<button type="button" class="' + cls + '" data-day="' + ds + '" aria-pressed="' + sel + '">' + d.getDate() + '</button>';
+      }
+      el.grid.innerHTML = html;
+    }
+
+    /* ---- 开关 ---- */
+    function openPop(open) {
+      el.pop.hidden = !open;
+      el.chip.setAttribute('aria-expanded', String(open));
+      // 浮层是绝对定位，不撑开父级；不预留高度的话它会把下面的状态整块盖住。
+      // B 的画布一开始就留了位置，A 只在展开时才需要。
+      var canvas = bar.closest('.canvas');
+      if (canvas && !canvas.classList.contains('canvas--pop')) canvas.classList.toggle('canvas--open', open);
+      if (open) {
+        renderCal();
+        // 「具体时刻」打开时把光标放进小时格；否则整块输入是隐藏的。
+        if (state.kind === 'time') {
+          putTimeIntoFields();
+          el.hour.focus();
+          el.hour.select();
+        }
+      }
+    }
+
+    el.chip.addEventListener('click', function () {
+      openPop(el.pop.hidden);
+    });
+
+    /* 两条必需的关闭路径。原来只有「再点一次触发器」——一个非模态浮层，
+       唯一的退出方式是提交一个值，比没有这个功能更糟：用户被卡在捕获中途。
+       原生 popover="auto" 本来免费提供这两条；这里是手搓的，就得自己补。
+
+       注意：这一页上同时摆着 A 和 B 两个实例（真实产品里只会有其中一个）。
+       如果两条监听都无条件生效，按一次 Esc 会把两个浮层一起关掉 —— 观感上像
+       按了两次。所以每一份只处理「自己的」事件。 */
+    function inOtherBar(target) {
+      var owner = target && target.closest ? target.closest('.capbar') : null;
+      return owner && owner !== bar;
+    }
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || el.pop.hidden) return;
+      if (inOtherBar(e.target) || inOtherBar(document.activeElement)) return;
+      e.preventDefault();
+      // 输入里有改到一半的时刻：先收起输入、保留 state，再让用户看一眼。
+      openPop(false);
+      el.chip.focus();
+      e.stopPropagation();   // 浮层关了就不该顺手把整根捕获条也关掉
+    }, true);
+
+    document.addEventListener('pointerdown', function (e) {
+      if (el.pop.hidden) return;
+      // 触发器自己的点击由它自己的 click 处理负责开关；这里若也关一次，
+      // 紧接着 click 又把「关」翻成「开」，重开就永远失败。
+      if (el.pop.contains(e.target) || el.chip.contains(e.target)) return;
+      if (inOtherBar(e.target)) return;
+      openPop(false);
+    }, true);
+
+    el.presets.addEventListener('click', function (e) {
+      var p = e.target.closest('.preset');
+      if (!p) return;
+      var key = p.getAttribute('data-preset');
+      if (key === 'none') state = { kind: 'none' };
+      else if (key === 'week') state = { kind: 'week' };
+      else if (key === 'month') state = { kind: 'month' };
+      else if (key === 'today') state = { kind: 'today', date: today() };
+      else if (key === 'tomorrow') state = { kind: 'tomorrow', date: K.addDays(today(), 1) };
+      else if (key === 'time') {
+        state = { kind: 'time', date: state.date || today(), time: state.time || '15:00' };
+        syncChip();
+        putTimeIntoFields();
+        // 具体时刻不像其它预设：它还有第二问，所以浮层不收起。
+        el.hour.focus();
+        el.hour.select();
+        return;
+      }
+      syncChip();
+      openPop(false); /* 选完就收起 —— 一个预设就是一个决定 */
+    });
+
+    bar.querySelectorAll('.mininav').forEach(function (nav) {
+      nav.addEventListener('click', function () {
+        var dir = +nav.getAttribute('data-nav');
+        view = new Date(view.getFullYear(), view.getMonth() + dir, 1);
+        renderCal();
+      });
+    });
+
+    el.grid.addEventListener('click', function (e) {
+      var day = e.target.closest('[data-day]');
+      if (!day) return;
+      // 在「具体时刻」里点日期 = 换一天，时刻保留；在别的档里点 = 选定某一天。
+      if (state.kind === 'time') {
+        state.date = day.getAttribute('data-day');
+        syncChip();
+        renderCal();
+        return;
+      }
+      state = { kind: 'day', date: day.getAttribute('data-day') };
+      syncChip();
+      openPop(false); /* 点具体一天 = 某一天，浮层收起 */
+    });
+
+    /* ---- Esc 关闭捕获条；有内容时二次确认 ---- */
+    function hasContent() {
+      return (el.title.value || '').trim() !== '' ||
+        state.kind !== 'none' ||
+        Array.prototype.some.call(bar.querySelectorAll('.qchip'), function (c) {
+          return c.getAttribute('aria-checked') === 'true';
+        });
+    }
+    function reset() {
+      el.title.value = '';
+      if (el.submit) {
+        el.submit.disabled = true;
+        el.submit.textContent = '添加';
+      }
+      state = { kind: 'none' };
+      syncChip();
+      bar.querySelectorAll('.qchip').forEach(function (c) { c.setAttribute('aria-checked', 'false'); });
+    }
+    function closeBar(msg) {
+      openPop(false);
+      el.discard.hidden = true;
+      pendingDiscard = false;
+      bar.hidden = true;
+      if (el.reopen) {
+        // 这条占位的措辞必须跟着「为什么关的」走。
+        // 捕获成功时留着「什么都没有保存」，等于刚收下就告诉用户丢了。
+        var m = el.reopen.querySelector('[data-role="reopen-msg"]');
+        if (m) { m.textContent = msg || '捕获条已关闭，没有提交。'; }
+        el.reopen.hidden = false;
+      }
+    }
+    function reopenBar() {
+      if (el.reopen) el.reopen.hidden = true;
+      var cv0 = bar.closest('.canvas');
+      if (cv0) { cv0.classList.remove('is-taken'); }
+      var tk = document.querySelector('.taken');
+      if (tk) { tk.remove(); }
+      bar.hidden = false;
+      reset();
+      el.title.focus();
+    }
+
+    /* ---- 提交：回车与「添加」走同一条路 ----
+       这一段原来两个入口都是死的：按钮只被「能否点击」绑定，点了没有任何反应；
+       而标题旁边写着「回车提交」，回车只是往 textarea 里插了一个换行。
+       一根捕获条最核心的承诺就是「打完字，它就进去了」，所以它必须真的收下。
+       演示稿没有数据库，收下的动作 = 收起 + 把这条留在画布上（看得见才可信）。 */
+    var lastCapture = null;
+    function captureNow() {
+      var title = (el.title.value || '').trim();
+      if (!title) { return false; }
+      var q = null;
+      bar.querySelectorAll('.qchip').forEach(function (c) {
+        if (c.getAttribute('aria-checked') === 'true') { q = c.getAttribute('data-q'); }
+      });
+      lastCapture = {
+        title: title,
+        when: (bar.querySelector('[data-role="timelabel"]') || {}).textContent || '不限',
+        quad: q,
+        list: (bar.querySelector('[data-role="listname"]') || {}).textContent || '收集箱'
+      };
+      closeBar('捕获条已关闭，这一条已经收下了。');
+      var cv = bar.closest('.canvas');
+      if (cv) { cv.classList.add('is-taken'); }
+      showTaken(lastCapture);
+      reset();
+      return true;
+    }
+    function showTaken(cap) {
+      var host = bar.closest('.canvas');
+      if (!host) { return; }
+      var old = host.querySelector('.taken');
+      if (old) { old.remove(); }
+      var box = document.createElement('div');
+      box.className = 'taken';
+      box.setAttribute('role', 'status');
+      box.textContent = '已收下「' + cap.title + '」· ' + cap.when +
+        (cap.quad ? ' · ' + cap.quad : '') + ' · ' + cap.list;
+      host.appendChild(box);
+    }
+    if (el.submit && opts.wireSubmit !== false) {
+      el.submit.addEventListener('click', captureNow);
+    }
+    el.title.addEventListener('keydown', function (e) {
+      // Enter 提交，Shift+Enter 换行 —— 两行高的输入框里，这是最少的让步。
+      if (e.key !== 'Enter' || e.shiftKey || e.isComposing) { return; }
+      e.preventDefault();
+      captureNow();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape' || bar.hidden) return;
+      // 浮层自己已经消费掉的 Esc 不要再往下走（否则一次 Esc 关两层）。
+      if (e.defaultPrevented) return;
+      // 这一页并排放着 A / B / C 三根条，真实产品里只有一根。
+      // 焦点在别人身上时不该由我来关。
+      if (inOtherBar(e.target) || inOtherBar(document.activeElement)) return;
+      e.preventDefault();
+      if (pendingDiscard) { closeBar(); return; }
+      if (hasContent()) {
+        // 有内容：第一次 Esc 只是把「丢不丢」摆出来，绝不直接清空。
+        pendingDiscard = true;
+        el.discard.hidden = false;
+        el.discard.setAttribute('role', 'alert');
+        var cancel = el.discard.querySelector('[data-role="discard-cancel"]');
+        if (cancel) cancel.focus();
+        return;
+      }
+      closeBar();
+    });
+
+    if (el.discard) {
+      el.discard.addEventListener('click', function (e) {
+        var t = e.target.closest('button');
+        if (!t) return;
+        pendingDiscard = false;
+        el.discard.hidden = true;
+        // `hasAttribute('data-role="discard-ok"')` 永远为 false —— hasAttribute 取的是
+        // 属性名，不是选择器。于是「丢弃」点了没反应，用户只能连按两次 Esc 才出得去。
+        if (t.getAttribute('data-role') === 'discard-ok') {
+          closeBar('捕获条已关闭，没有提交。');
+          reset();
+        } else {
+          el.title.focus();
+        }
+      });
+    }
+    if (el.reopen) {
+      var btn = el.reopen.querySelector('[data-role="reopen-btn"]');
+      if (btn) btn.addEventListener('click', reopenBar);
+    }
+
+    if (el.submit && opts.wireSubmit !== false) {
+      el.title.addEventListener('input', function () {
+        el.submit.disabled = el.title.value.trim() === '';
+      });
+    }
+    wireQchips(bar);
+
+    // 初始同步。状态 A 从「不限 + 四个都没选」开始，所以浮层也是收起的。
+    syncChip();
+    openPop(opts.open === true);
+
+    return { state: function () { return state; }, openPop: openPop };
   }
 
-  function openPop(open) {
-    bPop.hidden = !open;
-    bChip.setAttribute('aria-expanded', String(open));
-  }
-  openPop(true);
-  renderCal();
-  syncChip();
+  /* ---------- A · 默认：一个都没选，时间按钮接上浮层 ---------- */
+  var aBar = document.querySelector('.capbar[data-state="a"]');
+  Composer(aBar, { initialKind: 'none', open: false });
 
-  bChip.addEventListener('click', function () {
-    openPop(bPop.hidden);
-    if (!bPop.hidden) renderCal();
-  });
+  /* ---------- B · 时间展开：浮层是打开的，所以保持打开 ---------- */
+  var bBar = document.querySelector('.capbar[data-state="b"]');
+  Composer(bBar, { initialKind: 'today', open: true });
 
-  /* 两条必需的关闭路径。原来只有「再点一次触发器」——一个非模态浮层，
-     唯一的退出方式是提交一个值，比没有这个功能更糟：用户被卡在捕获中途。
-     原生 popover="auto" 本来免费提供这两条；这里是手搓的，就得自己补。 */
-  document.addEventListener('keydown', function (e) {
-    if (e.key !== 'Escape' || bPop.hidden) return;
-    e.preventDefault();
-    openPop(false);
-    bChip.focus();
-  });
-  document.addEventListener('pointerdown', function (e) {
-    if (bPop.hidden) return;
-    // 触发器自己的点击由它自己的 click 处理负责开关；这里若也关一次，
-    // 紧接着 click 又把「关」翻成「开」，重开就永远失败。
-    if (bPop.contains(e.target) || bChip.contains(e.target)) return;
-    openPop(false);
-  }, true);
+  /* ---------- C · 提交失败：回显「明天 + Q1」，时间与象限都能改 ----------
+     失败之后最该做的事是改完重试，所以这根条不能被冻住。 */
+  var cBar = document.querySelector('.capbar[data-state="c"]');
+  Composer(cBar, { initialKind: 'tomorrow', open: false, wireSubmit: false });
 
-  bBar.querySelector('.presets').addEventListener('click', function (e) {
-    var p = e.target.closest('.preset');
-    if (!p) return;
-    var key = p.getAttribute('data-preset');
-    if (key === 'none') bState = { kind: 'none' };
-    else if (key === 'week') bState = { kind: 'week' };
-    else if (key === 'month') bState = { kind: 'month' };
-    else if (key === 'today') bState = { kind: 'today', date: TODAY };
-    else if (key === 'tomorrow') bState = { kind: 'tomorrow', date: K.addDays(TODAY, 1) };
-    else if (key === 'time') bState = { kind: 'time', date: TODAY, time: '15:00' };
-    syncChip();
-    openPop(false); /* 选完就收起 —— 一个预设就是一个决定 */
-  });
-
-  bBar.querySelectorAll('.mininav').forEach(function (nav) {
-    nav.addEventListener('click', function () {
-      var dir = +nav.getAttribute('data-nav');
-      bView = new Date(bView.getFullYear(), bView.getMonth() + dir, 1);
-      renderCal();
-    });
-  });
-
-  bGrid.addEventListener('click', function (e) {
-    var day = e.target.closest('[data-day]');
-    if (!day) return;
-    bState = { kind: 'day', date: day.getAttribute('data-day') };
-    syncChip();
-    openPop(false); /* 点具体一天 = 某一天，浮层收起 */
-  });
-
-  bBar.querySelectorAll('.qchip').forEach(function (chip) {
-    chip.addEventListener('click', function () {
-      bBar.querySelectorAll('.qchip').forEach(function (c) { c.setAttribute('aria-checked', String(c === chip)); });
-    });
-  });
-
-  /* ---------- C · 提交失败 ---------- */
-  var cErr = document.querySelector('.capbar[data-state="c"] [data-role="error"]');
-  var cSubmit = document.querySelector('.capbar[data-state="c"] [data-role="submit"]');
+  var cErr = cBar.querySelector('[data-role="error"]');
+  var cSubmit = cBar.querySelector('[data-role="submit"]');
   cSubmit.addEventListener('click', function () {
     if (cSubmit.textContent.trim() !== '重试') return;
     cErr.hidden = true;
@@ -993,7 +1477,14 @@ document.addEventListener('DOMContentLoaded', function () {
     cSubmit.disabled = false;
     cErr.setAttribute('aria-live', 'polite');
   });
+
+  /* 给验收脚本一个读数口：点过什么、state 是什么，都能直接读到。 */
+  window.KairosCapture = {
+    stateA: function () { return Array.prototype.map.call(
+      aBar.querySelectorAll('.qchip'), function (c) { return c.getAttribute('aria-checked'); }); }
+  };
 });
+</script>
 </script>
 </body>
 </html>
