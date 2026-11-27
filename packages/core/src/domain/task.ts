@@ -3,10 +3,31 @@ import { endOfDay, instantAtLocal } from '../shared/date.js';
 
 const DAY_MS = 86_400_000;
 
-export function quadrantOf(task: Pick<Task, 'important' | 'urgent'>): Quadrant {
-  if (task.important && task.urgent) return 'urgent-important';
+/**
+ * 任务当前所处的象限 —— 派生值，从不落库。
+ *
+ * 同一个函数回答两个问题，可选的时钟就是把它们分开的那条线。
+ * 不传 `now` 时答「用户把它放在哪」：只看两个布尔值，别的不看。
+ * 传了 `now` 时答「它此刻算什么」：一件过期的事不管用户有没有勾，
+ * 一律算紧急（ADR 0007 §1）。
+ *
+ * 两种读法下 `near` 都刻意不进 Q1：矩阵只有在 Q1 够小时才有用，
+ * 「明天到期」是行上的信号，不是挪卡片进 Q1 的理由（ADR 0007 §2）。
+ */
+export function quadrantOf(task: Pick<Task, 'important' | 'urgent'>): Quadrant;
+export function quadrantOf(task: Task, now?: Instant): Quadrant;
+export function quadrantOf(
+  task: Pick<Task, 'important' | 'urgent'> | Task,
+  now?: Instant,
+): Quadrant {
+  // `'status' in task` 与上面的重载一一对应：只有完整的 Task 才回答得了
+  // 时钟问题，光有一对布尔值不能假装自己答过了。
+  const urgent =
+    task.urgent ||
+    (now !== undefined && 'status' in task && urgencyOf(task, now) === 'urgent');
+  if (task.important && urgent) return 'urgent-important';
   if (task.important) return 'not-urgent-important';
-  if (task.urgent) return 'urgent-not-important';
+  if (urgent) return 'urgent-not-important';
   return 'unimportant';
 }
 
@@ -93,6 +114,82 @@ export function isOverdue(task: Task, now: Instant): boolean {
     case 'none':
       return false;
   }
+}
+
+/**
+ * 任务离截止还有多久，五级读数。
+ *
+ * 每一级回答的都是「还剩多少时间」，而不是「用户挑了哪个粒度」。
+ * 单看 `dueAt` 答不了：day / period 任务的 `dueAt` 是伪造的本地午夜
+ * （见 `isOverdue`），拿它减 `now` 会把「今天到期」的事在 00:00:01 就
+ * 判成迟到。所以剩余时间一律从 `isOverdue` 用的那条边界量起 ——
+ * day 用 `endOfDay`，period 用 `endOfPeriod`，time 用 `dueAt` 本身 ——
+ * 读数与过期标记因此永远对得上，不会各算一套（`calendar.ts:58` 警告的
+ * 正是那个「两个可能打架」的地方）。
+ *
+ * 阈值取闭区间上界（≤ 24h 算 `near`），与 `design/v2/data.js` 已用
+ * 16 条断言验证过的阶梯一致；随着 `now` 前进只会收紧、不会跳变或漏档，
+ * 所以整条刻度是单调的。
+ *
+ * 已完成的任务不管日期都读 `none`：它不是还要去处理的东西。
+ */
+export type Urgency = 'none' | 'far' | 'soon' | 'near' | 'urgent';
+
+const HOUR_MS = 3_600_000;
+const NEAR_WINDOW_MS = 24 * HOUR_MS;
+const SOON_WINDOW_MS = 3 * 24 * HOUR_MS;
+const FAR_WINDOW_MS = 14 * 24 * HOUR_MS;
+
+/**
+ * 任务调度窗口结束的那个瞬间（毫秒时间戳）。
+ *
+ * 逐条镜像 `isOverdue` 的边界选择（day → `endOfDay`，period → `endOfPeriod`，
+ * time → `dueAt`）。特意在这里重写而没让 `isOverdue` 反过来调它，是为了
+ * 不动它那套 `<` / `<=` 比较 —— 这就是同一条边界被复用，不是第二套。
+ * 前提：`dueAt` 非空。
+ */
+function deadlineMs(task: Task): number {
+  switch (duePrecisionOf(task)) {
+    case 'time':
+      return Date.parse(task.dueAt!);
+    case 'period':
+      return Date.parse(
+        task.dueDate === null || task.duePeriod === null
+          ? task.dueAt!
+          : endOfPeriod(task.dueDate, task.duePeriod),
+      );
+    default:
+      // day，外加「有 dueAt 却没 dueDate」的老数据：退回存下来的瞬间。
+      return Date.parse(task.dueDate === null ? task.dueAt! : endOfDay(task.dueDate));
+  }
+}
+
+export function urgencyOf(task: Task, now: Instant): Urgency {
+  // 没有日期（精度 `none`）就是「读不出时间」，和已完成一样。
+  // 没排期的行可能残留一个 dueAt，不能凭它编出一个截止时间。
+  if (task.status === 'done' || duePrecisionOf(task) === 'none') return 'none';
+
+  // `urgent` 这一级直接问 `isOverdue` 而不是自己再比一遍：它掌握着每种
+  // 精度各自的 `<` / `<=` 拆分，边界必须精确到毫秒才对得上，否则板上和
+  // 行上的提醒会互相打架。
+  if (isOverdue(task, now)) return 'urgent';
+
+  const left = deadlineMs(task) - Date.parse(now);
+  if (left <= NEAR_WINDOW_MS) return 'near';
+  if (left <= SOON_WINDOW_MS) return 'soon';
+  if (left <= FAR_WINDOW_MS) return 'far';
+  return 'none';
+}
+
+/**
+ * 这件任务是否因时间而紧急（而非用户手标）。
+ *
+ * 这是拖拽判定的唯一依据（ADR 0007 §3）：把这种任务拖到别的象限要被拒绝 ——
+ * 一件已经过期的事不能被声明为「不紧急」，用户真正能做的只有做掉它，
+ * 或者给它一个新日期。
+ */
+export function isUrgentByClock(task: Task, now: Instant): boolean {
+  return urgencyOf(task, now) === 'urgent' && !task.urgent;
 }
 
 /** Days between a local date and "today" (negative = in the past). */
