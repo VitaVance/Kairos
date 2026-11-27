@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { DragEvent as ReactDragEvent } from 'react';
 import type { Instant, LocalDate, Task, TaskId, TaskList } from '@todolist/core';
+import { endOfDay, endOfPeriod } from '@todolist/core';
 import { isUrgentByClock, quadrantOf } from '@todolist/core';
 import type { QuadrantKey } from '@todolist/ui';
 import {
@@ -17,6 +18,8 @@ import { useTasks } from '../data/useTasks';
 import { useAppServices } from '../services';
 import { useNowInstant } from '../shared/useNow';
 import { dragVerdict } from './drag-verdict';
+import { nextIntoQ1 } from './next-into-q1';
+import { formatDue } from '../task/due-label';
 import { useToast } from '../undo/UndoProvider';
 import { QuadrantRow, QUADRANT_DRAG_MIME } from './QuadrantRow';
 
@@ -72,6 +75,25 @@ function byMostRecent(first: Task, second: Task): number {
   const b = completedMoment(second);
   if (a === b) return 0;
   return a < b ? 1 : -1;
+}
+
+/**
+ * 一件任务真正「变迟」的那一刻。
+ *
+ * `dueAt` 对 day / period 任务是伪造的本地午夜（见 `duePrecisionOf` 的注释），
+ * 拿它当截止点会得出「今天的事在今天 00:00 就过期了」。所以这里必须按精度
+ * 分别取边界 —— 与 `isOverdue` / `urgencyOf` 用的是同一条线，不另算一套。
+ */
+function deadlineOf(task: Task): Instant | null {
+  if (task.dueDate === null) {
+    return task.dueAt;
+  }
+  if (!task.allDay) {
+    return task.dueAt;
+  }
+  return task.duePeriod === null
+    ? endOfDay(task.dueDate)
+    : endOfPeriod(task.dueDate, task.duePeriod);
 }
 
 export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: QuadrantScreenProps) {
@@ -256,8 +278,30 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
   if (error && !data)
     return <EmptyState message={t('quadrant.loadErrorTitle')} hint={t('quadrant.loadErrorHint')} />;
 
+  /*
+   * ADR 0007 决策 5：卡片移动只有用户盯着的那一秒看得见。
+   *
+   * 他早上打开板子看到的是此刻的状态，去倒杯咖啡回来，某件事已经悄悄
+   * 从 Q2 掉进 Q1。提前把「下一次翻转」说出来，比事后补一个动画有用 ——
+   * 而且它不需要用户正好在看。
+   */
+  const nextFlip = nextIntoQ1(
+    all,
+    (task) => deadlineOf(task),
+    now,
+  );
+
   return (
-    <div ref={gridRef} className={`qz-grid${draggingId ? ' qz-grid--dragging' : ''}`}>
+    <div className="qz-wrap">
+      {nextFlip === null ? null : (
+        <p className="qz-next" role="status">
+          {t('quadrant.nextIntoQ1', {
+            title: nextFlip.task.title,
+            when: formatDue(nextFlip.task, today),
+          })}
+        </p>
+      )}
+      <div ref={gridRef} className={`qz-grid${draggingId ? ' qz-grid--dragging' : ''}`}>
       {/* Polite live region: quadrant moves are user-controlled data, and
           keyboard users get no visual drag feedback. Always rendered so a
           changed string is what triggers the announcement. */}
@@ -427,6 +471,7 @@ export function QuadrantScreen({ lists, today, onOpenTask, listId = null }: Quad
           </section>
         );
       })}
+      </div>
     </div>
   );
 }

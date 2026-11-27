@@ -1,6 +1,25 @@
 /* Feature screens — layout only. All colors/sizes come from --tl-* tokens. */
 
 /* ---------------- Quadrant matrix ---------------- */
+/* 「下一件进 Q1」—— 网格上方的一行预告，不属于任何一张卡。 */
+.qz-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+.qz-next {
+  flex: none;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--tl-radius-md);
+  background: var(--tl-surface-subtle);
+  color: var(--tl-text-secondary);
+  font-size: var(--tl-font-size-xs);
+}
+
 .qz-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -10,7 +29,7 @@
      card the same box at every window size and lets the inner list scroll. */
   grid-template-rows: repeat(2, minmax(0, 1fr));
   gap: 12px;
-  height: 100%;
+  flex: 1;
   min-height: 0;
 }
 
