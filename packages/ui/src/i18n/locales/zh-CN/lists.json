@@ -73,7 +73,15 @@
     "untitledTask": "任务",
     "completed": "已完成",
     "completedRecent": "仅显示最近 {{shown}} 条 · 共 {{total}} 条",
-    "inbox": "收集箱"
+    "inbox": "收集箱",
+    "dueSoon": "今天到期",
+    "dueTomorrow": "明天到期",
+    "overdue": "已过期",
+    "whyClock": "时间推上来的",
+    "whyUser": "你标的紧急",
+    "cannotMoveOverdue": "「{{title}}」已经过期，不能移到别的象限——只能完成或改期。",
+    "urgentRemaining": "今天还有 {{count}} 件会因过期进入紧急",
+    "nextIntoQ1": "下一件进 Q1：{{title}} {{when}}"
   },
   "row": {
     "dragAria": "拖动「{{title}}」到其他象限",

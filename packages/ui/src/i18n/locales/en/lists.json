@@ -73,7 +73,16 @@
     "untitledTask": "Task",
     "completed": "Completed",
     "completedRecent": "Showing the latest {{shown}} of {{total}}",
-    "inbox": "Inbox"
+    "inbox": "Inbox",
+    "dueSoon": "Due today",
+    "dueTomorrow": "Due tomorrow",
+    "overdue": "Overdue",
+    "whyClock": "Pushed up by the clock",
+    "whyUser": "You flagged this urgent",
+    "cannotMoveOverdue": "“{{title}}” is overdue and cannot move to another quadrant — complete it or reschedule it.",
+    "urgentRemaining_one": "{{count}} more task will become urgent today",
+    "urgentRemaining_other": "{{count}} more tasks will become urgent today",
+    "nextIntoQ1": "Next into Q1: {{title}} {{when}}"
   },
   "row": {
     "dragAria": "Drag “{{title}}” to another quadrant",
