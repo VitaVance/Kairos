@@ -41,10 +41,35 @@
     { id: 18, title: '整理浏览器书签',  rung: 'none',   important: false, list: 'inbox', urgent: false, done: false },
     { id: 19, title: '设计评审',        rung: 'time',   date: '2026-11-25', time: '10:00', important: true, list: 'work', urgent: false, done: false, expired: true },
     { id: 20, title: '家长会',          rung: 'time',   date: '2026-11-24', time: '10:30', important: true, list: 'life', urgent: false, done: true },
+    /*
+     * ADR 0006 需要一条真正的「占用」：这三天人被拿走了。
+     * 它和「写季度总结（这周）」在数据上同为区间，语义完全不同 ——
+     * 前者有资格在日历上占地方，后者没有。blocksTime 是两者的唯一区分。
+     */
+    { id: 21, title: '去杭州出差',      rung: 'range',  start: '2026-12-03', end: '2026-12-05', important: true, list: 'work', urgent: false, done: false, blocksTime: true },
   ];
 
   var TODAY = '2026-11-26';
   var NOW_MIN = 14 * 60 + 20;      // 14:20
+
+  /*
+   * 「现在」必须是一个会走的东西。
+   *
+   * 原来 TODAY / NOW_MIN 是 module-level 的 var，导出的 Kairos.TODAY 只是拷了一份值，
+   * 所以外部改 K.NOW_MIN 对 urgencyOf() 毫无作用 —— 它在闭包里读原变量。
+   * 更要命的是 quadrantOf() 调用 urgencyOf() 时不传时钟，于是「紧急随时间变化」
+   * 这条 ADR 0004 §4 的核心主张，在数据层根本没有接上。
+   *
+   * 现在：这两个变量是唯一真源，setNow() 是唯一写入口，quadrantOf 把时钟传下去。
+   * 任何视图想知道「现在」都必须调 K.now()，不许自己读 K.TODAY 的快照。
+   */
+  function setNow(min, today) {
+    if (typeof min === 'number' && isFinite(min)) NOW_MIN = Math.max(0, Math.min(1439, Math.round(min)));
+    if (typeof today === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(today)) TODAY = today;
+    return { nowMin: NOW_MIN, today: TODAY };
+  }
+  function now() { return { nowMin: NOW_MIN, today: TODAY }; }
+
   /** 本周周一 */
   var WEEK_START = '2026-11-23';
   /** 上周周一 */
@@ -78,6 +103,41 @@
   /** 该日期所在月的 1 号 */
   function monthStartOf(d) { return d.slice(0, 8) + '01'; }
 
+  /* ---- 一段时间的终点：唯一的一份算法 ---- */
+  /*
+   * 半开区间（end = 下周一 / 次月 1 号）是**日历切片**要的，
+   * 但把它直接印给人看会得到「11/23 – 11/30」，读起来是「到 30 号为止」——错一天。
+   * 全站只留这一个函数，任何视图要显示区间都必须走它。
+   *
+   * 注意两种 rung 的 end 语义不同：
+   *   week / month —— end 是**半开**的（下周一 / 次月 1 号），闭区间要减一天
+   *   range        —— end 是**用户亲手填的最后一天**，本身就是闭的，不能再减
+   */
+  function spanEnd(rung, date, inclusive) {
+    var start, end, endIsExclusive;
+    if (rung === 'week') { start = weekStartOf(date); end = addDays(start, 7); endIsExclusive = true; }
+    else if (rung === 'month') {
+      start = monthStartOf(date);
+      var d = parse(start); d.setMonth(d.getMonth() + 1); end = fmt(d); endIsExclusive = true;
+    } else if (rung === 'range') { start = date.start; end = date.end; endIsExclusive = false; }
+    else return null;
+    var shown = (inclusive === false || !endIsExclusive) ? end : addDays(end, -1);
+    return { start: start, end: shown };
+  }
+
+  /** 「11/23 – 11/29」——全站唯一的区间写法（闭区间，给人看） */
+  function formatSpan(rung, date) {
+    var r = spanEnd(rung, date, true);
+    if (!r) return '';
+    return shortDate(r.start) + ' – ' + shortDate(r.end);
+  }
+  function shortDate(d) { var p = d.split('-'); return (+p[1]) + '/' + (+p[2]); }
+
+  /** 这段时间是否真的被占用（ADR 0006）：出差、假期是；「这周写完」不是。 */
+  function isOccupancy(item) {
+    return item.blocksTime === true;
+  }
+
   /* ---- 时间阶梯的文字 ---- */
   function rungLabel(item, today) {
     today = today || TODAY;
@@ -99,6 +159,9 @@
         if (diff === 0) return '这周';
         if (diff === -1) return '上周';
         if (diff === 1) return '下周';
+        // A negative bare number ("第 -3 周") is not a human phrase. Anything
+        // further back than last week is described as how long it has been.
+        if (diff < -1) return (-diff) + ' 周前';
         return '第 ' + diff + ' 周';
       }
       case 'day': {
@@ -120,15 +183,40 @@
         var tDay = tn === 0 ? '今天' : tn === 1 ? '明天' : (parse(item.date).getMonth() + 1) + '月' + parse(item.date).getDate() + '日';
         return tDay + ' ' + item.time;
       }
+      case 'range': {
+        return formatSpan('range', { start: item.start, end: item.end });
+      }
     }
     return '';
   }
 
   /* ---- 状态：是否逾期 ---- */
+  /*
+   * 每种形状都要能回答「它从哪一刻开始算迟」与「它现在算不算迟」。
+   * 加 `range` 时漏了这两个分支，于是 01/05/06 在排序里读到 undefined 崩掉 ——
+   * 一个形状不是「数据里多一条」，是**每一处判定都要多一个分支**。
+   */
+  /** 一段时间的最后一个时刻（半开转闭）。 */
+  function spanLastDay(item) {
+    if (item.rung === 'week') return addDays(weekStartOf(item.date), 6);
+    if (item.rung === 'month') {
+      var ms = monthStartOf(item.date), d = parse(ms);
+      d.setMonth(d.getMonth() + 1); d.setDate(0);           // 月末
+      return fmt(d);
+    }
+    if (item.rung === 'range') return item.end;
+    return null;
+  }
+
   function isLate(item, nowMin) {
     nowMin = nowMin == null ? NOW_MIN : nowMin;
     if (item.done) return false;
     if (item.rung === 'month' || item.rung === 'week' || item.rung === 'none') return false;  // 计划窗口不算逾期
+    if (item.rung === 'range') {
+      // 只有「占用」才算迟：出差结束了、假期结束了，人回来了而这件事没做完。
+      // 意图性的区间（这周写完）不是承诺，绝不标红（ADR 0004 §2）。
+      return item.blocksTime === true && spanLastDay(item) < TODAY;
+    }
     if (item.rung === 'time') {
       if (item.date < TODAY) return true;
       if (item.date > TODAY) return false;
@@ -146,12 +234,13 @@
     return false;
   }
 
-  /** 计划窗口已过（week/month 专用，用 warning 而不是 danger） */
+  /** 计划窗口已过（week/month/意图性区间专用，用 warning 而不是 danger） */
   function isWindowPassed(item, today) {
     today = today || TODAY;
     if (item.done) return false;
     if (item.rung === 'week') return weekStartOf(item.date) < weekStartOf(today);
     if (item.rung === 'month') return monthStartOf(item.date) < monthStartOf(today);
+    if (item.rung === 'range' && item.blocksTime !== true) return spanLastDay(item) < today;
     return false;
   }
 
@@ -161,6 +250,19 @@
     if (item.urgent) return 'urgent';
     if (item.done) return 'none';
     if (item.rung === 'none' || item.rung === 'month') return 'none';
+    if (item.rung === 'range') {
+      // Intention spans carry no clock reading at all (ADR 0006): the user said
+      // "this week", not "by Thursday". An occupancy span does have an end —
+      // the last minute of the last day — but it still never reaches Q1 by
+      // time alone, because coming back from a trip is not a missed deadline.
+      if (item.blocksTime !== true) return 'none';
+      var last = spanLastDay(item);
+      var leftDays = diffDays(addDays(last, 1), TODAY);
+      if (leftDays <= 0) return 'far';
+      if (leftDays <= 1) return 'near';
+      if (leftDays <= 3) return 'soon';
+      return 'far';
+    }
     if (item.rung === 'week') {
       // week/month NEVER reach 'urgent' by time (ADR 0004 §4): a plan window
       // passing is not a missed deadline. A passed week stays at 'far'; the
@@ -210,8 +312,11 @@
    * urgency comes from `urgencyOf()` — the user's flag OR the clock reading
    * `urgent`. `near` deliberately does NOT count: ADR §4 keeps Q1 small.
    */
-  function quadrantOf(item) {
-    var urgent = item.urgent === true || urgencyOf(item) === 'urgent';
+  function quadrantOf(item, nowMin) {
+    // The clock must be threaded through: `urgencyOf()` without an argument
+    // reads the module-level NOW_MIN, which setNow() mutates — but if a caller
+    // passes an explicit minute, the quadrant has to agree with it.
+    var urgent = item.urgent === true || urgencyOf(item, nowMin) === 'urgent';
     if (item.important && urgent) return 1;
     if (item.important) return 2;
     if (urgent) return 3;
@@ -230,15 +335,35 @@
     for (var j = 0; j < open.length; j++) {
       if (byList[open[j].list] != null) byList[open[j].list]++;
     }
-    var today = 0;
-    for (var m = 0; m < open.length; m++) if (open[m].date === TODAY) today++;
+    // Two different questions, two names. 01/02 used to count a week/month
+    // window that covers today (`today` = 7); 03/04/05 counted only items whose
+    // date IS today (= 5). Both are legitimate, but calling both 「今天」 made
+    // two sidebars in one product disagree. Now each has its own name.
+    var todayExact = 0, coveringToday = 0;
+    for (var m = 0; m < open.length; m++) {
+      if (open[m].date === TODAY) todayExact++;
+      if (coversToday(open[m])) coveringToday++;
+    }
     return {
       open: open.length,
       done: ITEMS.length - open.length,
       total: ITEMS.length,
       byList: byList,
-      today: today,
+      today: todayExact,          // 今天这一格有事（日历口径）
+      todayWindow: coveringToday, // 今天要操心的事（含覆盖今天的窗口）——板的「今天」
     };
+  }
+
+  /** 这件事今天是否「要操心」：日期是今天，或它所在的窗口覆盖今天。 */
+  function coversToday(item, today) {
+    today = today || TODAY;
+    if (item.done) return false;
+    if (item.rung === 'none') return false;
+    if (item.rung === 'week') return weekStartOf(item.date) === weekStartOf(today);
+    if (item.rung === 'month') return monthStartOf(item.date) === monthStartOf(today);
+    if (item.rung === 'range') return item.start <= today && item.end >= today;
+    if (item.rung === 'day' || item.rung === 'period' || item.rung === 'time') return item.date === today;
+    return false;
   }
 
   /**
@@ -246,6 +371,14 @@
    * not the word 不限 — an undated thing is identified by where it lives.
    * Four fragments printed 不限 instead; this is the single definition.
    */
+  /** 排序用的起始日期：每种形状都有一个「它从哪天开始」。 */
+  function startOf(item) {
+    if (item.rung === 'week') return weekStartOf(item.date);
+    if (item.rung === 'month') return monthStartOf(item.date);
+    if (item.rung === 'range') return item.start;
+    return item.date || '9999-99-99';
+  }
+
   function rowLabel(item) {
     if (item.rung === 'none') {
       for (var k = 0; k < LISTS.length; k++) {
@@ -267,7 +400,9 @@
     PERIOD_LABEL: PERIOD_LABEL,
     rungLabel: rungLabel,
     rowLabel: rowLabel,
+    startOf: startOf,
     counts: counts,
+    coversToday: coversToday,
     quadrantOf: quadrantOf,
     isLate: isLate,
     isWindowPassed: isWindowPassed,
@@ -279,5 +414,13 @@
     monthStartOf: monthStartOf,
     parse: parse,
     fmt: fmt,
+    /* 「现在」的唯一入口 —— 页面内可以改，改完所有派生值立刻跟着变 */
+    now: now,
+    setNow: setNow,
+    /* 区间：唯一的一份终点算法与唯一的一种写法 */
+    spanEnd: spanEnd,
+    formatSpan: formatSpan,
+    shortDate: shortDate,
+    isOccupancy: isOccupancy,
   };
 })(window);

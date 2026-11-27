@@ -41,13 +41,18 @@
 
 /* ---- A · refined --------------------------------------------------------- */
 [data-skin="refined"] {
-  --bg-app: #f5f5f6; --bg-surface: #ffffff; --bg-subtle: #fafafa;
-  --bg-hover: #f4f4f5; --bg-sunken: #f0f0f2;
-  --hairline: #ececee; --hairline-soft: #f2f2f4; --hairline-strong: #e3e3e6;
-  --ink-1: #1d1d1f; --ink-2: #6e6e73; --ink-3: #747478; --ink-4: #c7c7cc;
-  /* ink-3 is 4.27:1 on --bg-app — below 4.5. Quiet text uses this instead. */
+  /* 卡片与画布的可分性：surface↔app 实测 1.20（原 1.09）。
+     只加深画布，不动卡片：卡片承载文字，画布只是地面。
+     画布变深会把二级墨色压到 4.5 以下，所以 ink-2 / ink-3 / accent-ink
+     一起推过 line；三者在卡片上都仍然是原来的量级。 */
+  --bg-app: #eaeaeb; --bg-surface: #ffffff; --bg-subtle: #f8f8f8;
+  --bg-hover: #ededef; --bg-sunken: #eaeaea;
+  --hairline: #dededf; --hairline-soft: #ececee; --hairline-strong: #cfcfd2;
+  /* ink-2 / ink-3 在卡片、画布、以及 sunken 徽标底（.qcard__n / .sidebar__count
+     用 --bg-sunken）上都要过 4.5 —— 三块底里 sunken 是最暗的，按它定值。 */
+  --ink-1: #1d1d1f; --ink-2: #616166; --ink-3: #69696c; --ink-4: #b9b9be;
   --ink-quiet: #636366;
-  --accent: #3b82f6; --accent-ink: #2563eb; --accent-strong: #2563eb;
+  --accent: #3b82f6; --accent-ink: #245fe3; --accent-strong: #2563eb;
   --accent-tint: #eef4ff; --accent-contrast: #ffffff;
   --cta-bg: #2563eb; --cta-bg-hover: #1d4ed8; --cta-text: #ffffff;
   --danger: #ff5252; --danger-ink: #c62828; --danger-tint: #fff0ef;
@@ -62,13 +67,15 @@
   --editorial-serif: var(--font-sans);
 }
 [data-skin="refined"][data-theme="dark"] {
-  --bg-app: #161617; --bg-surface: #1f1f21; --bg-subtle: #1a1a1c;
-  --bg-hover: #2a2a2d; --bg-sunken: #121214;
-  --hairline: #2e2e32; --hairline-soft: #26262a; --hairline-strong: #3c3c42;
-  --ink-1: #f5f5f7; --ink-2: #a8a8ae; --ink-3: #87878e; --ink-4: #5a5a61;
+  /* 深色下相反：卡片往上抬（surface 提亮），画布不动。
+     卡片/app 1.21；ink-3 同时推亮到在卡片上也过 4.5。 */
+  --bg-app: #161617; --bg-surface: #272729; --bg-subtle: #1e1e20;
+  --bg-hover: #3d3d3e; --bg-sunken: #121214;
+  --hairline: #38383c; --hairline-soft: #2e2e32; --hairline-strong: #4a4a50;
+  --ink-1: #f5f5f7; --ink-2: #a8a8ae; --ink-3: #929297; --ink-4: #5f5f64;
   --ink-quiet: #9b9ba1;
-  --accent: #3b82f6; --accent-ink: #60a5fa; --accent-strong: #3b82f6;
-  --accent-tint: #22223a; --accent-contrast: #101418;
+  --accent: #3b82f6; --accent-ink: #8ab4ff; --accent-strong: #3b82f6;
+  --accent-tint: #26284a; --accent-contrast: #101418;
   --cta-bg: #3b82f6; --cta-bg-hover: #4f8ef7; --cta-text: #101418;
   --danger: #ff6b6b; --danger-ink: #ff6b6b; --danger-tint: #3a2424;
   --warning-ink: #ffb74d; --success: #10b981; --success-ink: #34d399;
@@ -83,10 +90,10 @@
 
 /* ---- B · protool --------------------------------------------------------- */
 [data-skin="protool"] {
-  --bg-app: #fbfbfa; --bg-surface: #ffffff; --bg-subtle: #fafaf8;
+  --bg-app: #eaeaea; --bg-surface: #ffffff; --bg-subtle: #f8f8f6;
   --bg-hover: #f4f3f0; --bg-sunken: #f2f1ee;
   --hairline: #e4e3df; --hairline-soft: #efeeeb; --hairline-strong: #d8d5d0;
-  --ink-1: #1a1a17; --ink-2: #5e5e58; --ink-3: #77746c; --ink-4: #bdbdb5;
+  --ink-1: #1a1a17; --ink-2: #5e5e58; --ink-3: #6c6962; --ink-4: #bdbdb5;
   --ink-quiet: #64625b;
   --accent: #5b5bd6; --accent-ink: #4b4bc6; --accent-strong: #5b5bd6;
   --accent-tint: #eeedfb; --accent-contrast: #ffffff;
@@ -104,10 +111,10 @@
   --control-h: 1.75rem; --control-h-sm: 1.625rem;
 }
 [data-skin="protool"][data-theme="dark"] {
-  --bg-app: #141413; --bg-surface: #1d1d1b; --bg-subtle: #191918;
-  --bg-hover: #272724; --bg-sunken: #101010;
-  --hairline: #2c2c29; --hairline-soft: #242422; --hairline-strong: #3d3c39;
-  --ink-1: #f2f2ee; --ink-2: #a5a59d; --ink-3: #85857d; --ink-4: #585851;
+  --bg-app: #141413; --bg-surface: #252523; --bg-subtle: #1d1d1b;
+  --bg-hover: #3b3b39; --bg-sunken: #101010;
+  --hairline: #34342f; --hairline-soft: #292926; --hairline-strong: #45443f;
+  --ink-1: #f2f2ee; --ink-2: #a5a59d; --ink-3: #8d8d85; --ink-4: #5e5e57;
   --ink-quiet: #9d9d95;
   --accent: #8b8bf0; --accent-ink: #8b8bf0; --accent-strong: #8b8bf0;
   --accent-tint: #22223a; --accent-contrast: #141413;
@@ -125,13 +132,13 @@
 
 /* ---- C · editorial ------------------------------------------------------- */
 [data-skin="editorial"] {
-  --bg-app: #f7f3ec; --bg-surface: #fffdf8; --bg-subtle: #faf6ee;
+  --bg-app: #ece8e2; --bg-surface: #fffdf8; --bg-subtle: #faf6ee;
   --bg-hover: #f2ece1; --bg-sunken: #f2ece1;
-  --hairline: #e6ddcd; --hairline-soft: #efe7d9; --hairline-strong: #dccfbd;
-  --ink-1: #2f2a24; --ink-2: #6b6155; --ink-3: #7a7168; --ink-4: #bdb3a4;
-  /* ink-3 is 4.33:1 on --bg-app — below 4.5. */
+  --hairline: #e0d8c9; --hairline-soft: #ece4d6; --hairline-strong: #d6c9b7;
+  --ink-1: #2f2a24; --ink-2: #6b6155; --ink-3: #6f675f; --ink-4: #b3a99a;
+  /* 纸底加深后 ink-2/ink-3 都在 4.5 以上（5.96/4.96 与 5.46/4.55）。 */
   --ink-quiet: #6b635a;
-  --accent: #4a6d8c; --accent-ink: #4a6d8c; --accent-strong: #4a6d8c;
+  --accent: #4a6d8c; --accent-ink: #496b8a; --accent-strong: #4a6d8c;
   --accent-tint: rgba(74,109,140,.075); --accent-contrast: #fffdf8;
   --cta-bg: #b4553f; --cta-bg-hover: #9c4634; --cta-text: #fffdf8;
   --danger: #b4553f; --danger-ink: #9c4634; --danger-tint: rgba(180,85,63,.08);
@@ -146,12 +153,21 @@
   --editorial-serif: var(--font-serif);
 }
 [data-skin="editorial"][data-theme="dark"] {
-  --bg-app: #1a1713; --bg-surface: #221e19; --bg-subtle: #1a1713;
-  --bg-hover: #2e2822; --bg-sunken: #14110e;
-  --hairline: #3a332b; --hairline-soft: #2e2822; --hairline-strong: #453c31;
-  --ink-1: #f0e9dd; --ink-2: #a89c8b; --ink-3: #8a8782; --ink-4: #574f45;
-  --ink-quiet: #a1957f;
-  --accent: #7d9dba; --accent-ink: #7d9dba; --accent-strong: #7d9dba;
+  --bg-app: #1a1713; --bg-surface: #2a2722; --bg-subtle: #211e1b;
+  --bg-hover: #413f3a; --bg-sunken: #14110e;
+  --hairline: #3f3830; --hairline-soft: #332d26; --hairline-strong: #4d443a;
+  --ink-1: #f0e9dd; --ink-2: #a89c8b; --ink-3: #a8a49e; --ink-4: #5b5349;
+  --ink-quiet: #b0a894;
+  /*
+   * accent-ink 从 #7d9dba 提到 #95b4cf。
+   * 它同时是强调文字和选中态的墨色，而选中态的地面是 --accent-tint 叠 surface
+   * （#363837）—— 原值在那层上只有 4.16:1，侧栏「今天/全部」、视图胶囊、
+   * 时间档名这些最该一眼认出的东西，在 editorial 暗色下反而最淡。
+   * 4.16 → 5.46（tint 上）、6.88（surface 上）、8.26（app 底上）。
+   * 同族提高 --ink-quiet（4.01 → 5.1）与 --ink-3（3.62 → 4.76）：
+   * 前者用于 06 的计数，后者用于侧栏计数，都压在同一层 tint 上。
+   */
+  --accent: #7d9dba; --accent-ink: #95b4cf; --accent-strong: #95b4cf;
   --accent-tint: rgba(125,157,186,.14); --accent-contrast: #1a1713;
   --cta-bg: #cd7661; --cta-bg-hover: #d98a76; --cta-text: #1a1713;
   --danger: #cd7661; --danger-ink: #d98a76; --danger-tint: rgba(205,118,97,.14);
@@ -261,6 +277,14 @@ html, body { margin: 0; }
   z-index: var(--z-popover);
 }
 .floating-center > * { pointer-events: auto; max-inline-size: calc(100% - 2rem); }
+
+/* ---- 底部浮动胶囊的让位高度 ----------------------------------------------
+   .vpill 高 40px（30 的内容 + 4+4 padding + 上下各 1px 边框），离底 16px，
+   所以它侵占内容区的最后 56px。任何可滚动的内容区都必须至少让出这么多，
+   否则滚到底的最后一行会被它盖住（WCAG 2.4.11 Focus Not Obscured）。
+   --vpill-gap 由 demo.css 的 .content 规则消费（片段页的兜底留白在那里，
+   因为 demo.css 是后加载的，同一选择器它会覆盖这里）。 */
+:root { --vpill-gap: 56px; }
 .topbar {
   display: flex; align-items: center; gap: var(--sp-3);
   padding: var(--sp-3) var(--sp-4);
@@ -546,3 +570,32 @@ body { overflow-wrap: break-word; }
 .lad--time.is-late .lad__pre { color: var(--danger-ink); opacity: .78; }
 .lad.is-passed { border-color: var(--warning-ink); color: var(--warning-ink); }
 .lad--week.is-passed { border-inline-color: var(--warning-ink); }
+
+/* ============================================================================
+   布局韧性 —— 900px 以下的通用退让
+   ----------------------------------------------------------------------------
+   8 个主视图（01/02/03/04/05/07/08/14/15）原来一个断点都没有：
+   375px 下侧栏仍占 220px，主区只剩 99px，行标题被挤成每列一个字
+   （实测 .qrow__title / .lrow__title 的 clientWidth = 0）。
+   这里只做**所有片段都成立**的两件事，片段的个别布局在各自文件里补：
+     1) 侧栏先收窄到 168px，再在 720px 以下整根收起（内容优先）；
+     2) 底栏控件换行而不是顶出屏幕。
+   .app--wide 本身就没有侧栏，不动。
+   ========================================================================== */
+@media (max-width: 900px) {
+  .app { grid-template-columns: 56px 168px minmax(0, 1fr); }
+  .sidebar { padding-inline: var(--sp-1); }
+  .content { padding-inline: var(--sp-3); }
+}
+@media (max-width: 720px) {
+  /* 720 以下侧栏让位：留一条 rail 就够了，内容拿到全部剩余宽度。
+     侧栏里的快捷筛选在窄屏不是消失，而是被顶栏的分段控件接管（各片段自己提供）；
+     这里只做几何退让，不动 DOM。
+     特异性与 base 的 `.app` 相同，靠**文件内顺序**取胜；片段自己写在
+     <style> 里的 `.app`（03/04/14/15 的 900 规则）后加载，优先级更高，
+     所以那几个「整根收起侧栏」的意图不会被这里覆盖。 */
+  .app { grid-template-columns: 56px minmax(0, 1fr); }
+  .app > .sidebar { display: none; }
+  .topbar { padding-inline: var(--sp-3); }
+  .topbar__actions { margin-inline-start: 0; }
+}
