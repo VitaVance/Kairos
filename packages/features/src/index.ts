@@ -1,4 +1,5 @@
 export * from './services';
+export * from './shared/useNow';
 export * from './data/useAsync';
 export * from './data/useTasks';
 export * from './data/useCalendarEntries';

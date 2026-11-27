@@ -3,6 +3,7 @@ import type { MouseEvent, PointerEvent as ReactPointerEvent } from 'react';
 import type { CalendarEntry, LocalDate } from '@todolist/core';
 import { Chip, EmptyState, useTranslation } from '@todolist/ui';
 import { useDayEntries } from '../data/useCalendarEntries';
+import { useNowMinutes } from '../shared/useNow';
 import {
   MINUTES_PER_DAY,
   SNAP_MINUTES,
@@ -69,33 +70,6 @@ interface DayDrag {
   dragged: boolean;
   /** Escape cancelled the sweep; the release must not commit. */
   aborted: boolean;
-}
-
-/**
- * Wall-clock minute-of-day in the app time zone, re-read on every minute
- * boundary while `active`. A single `setTimeout` aligned to the next minute
- * then a 60s interval keeps the tick from drifting, and the timer is cleared
- * on unmount. Inactive views schedule nothing.
- */
-export function useNowMinutes(active: boolean): number {
-  const [minute, setMinute] = useState(() => minutesOfDay(new Date().toISOString()));
-
-  useEffect(() => {
-    if (!active) return;
-    let interval: number | undefined;
-    const tick = () => setMinute(minutesOfDay(new Date().toISOString()));
-    tick();
-    const timeout = window.setTimeout(() => {
-      tick();
-      interval = window.setInterval(tick, 60_000);
-    }, 60_000 - (Date.now() % 60_000));
-    return () => {
-      window.clearTimeout(timeout);
-      if (interval !== undefined) window.clearInterval(interval);
-    };
-  }, [active]);
-
-  return minute;
 }
 
 /**
